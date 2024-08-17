@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
@@ -19,7 +21,7 @@ var interactive bool
 
 type model struct {
 	list     list.Model
-	selected item
+	quitting bool
 }
 
 func (m model) Init() tea.Cmd {
@@ -31,12 +33,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			i, ok := m.list.SelectedItem().(item)
-			if ok {
-				m.selected = i
-			}
 			return m, tea.Quit
 		case "q", "ctrl+c":
+			m.quitting = true
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
@@ -49,16 +48,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-type item struct {
-	title, desc string
-}
-
 func (m model) View() string {
 	return docStyle.Render(m.list.View())
 }
 
+type item struct {
+	title       string
+	description string
+}
+
 func (i item) Title() string       { return i.title }
-func (i item) Description() string { return i.desc }
+func (i item) Description() string { return i.description }
 func (i item) FilterValue() string { return i.title }
 
 // execCmd represents the exec command
@@ -85,7 +85,8 @@ to quickly create a Cobra application.`,
 
 		items := []list.Item{}
 		for _, arn := range clusters.ClusterArns {
-			items = append(items, &item{title: arn, desc: arn})
+			index := strings.LastIndex(arn, "/")
+			items = append(items, item{title: arn[index+1:], description: arn})
 		}
 
 		m := model{list: list.New(items, list.NewDefaultDelegate(), 0, 0)}
@@ -95,7 +96,12 @@ to quickly create a Cobra application.`,
 		if _, err := p.Run(); err != nil {
 			log.Fatal("Error running program:", err)
 		}
-		fmt.Print(m.selected.title)
+		if m.quitting {
+			os.Exit(1)
+		}
+		fmt.Println("============")
+		fmt.Println(m.list.SelectedItem())
+		fmt.Println("============")
 
 		// maxResults := int32(1)
 		// tasks, err := client.ListTasks(context.TODO(), &ecs.ListTasksInput{
