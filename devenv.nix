@@ -2,6 +2,8 @@
 
 {
   packages = [
+    pkgs.aws-vault
+    pkgs.awscli2
     pkgs.cobra-cli
   ];
 
