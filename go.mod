@@ -1,4 +1,4 @@
-module github.com/sestrella/ecs-deploy
+module github.com/sestrella/lazy-ecs
 
 go 1.22.1
 

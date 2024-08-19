@@ -1,4 +1,4 @@
-# ecs-deploy
+# lazy-ecs
 
 ## Links
 
