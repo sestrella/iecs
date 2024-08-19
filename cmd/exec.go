@@ -186,7 +186,7 @@ func selectContainer(client *ecs.Client, cluster item, task item) (*item, error)
 			})
 		}
 	}
-	return newSelector("Tasks", items)
+	return newSelector("Containers", items)
 }
 
 func newSelector(title string, items []list.Item) (*item, error) {
