@@ -177,12 +177,14 @@ func selectContainer(client *ecs.Client, cluster item, task item) (*item, error)
 	}
 
 	items := []list.Item{}
-	for _, container := range output.Tasks[0].Containers {
-		items = append(items, item{
-			name:      *container.Name,
-			arn:       *container.ContainerArn,
-			runtimeId: *container.RuntimeId,
-		})
+	for _, task := range output.Tasks {
+		for _, container := range task.Containers {
+			items = append(items, item{
+				name:      *container.Name,
+				arn:       *container.ContainerArn,
+				runtimeId: *container.RuntimeId,
+			})
+		}
 	}
 	return newSelector("Tasks", items)
 }
