@@ -111,7 +111,7 @@ to quickly create a Cobra application.`,
 		}
 
 		// TODO: rename this variable
-		var foo = fmt.Sprintf("ecs:%s_%s_%s", selectedCluster.arn, selectedTask.arn, selectedContainer.runtimeId)
+		var foo = fmt.Sprintf("ecs:%s_%s_%s", selectedCluster.name, selectedTask.name, selectedContainer.runtimeId)
 		target, err := json.Marshal(ssm.StartSessionInput{
 			Target: &foo,
 		})
@@ -158,9 +158,9 @@ func selectTask(client *ecs.Client, cluster item) (*item, error) {
 
 	items := []list.Item{}
 	for _, arn := range output.TaskArns {
-		slices := strings.Split(arn, "/")
+		index := strings.LastIndex(arn, "/")
 		items = append(items, item{
-			name: fmt.Sprintf("%s/%s", slices[1], slices[2]),
+			name: arn[index+1:],
 			arn:  arn,
 		})
 	}
