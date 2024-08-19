@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -20,8 +19,7 @@ var docStyle = lipgloss.NewStyle().Margin(1, 2)
 var interactive bool
 
 type model struct {
-	list     list.Model
-	quitting bool
+	list list.Model
 }
 
 func (m model) Init() tea.Cmd {
@@ -32,10 +30,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "enter":
-			return m, tea.Quit
-		case "q", "ctrl+c":
-			m.quitting = true
+		case "enter", "q", "ctrl+c":
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
@@ -53,13 +48,13 @@ func (m model) View() string {
 }
 
 type item struct {
-	title       string
-	description string
+	name string
+	arn  string
 }
 
-func (i item) Title() string       { return i.title }
-func (i item) Description() string { return i.description }
-func (i item) FilterValue() string { return i.title }
+func (i item) Title() string       { return i.name }
+func (i item) Description() string { return i.arn }
+func (i item) FilterValue() string { return i.name }
 
 // execCmd represents the exec command
 var execCmd = &cobra.Command{
@@ -78,41 +73,27 @@ to quickly create a Cobra application.`,
 		}
 
 		client := ecs.NewFromConfig(cfg)
-		clusters, err := client.ListClusters(context.TODO(), &ecs.ListClustersInput{})
+		cluster, err := selectCluster(client)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		items := []list.Item{}
-		for _, arn := range clusters.ClusterArns {
-			index := strings.LastIndex(arn, "/")
-			items = append(items, item{title: arn[index+1:], description: arn})
+		task, err := selectTask(client, *cluster)
+		if err != nil {
+			log.Fatal(err)
 		}
 
-		m := model{list: list.New(items, list.NewDefaultDelegate(), 0, 0)}
-		m.list.Title = "Clusters"
-
-		p := tea.NewProgram(m, tea.WithAltScreen())
-		if _, err := p.Run(); err != nil {
-			log.Fatal("Error running program:", err)
+		foo, err := client.DescribeTasks(context.TODO(), &ecs.DescribeTasksInput{
+			Cluster: &cluster.arn,
+			Tasks:   []string{task.arn},
+		})
+		if err != nil {
+			log.Fatal(err)
 		}
-		if m.quitting {
-			os.Exit(1)
-		}
-		fmt.Println("============")
-		fmt.Println(m.list.SelectedItem())
-		fmt.Println("============")
 
-		// maxResults := int32(1)
-		// tasks, err := client.ListTasks(context.TODO(), &ecs.ListTasksInput{
-		// 	Cluster:       &args[0],
-		// 	Family:        &args[1],
-		// 	DesiredStatus: types.DesiredStatusRunning,
-		// 	MaxResults:    &maxResults,
-		// })
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		for _, bar := range foo.Tasks[0].Containers {
+			fmt.Println(string(*bar.Name))
+		}
 
 		// _, err = client.ExecuteCommand(context.TODO(), &ecs.ExecuteCommandInput{
 		// 	Cluster:     &args[0],
@@ -125,6 +106,49 @@ to quickly create a Cobra application.`,
 
 		// fmt.Printf("%+v", output)
 	},
+}
+
+func selectCluster(client *ecs.Client) (*item, error) {
+	output, err := client.ListClusters(context.TODO(), &ecs.ListClustersInput{})
+	if err != nil {
+		return nil, err
+	}
+
+	items := []list.Item{}
+	for _, arn := range output.ClusterArns {
+		index := strings.LastIndex(arn, "/")
+		items = append(items, item{name: arn[index+1:], arn: arn})
+	}
+	return newSelector("Cluster", items)
+}
+
+func selectTask(client *ecs.Client, cluster item) (*item, error) {
+	output, err := client.ListTasks(context.TODO(), &ecs.ListTasksInput{
+		Cluster: &cluster.arn,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	items := []list.Item{}
+	for _, arn := range output.TaskArns {
+		index := strings.LastIndex(arn, "/")
+		items = append(items, item{name: arn[index+1:], arn: arn})
+	}
+	return newSelector("Tasks", items)
+}
+
+func newSelector(title string, items []list.Item) (*item, error) {
+	list := list.New(items, list.NewDefaultDelegate(), 0, 0)
+	list.Title = title
+
+	model := model{list: list}
+	if _, err := tea.NewProgram(model).Run(); err != nil {
+		return nil, err
+	}
+
+	selected := model.list.SelectedItem().(item)
+	return &selected, nil
 }
 
 func init() {
