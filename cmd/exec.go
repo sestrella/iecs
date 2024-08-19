@@ -119,7 +119,15 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 
-		smp := exec.Command("session-manager-plugin", string(session), "us-east-1", "StartSession", "", string(target), "https://ssm.us-east-1.amazonaws.com")
+		// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
+		smp := exec.Command("session-manager-plugin",
+			string(session),
+			cfg.Region,
+			"StartSession",
+			"",
+			string(target),
+			fmt.Sprintf("https://ssm.%s.amazonaws.com", cfg.Region),
+		)
 		smp.Stdin = os.Stdin
 		smp.Stdout = os.Stdout
 		smp.Stderr = os.Stderr
@@ -145,7 +153,7 @@ func selectCluster(client *ecs.Client) (*item, error) {
 			arn:  arn,
 		})
 	}
-	return newSelector("Cluster", items)
+	return newSelector("Clusters", items)
 }
 
 func selectTask(client *ecs.Client, cluster item) (*item, error) {
