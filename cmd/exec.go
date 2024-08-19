@@ -2,12 +2,16 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -48,8 +52,9 @@ func (m model) View() string {
 }
 
 type item struct {
-	name string
-	arn  string
+	name      string
+	arn       string
+	runtimeId string
 }
 
 func (i item) Title() string       { return i.name }
@@ -73,38 +78,56 @@ to quickly create a Cobra application.`,
 		}
 
 		client := ecs.NewFromConfig(cfg)
-		cluster, err := selectCluster(client)
+		selectedCluster, err := selectCluster(client)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		task, err := selectTask(client, *cluster)
+		selectedTask, err := selectTask(client, *selectedCluster)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		foo, err := client.DescribeTasks(context.TODO(), &ecs.DescribeTasksInput{
-			Cluster: &cluster.arn,
-			Tasks:   []string{task.arn},
+		selectedContainer, err := selectContainer(client, *selectedCluster, *selectedTask)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var command string = "/bin/sh"
+		output, err := client.ExecuteCommand(context.TODO(), &ecs.ExecuteCommandInput{
+			Cluster:     &selectedCluster.arn,
+			Task:        &selectedTask.arn,
+			Container:   &selectedContainer.name,
+			Command:     &command,
+			Interactive: interactive,
 		})
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		for _, bar := range foo.Tasks[0].Containers {
-			fmt.Println(string(*bar.Name))
+		session, err := json.Marshal(output.Session)
+		if err != nil {
+			log.Fatal(err)
 		}
 
-		// _, err = client.ExecuteCommand(context.TODO(), &ecs.ExecuteCommandInput{
-		// 	Cluster:     &args[0],
-		// 	Task:        &tasks.TaskArns[0],
-		// 	Interactive: interactive,
-		// })
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		// TODO: rename this variable
+		var foo = fmt.Sprintf("ecs:%s_%s_%s", selectedCluster.arn, selectedTask.arn, selectedContainer.runtimeId)
+		target, err := json.Marshal(ssm.StartSessionInput{
+			Target: &foo,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
 
-		// fmt.Printf("%+v", output)
+		smp := exec.Command("session-manager-plugin", string(session), "us-east-1", "StartSession", "", string(target), "https://ssm.us-east-1.amazonaws.com")
+		smp.Stdin = os.Stdin
+		smp.Stdout = os.Stdout
+		smp.Stderr = os.Stderr
+
+		err = smp.Run()
+		if err != nil {
+			log.Fatal(err)
+		}
 	},
 }
 
@@ -117,7 +140,10 @@ func selectCluster(client *ecs.Client) (*item, error) {
 	items := []list.Item{}
 	for _, arn := range output.ClusterArns {
 		index := strings.LastIndex(arn, "/")
-		items = append(items, item{name: arn[index+1:], arn: arn})
+		items = append(items, item{
+			name: arn[index+1:],
+			arn:  arn,
+		})
 	}
 	return newSelector("Cluster", items)
 }
@@ -132,8 +158,30 @@ func selectTask(client *ecs.Client, cluster item) (*item, error) {
 
 	items := []list.Item{}
 	for _, arn := range output.TaskArns {
-		index := strings.LastIndex(arn, "/")
-		items = append(items, item{name: arn[index+1:], arn: arn})
+		slices := strings.Split(arn, "/")
+		items = append(items, item{
+			name: fmt.Sprintf("%s/%s", slices[1], slices[2]),
+			arn:  arn,
+		})
+	}
+	return newSelector("Tasks", items)
+}
+
+func selectContainer(client *ecs.Client, cluster item, task item) (*item, error) {
+	output, err := client.DescribeTasks(context.TODO(), &ecs.DescribeTasksInput{
+		Cluster: &cluster.arn,
+		Tasks:   []string{task.arn},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	items := []list.Item{}
+	for _, container := range output.Tasks[0].Containers {
+		items = append(items, item{
+			name: *container.Name,
+			arn:  *container.ContainerArn,
+		})
 	}
 	return newSelector("Tasks", items)
 }
