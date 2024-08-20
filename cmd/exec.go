@@ -111,8 +111,9 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 
+		var foo = fmt.Sprintf("ecs:%s_%s_%s", selectedCluster.name, selectedTask.name, selectedContainer.runtimeId)
 		target, err := json.Marshal(ssm.StartSessionInput{
-			Target: fmt.Sprintf("ecs:%s_%s_%s", selectedCluster.name, selectedTask.name, selectedContainer.runtimeId),
+			Target: &foo,
 		})
 		if err != nil {
 			log.Fatal(err)
