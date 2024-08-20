@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -142,6 +143,9 @@ func selectCluster(client *ecs.Client) (*item, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(output.ClusterArns) == 0 {
+		return nil, errors.New("No clusters found")
+	}
 
 	items := []list.Item{}
 	for _, arn := range output.ClusterArns {
@@ -160,6 +164,9 @@ func selectTask(client *ecs.Client, cluster item) (*item, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	if len(output.TaskArns) == 0 {
+		return nil, errors.New("No tasks found")
 	}
 
 	items := []list.Item{}
@@ -181,6 +188,9 @@ func selectContainer(client *ecs.Client, cluster item, task item) (*item, error)
 	if err != nil {
 		return nil, err
 	}
+	if len(output.Tasks) == 0 {
+		return nil, errors.New("No tasks found")
+	}
 
 	items := []list.Item{}
 	for _, task := range output.Tasks {
@@ -192,6 +202,10 @@ func selectContainer(client *ecs.Client, cluster item, task item) (*item, error)
 			})
 		}
 	}
+	if len(items) == 0 {
+		return nil, errors.New("No containers found")
+	}
+
 	return newSelector("Containers", items)
 }
 
