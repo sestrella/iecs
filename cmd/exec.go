@@ -21,6 +21,7 @@ import (
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
+var clusterName *string
 var interactive *bool
 
 type model struct {
@@ -79,7 +80,7 @@ to quickly create a Cobra application.`,
 		}
 
 		client := ecs.NewFromConfig(cfg)
-		selectedCluster, err := selectCluster(client)
+		selectedCluster, err := selectCluster(context.TODO(), client)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -139,8 +140,28 @@ to quickly create a Cobra application.`,
 	},
 }
 
-func selectCluster(client *ecs.Client) (*item, error) {
-	output, err := client.ListClusters(context.TODO(), &ecs.ListClustersInput{})
+func selectCluster(ctx context.Context, client *ecs.Client) (*item, error) {
+	if clusterName != nil {
+		output, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
+			Clusters: []string{*clusterName},
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		clustersCount := len(output.Clusters)
+		if clustersCount != 1 {
+			return nil, fmt.Errorf("Expected 1 cluster but got %d", clustersCount)
+		}
+
+		cluster := output.Clusters[0]
+		return &item{
+			name: *cluster.ClusterName,
+			arn:  *cluster.ClusterArn,
+		}, nil
+	}
+
+	output, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
 	if err != nil {
 		return nil, err
 	}
@@ -234,6 +255,6 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// execCmd.Flags().StringVarP(&cluster, "cluster", "c", "", "TODO")
+	clusterName = execCmd.Flags().StringP("cluster", "c", "", "TODO")
 	interactive = execCmd.Flags().BoolP("interactive", "i", true, "TODO")
 }
