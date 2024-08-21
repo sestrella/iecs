@@ -21,7 +21,7 @@ import (
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
-var interactive bool
+var interactive *bool
 
 type model struct {
 	list list.Model
@@ -100,7 +100,7 @@ to quickly create a Cobra application.`,
 			Task:        &selectedTask.arn,
 			Container:   &selectedContainer.name,
 			Command:     &command,
-			Interactive: interactive,
+			Interactive: *interactive,
 		})
 		if err != nil {
 			log.Fatal(err)
@@ -111,9 +111,9 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 
-		var foo = fmt.Sprintf("ecs:%s_%s_%s", selectedCluster.name, selectedTask.name, selectedContainer.runtimeId)
-		target, err := json.Marshal(ssm.StartSessionInput{
-			Target: &foo,
+		var target = fmt.Sprintf("ecs:%s_%s_%s", selectedCluster.name, selectedTask.name, selectedContainer.runtimeId)
+		targetJSON, err := json.Marshal(ssm.StartSessionInput{
+			Target: &target,
 		})
 		if err != nil {
 			log.Fatal(err)
@@ -125,7 +125,7 @@ to quickly create a Cobra application.`,
 			cfg.Region,
 			"StartSession",
 			"",
-			string(target),
+			string(targetJSON),
 			fmt.Sprintf("https://ssm.%s.amazonaws.com", cfg.Region),
 		)
 		smp.Stdin = os.Stdin
@@ -172,9 +172,9 @@ func selectTask(client *ecs.Client, cluster item) (*item, error) {
 
 	items := []list.Item{}
 	for _, arn := range output.TaskArns {
-		index := strings.LastIndex(arn, "/")
+		slices := strings.Split(arn, "/")
 		items = append(items, item{
-			name: arn[index+1:],
+			name: fmt.Sprintf("%s/%s", slices[1], slices[2]),
 			arn:  arn,
 		})
 	}
@@ -235,5 +235,5 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// execCmd.Flags().StringVarP(&cluster, "cluster", "c", "", "TODO")
-	execCmd.Flags().BoolVarP(&interactive, "interactive", "i", true, "TODO")
+	interactive = execCmd.Flags().BoolP("interactive", "i", true, "TODO")
 }
