@@ -21,8 +21,11 @@ import (
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
-var clusterName *string
-var interactive *bool
+var clusterId string
+var taskId string
+var containerId string
+var interactive bool
+var command string
 
 type model struct {
 	list list.Model
@@ -36,7 +39,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "enter", "q", "ctrl+c":
+		case "enter":
+			return m, tea.Quit
+		case "q", "ctrl+c":
+			// TODO: find a better way to kill bubbletea gracefully
+			os.Exit(1)
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
@@ -85,7 +92,7 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 
-		selectedTask, err := selectTask(client, *selectedCluster)
+		selectedTask, err := selectTask(context.TODO(), client, *selectedCluster)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -95,13 +102,12 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 
-		var command string = "/bin/sh"
 		output, err := client.ExecuteCommand(context.TODO(), &ecs.ExecuteCommandInput{
 			Cluster:     &selectedCluster.arn,
 			Task:        &selectedTask.arn,
 			Container:   &selectedContainer.name,
 			Command:     &command,
-			Interactive: *interactive,
+			Interactive: interactive,
 		})
 		if err != nil {
 			log.Fatal(err)
@@ -141,17 +147,16 @@ to quickly create a Cobra application.`,
 }
 
 func selectCluster(ctx context.Context, client *ecs.Client) (*item, error) {
-	if clusterName != nil {
+	if clusterId != "" {
 		output, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
-			Clusters: []string{*clusterName},
+			Clusters: []string{clusterId},
 		})
 		if err != nil {
 			return nil, err
 		}
 
-		clustersCount := len(output.Clusters)
-		if clustersCount != 1 {
-			return nil, fmt.Errorf("Expected 1 cluster but got %d", clustersCount)
+		if len(output.Clusters) == 0 {
+			return nil, fmt.Errorf("Cluster '%s' not found", clusterId)
 		}
 
 		cluster := output.Clusters[0]
@@ -180,8 +185,29 @@ func selectCluster(ctx context.Context, client *ecs.Client) (*item, error) {
 	return newSelector("Clusters", items)
 }
 
-func selectTask(client *ecs.Client, cluster item) (*item, error) {
-	output, err := client.ListTasks(context.TODO(), &ecs.ListTasksInput{
+func selectTask(ctx context.Context, client *ecs.Client, cluster item) (*item, error) {
+	if taskId != "" {
+		output, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+			Cluster: &cluster.arn,
+			Tasks:   []string{taskId},
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(output.Tasks) == 0 {
+			return nil, fmt.Errorf("Task '%s' not found", taskId)
+		}
+
+		task := output.Tasks[0]
+		slices := strings.Split(*task.TaskArn, "/")
+		return &item{
+			name: fmt.Sprintf("%s/%s", slices[1], slices[2]),
+			arn:  *task.TaskArn,
+		}, nil
+	}
+
+	output, err := client.ListTasks(ctx, &ecs.ListTasksInput{
 		Cluster: &cluster.arn,
 	})
 	if err != nil {
@@ -203,6 +229,15 @@ func selectTask(client *ecs.Client, cluster item) (*item, error) {
 }
 
 func selectContainer(client *ecs.Client, cluster item, task item) (*item, error) {
+	// if containerId != "" {
+	// 	output, err := client.DescribeContainerInstances(context.TODO(), &ecs.DescribeContainerInstancesInput{
+	// 		Cluster: &cluster.arn,
+	// 	})
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// }
+
 	output, err := client.DescribeTasks(context.TODO(), &ecs.DescribeTasksInput{
 		Cluster: &cluster.arn,
 		Tasks:   []string{task.arn},
@@ -255,6 +290,9 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	clusterName = execCmd.Flags().StringP("cluster", "c", "", "TODO")
-	interactive = execCmd.Flags().BoolP("interactive", "i", true, "TODO")
+	execCmd.Flags().StringVarP(&clusterId, "cluster", "c", "", "TODO")
+	execCmd.Flags().StringVarP(&taskId, "task", "t", "", "TODO")
+	execCmd.Flags().StringVarP(&containerId, "container", "n", "", "TODO")
+	execCmd.Flags().BoolVarP(&interactive, "interactive", "i", true, "TODO")
+	execCmd.Flags().StringVarP(&command, "command", "m", "/bin/sh", "TODO")
 }
