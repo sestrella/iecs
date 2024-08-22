@@ -35,7 +35,7 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -125,6 +125,15 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		fmt.Print("\nNon-interactive command:\n")
+		fmt.Printf("\n\tlazy-ecs exec --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
+			selectedCluster.name,
+			selectedTask.name,
+			selectedContainer.name,
+			command,
+			interactive,
+		)
 
 		// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
 		smp := exec.Command("session-manager-plugin",
@@ -229,15 +238,6 @@ func selectTask(ctx context.Context, client *ecs.Client, cluster item) (*item, e
 }
 
 func selectContainer(client *ecs.Client, cluster item, task item) (*item, error) {
-	// if containerId != "" {
-	// 	output, err := client.DescribeContainerInstances(context.TODO(), &ecs.DescribeContainerInstancesInput{
-	// 		Cluster: &cluster.arn,
-	// 	})
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-
 	output, err := client.DescribeTasks(context.TODO(), &ecs.DescribeTasksInput{
 		Cluster: &cluster.arn,
 		Tasks:   []string{task.arn},
@@ -271,7 +271,7 @@ func newSelector(title string, items []list.Item) (*item, error) {
 	list.Title = title
 
 	model := model{list: list}
-	if _, err := tea.NewProgram(model).Run(); err != nil {
+	if _, err := tea.NewProgram(&model).Run(); err != nil {
 		return nil, err
 	}
 
@@ -293,6 +293,6 @@ func init() {
 	execCmd.Flags().StringVarP(&clusterId, "cluster", "c", "", "TODO")
 	execCmd.Flags().StringVarP(&taskId, "task", "t", "", "TODO")
 	execCmd.Flags().StringVarP(&containerId, "container", "n", "", "TODO")
-	execCmd.Flags().BoolVarP(&interactive, "interactive", "i", true, "TODO")
 	execCmd.Flags().StringVarP(&command, "command", "m", "/bin/sh", "TODO")
+	execCmd.Flags().BoolVarP(&interactive, "interactive", "i", true, "TODO")
 }
