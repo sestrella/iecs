@@ -10,5 +10,8 @@
 
   languages.go.enable = true;
 
+  pre-commit.hooks.gofmt.enable = true;
+  pre-commit.hooks.golangci-lint.enable = true;
+
   # See full reference at https://devenv.sh/reference/options/
 }
