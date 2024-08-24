@@ -70,9 +70,9 @@ func (i item) Title() string       { return i.name }
 func (i item) Description() string { return i.arn }
 func (i item) FilterValue() string { return i.name }
 
-// execCmd represents the exec command
-var execCmd = &cobra.Command{
-	Use:   "exec",
+// sshCmd represents the exec command
+var sshCmd = &cobra.Command{
+	Use:   "ssh",
 	Short: "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
@@ -127,7 +127,7 @@ to quickly create a Cobra application.`,
 		}
 
 		fmt.Print("\nNon-interactive command:\n")
-		fmt.Printf("\n\tlazy-ecs exec --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
+		fmt.Printf("\n\tlazy-ecs ssh --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
 			selectedCluster.name,
 			selectedTask.name,
 			selectedContainer.name,
@@ -280,7 +280,7 @@ func newSelector(title string, items []list.Item) (*item, error) {
 }
 
 func init() {
-	rootCmd.AddCommand(execCmd)
+	rootCmd.AddCommand(sshCmd)
 
 	// Here you will define your flags and configuration settings.
 
@@ -290,9 +290,9 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	execCmd.Flags().StringVarP(&clusterId, "cluster", "c", "", "TODO")
-	execCmd.Flags().StringVarP(&taskId, "task", "t", "", "TODO")
-	execCmd.Flags().StringVarP(&containerId, "container", "n", "", "TODO")
-	execCmd.Flags().StringVarP(&command, "command", "m", "/bin/sh", "TODO")
-	execCmd.Flags().BoolVarP(&interactive, "interactive", "i", true, "TODO")
+	sshCmd.Flags().StringVarP(&clusterId, "cluster", "c", "", "TODO")
+	sshCmd.Flags().StringVarP(&taskId, "task", "t", "", "TODO")
+	sshCmd.Flags().StringVarP(&containerId, "container", "n", "", "TODO")
+	sshCmd.Flags().StringVarP(&command, "command", "m", "/bin/sh", "TODO")
+	sshCmd.Flags().BoolVarP(&interactive, "interactive", "i", true, "TODO")
 }
