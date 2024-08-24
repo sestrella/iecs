@@ -252,12 +252,19 @@ func selectContainer(client *ecs.Client, cluster item, task item) (*item, error)
 	items := []list.Item{}
 	for _, task := range output.Tasks {
 		for _, container := range task.Containers {
-			items = append(items, item{
+			var containerItem = item{
 				name:      *container.Name,
 				arn:       *container.ContainerArn,
 				runtimeId: *container.RuntimeId,
-			})
+			}
+			if containerId != "" && *container.Name == containerId {
+				return &containerItem, nil
+			}
+			items = append(items, containerItem)
 		}
+	}
+	if containerId != "" {
+		return nil, fmt.Errorf("Container '%s' not found", containerId)
 	}
 	if len(items) == 0 {
 		return nil, errors.New("No containers found")
