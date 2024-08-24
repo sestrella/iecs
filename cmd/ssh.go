@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
@@ -28,7 +28,8 @@ var interactive bool
 var command string
 
 type model struct {
-	list list.Model
+	list     list.Model
+	quitting bool
 }
 
 func (m *model) Init() tea.Cmd {
@@ -42,8 +43,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			return m, tea.Quit
 		case "q", "ctrl+c":
-			// TODO: find a better way to kill bubbletea gracefully
-			os.Exit(1)
+			m.quitting = true
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
@@ -273,6 +273,10 @@ func newSelector(title string, items []list.Item) (*item, error) {
 	model := model{list: list}
 	if _, err := tea.NewProgram(&model).Run(); err != nil {
 		return nil, err
+	}
+	if model.quitting {
+		fmt.Println("Bye bye!")
+		os.Exit(1)
 	}
 
 	selected := model.list.SelectedItem().(item)
