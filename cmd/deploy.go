@@ -1,8 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"log"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/spf13/cobra"
 )
 
@@ -13,7 +17,17 @@ var deployCmd = &cobra.Command{
 	Short: "A brief description of your command",
 	Long:  "TODO",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("deploy called")
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		client := ecs.NewFromConfig(cfg)
+		cluster, err := selectCluster(context.TODO(), client, sshClusterId)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(cluster)
 	},
 }
 

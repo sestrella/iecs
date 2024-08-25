@@ -35,25 +35,25 @@ var sshCmd = &cobra.Command{
 		}
 
 		client := ecs.NewFromConfig(cfg)
-		selectedCluster, err := selectCluster(context.TODO(), client, sshClusterId)
+		cluster, err := selectCluster(context.TODO(), client, sshClusterId)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		selectedTask, err := selectTask(context.TODO(), client, *selectedCluster)
+		task, err := selectTask(context.TODO(), client, *cluster)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		selectedContainer, err := selectContainer(client, *selectedCluster, *selectedTask)
+		container, err := selectContainer(context.TODO(), client, *cluster, *task)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		output, err := client.ExecuteCommand(context.TODO(), &ecs.ExecuteCommandInput{
-			Cluster:     &selectedCluster.arn,
-			Task:        &selectedTask.arn,
-			Container:   &selectedContainer.name,
+			Cluster:     &cluster.arn,
+			Task:        &task.arn,
+			Container:   &container.name,
 			Command:     &sshCommand,
 			Interactive: sshInteractive,
 		})
@@ -66,7 +66,7 @@ var sshCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		var target = fmt.Sprintf("ecs:%s_%s_%s", selectedCluster.name, selectedTask.name, selectedContainer.runtimeId)
+		var target = fmt.Sprintf("ecs:%s_%s_%s", cluster.name, task.name, container.runtimeId)
 		targetJSON, err := json.Marshal(ssm.StartSessionInput{
 			Target: &target,
 		})
@@ -76,9 +76,9 @@ var sshCmd = &cobra.Command{
 
 		fmt.Print("\nNon-interactive command:\n")
 		fmt.Printf("\n\tlazy-ecs ssh --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
-			selectedCluster.name,
-			selectedTask.name,
-			selectedContainer.name,
+			cluster.name,
+			task.name,
+			container.name,
 			sshCommand,
 			sshInteractive,
 		)
@@ -146,8 +146,8 @@ func selectTask(ctx context.Context, client *ecs.Client, cluster item) (*item, e
 	return newSelector("Tasks", items)
 }
 
-func selectContainer(client *ecs.Client, cluster item, task item) (*item, error) {
-	output, err := client.DescribeTasks(context.TODO(), &ecs.DescribeTasksInput{
+func selectContainer(ctx context.Context, client *ecs.Client, cluster item, task item) (*item, error) {
+	output, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
 		Cluster: &cluster.arn,
 		Tasks:   []string{task.arn},
 	})
