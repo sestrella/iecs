@@ -37,7 +37,33 @@ var deployCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		fmt.Println(service)
+		// TODO: Try to avoid calling DescribeServices twice
+		services, err := client.DescribeServices(context.TODO(), &ecs.DescribeServicesInput{
+			Cluster:  &cluster.arn,
+			Services: []string{service.arn},
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		output, err := client.DescribeTaskDefinition(context.TODO(), &ecs.DescribeTaskDefinitionInput{
+			TaskDefinition: services.Services[0].TaskDefinition,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var taskDefinition = output.TaskDefinition
+		_, err = client.RegisterTaskDefinition(context.TODO(), &ecs.RegisterTaskDefinitionInput{
+			Family:               taskDefinition.Family,
+			ContainerDefinitions: taskDefinition.ContainerDefinitions,
+			Volumes:              taskDefinition.Volumes,
+			TaskRoleArn:          taskDefinition.TaskRoleArn,
+			ExecutionRoleArn:     taskDefinition.ExecutionRoleArn,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
 	},
 }
 
