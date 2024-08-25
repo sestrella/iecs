@@ -14,61 +14,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
-var docStyle = lipgloss.NewStyle().Margin(1, 2)
-
-var clusterId string
-var taskId string
-var containerId string
-var interactive bool
-var command string
-
-type model struct {
-	list     list.Model
-	quitting bool
-}
-
-func (m *model) Init() tea.Cmd {
-	return nil
-}
-
-func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter":
-			return m, tea.Quit
-		case "q", "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-		}
-	case tea.WindowSizeMsg:
-		h, v := docStyle.GetFrameSize()
-		m.list.SetSize(msg.Width-h, msg.Height-v)
-	}
-
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
-	return m, cmd
-}
-
-func (m *model) View() string {
-	return docStyle.Render(m.list.View())
-}
-
-type item struct {
-	name      string
-	arn       string
-	runtimeId string
-}
-
-func (i item) Title() string       { return i.name }
-func (i item) Description() string { return i.arn }
-func (i item) FilterValue() string { return i.name }
+var sshClusterId string
+var sshTaskId string
+var sshContainerId string
+var sshInteractive bool
+var sshCommand string
 
 // sshCmd represents the exec command
 var sshCmd = &cobra.Command{
@@ -87,7 +40,7 @@ to quickly create a Cobra application.`,
 		}
 
 		client := ecs.NewFromConfig(cfg)
-		selectedCluster, err := selectCluster(context.TODO(), client)
+		selectedCluster, err := selectCluster(context.TODO(), client, sshClusterId)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -106,8 +59,8 @@ to quickly create a Cobra application.`,
 			Cluster:     &selectedCluster.arn,
 			Task:        &selectedTask.arn,
 			Container:   &selectedContainer.name,
-			Command:     &command,
-			Interactive: interactive,
+			Command:     &sshCommand,
+			Interactive: sshInteractive,
 		})
 		if err != nil {
 			log.Fatal(err)
@@ -131,8 +84,8 @@ to quickly create a Cobra application.`,
 			selectedCluster.name,
 			selectedTask.name,
 			selectedContainer.name,
-			command,
-			interactive,
+			sshCommand,
+			sshInteractive,
 		)
 
 		// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
@@ -155,57 +108,18 @@ to quickly create a Cobra application.`,
 	},
 }
 
-func selectCluster(ctx context.Context, client *ecs.Client) (*item, error) {
-	if clusterId != "" {
-		output, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
-			Clusters: []string{clusterId},
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		if len(output.Clusters) == 0 {
-			return nil, fmt.Errorf("Cluster '%s' not found", clusterId)
-		}
-
-		cluster := output.Clusters[0]
-		return &item{
-			name: *cluster.ClusterName,
-			arn:  *cluster.ClusterArn,
-		}, nil
-	}
-
-	output, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
-	if err != nil {
-		return nil, err
-	}
-	if len(output.ClusterArns) == 0 {
-		return nil, errors.New("No clusters found")
-	}
-
-	items := []list.Item{}
-	for _, arn := range output.ClusterArns {
-		index := strings.LastIndex(arn, "/")
-		items = append(items, item{
-			name: arn[index+1:],
-			arn:  arn,
-		})
-	}
-	return newSelector("Clusters", items)
-}
-
 func selectTask(ctx context.Context, client *ecs.Client, cluster item) (*item, error) {
-	if taskId != "" {
+	if sshTaskId != "" {
 		output, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
 			Cluster: &cluster.arn,
-			Tasks:   []string{taskId},
+			Tasks:   []string{sshTaskId},
 		})
 		if err != nil {
 			return nil, err
 		}
 
 		if len(output.Tasks) == 0 {
-			return nil, fmt.Errorf("Task '%s' not found", taskId)
+			return nil, fmt.Errorf("Task '%s' not found", sshTaskId)
 		}
 
 		task := output.Tasks[0]
@@ -257,37 +171,20 @@ func selectContainer(client *ecs.Client, cluster item, task item) (*item, error)
 				arn:       *container.ContainerArn,
 				runtimeId: *container.RuntimeId,
 			}
-			if containerId != "" && *container.Name == containerId {
+			if sshContainerId != "" && *container.Name == sshContainerId {
 				return &containerItem, nil
 			}
 			items = append(items, containerItem)
 		}
 	}
-	if containerId != "" {
-		return nil, fmt.Errorf("Container '%s' not found", containerId)
+	if sshContainerId != "" {
+		return nil, fmt.Errorf("Container '%s' not found", sshContainerId)
 	}
 	if len(items) == 0 {
 		return nil, errors.New("No containers found")
 	}
 
 	return newSelector("Containers", items)
-}
-
-func newSelector(title string, items []list.Item) (*item, error) {
-	list := list.New(items, list.NewDefaultDelegate(), 0, 0)
-	list.Title = title
-
-	model := model{list: list}
-	if _, err := tea.NewProgram(&model).Run(); err != nil {
-		return nil, err
-	}
-	if model.quitting {
-		fmt.Println("Bye bye!")
-		os.Exit(1)
-	}
-
-	selected := model.list.SelectedItem().(item)
-	return &selected, nil
 }
 
 func init() {
@@ -301,9 +198,9 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	sshCmd.Flags().StringVarP(&clusterId, "cluster", "c", "", "TODO")
-	sshCmd.Flags().StringVarP(&taskId, "task", "t", "", "TODO")
-	sshCmd.Flags().StringVarP(&containerId, "container", "n", "", "TODO")
-	sshCmd.Flags().StringVarP(&command, "command", "m", "/bin/sh", "TODO")
-	sshCmd.Flags().BoolVarP(&interactive, "interactive", "i", true, "TODO")
+	sshCmd.Flags().StringVarP(&sshClusterId, "cluster", "c", "", "TODO")
+	sshCmd.Flags().StringVarP(&sshTaskId, "task", "t", "", "TODO")
+	sshCmd.Flags().StringVarP(&sshContainerId, "container", "n", "", "TODO")
+	sshCmd.Flags().StringVarP(&sshCommand, "command", "m", "/bin/sh", "TODO")
+	sshCmd.Flags().BoolVarP(&sshInteractive, "interactive", "i", true, "TODO")
 }
