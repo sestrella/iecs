@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"slices"
@@ -156,38 +155,38 @@ var deployCmd = &cobra.Command{
 
 func selectService(ctx context.Context, client *ecs.Client, cluster item) (*item, error) {
 	if deployServiceId != "" {
-		output, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
+		describeServicesOutput, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
 			Cluster:  &cluster.arn,
 			Services: []string{deployServiceId},
 		})
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Unable to describe service '%s': %w", deployServiceId, err)
 		}
 
-		if len(output.Services) == 0 {
+		if len(describeServicesOutput.Services) == 0 {
 			return nil, fmt.Errorf("Service '%s' not found", deployServiceId)
 		}
 
-		task := output.Services[0]
-		slices := strings.Split(*task.ServiceArn, "/")
+		service := describeServicesOutput.Services[0]
+		serviceArnSlices := strings.Split(*service.ServiceArn, "/")
 		return &item{
-			name: fmt.Sprintf("%s/%s", slices[1], slices[2]),
-			arn:  *task.ServiceArn,
+			name: fmt.Sprintf("%s/%s", serviceArnSlices[1], serviceArnSlices[2]),
+			arn:  *service.ServiceArn,
 		}, nil
 	}
 
-	output, err := client.ListServices(ctx, &ecs.ListServicesInput{
+	listServicesOutput, err := client.ListServices(ctx, &ecs.ListServicesInput{
 		Cluster: &cluster.arn,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Unable to list services on cluster '%s': %w", cluster.name, err)
 	}
-	if len(output.ServiceArns) == 0 {
-		return nil, errors.New("No services found")
+	if len(listServicesOutput.ServiceArns) == 0 {
+		return nil, fmt.Errorf("No services found on cluster '%s'", cluster.name)
 	}
 
 	items := []list.Item{}
-	for _, arn := range output.ServiceArns {
+	for _, arn := range listServicesOutput.ServiceArns {
 		index := strings.LastIndex(arn, "/")
 		items = append(items, item{
 			name: arn[index+1:],
