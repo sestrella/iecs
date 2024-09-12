@@ -143,9 +143,8 @@ var deployCmd = &cobra.Command{
 					if *service.Status == "ACTIVE" {
 						log.Printf("Service '%s' active", *service.ServiceName)
 						return
-					} else {
-						log.Printf("Waiting for service '%s' to be active...", *service.ServiceName)
 					}
+					log.Printf("Waiting for service '%s' to be active...", *service.ServiceName)
 				case <-timeout.C:
 					log.Print("Timeout")
 					return
