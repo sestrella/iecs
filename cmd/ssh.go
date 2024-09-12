@@ -185,14 +185,6 @@ func selectContainer(ctx context.Context, client *ecs.Client, cluster item, task
 func init() {
 	rootCmd.AddCommand(sshCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// execCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
 	sshCmd.Flags().StringVarP(&sshClusterId, "cluster", "c", "", "TODO")
 	sshCmd.Flags().StringVarP(&sshTaskId, "task", "t", "", "TODO")
 	sshCmd.Flags().StringVarP(&sshContainerId, "container", "n", "", "TODO")

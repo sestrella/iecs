@@ -70,7 +70,7 @@ var rootCmd = &cobra.Command{
 }
 
 func selectCluster(ctx context.Context, client *ecs.Client, clusterId string) (*item, error) {
-	if sshClusterId != "" {
+	if clusterId != "" {
 		output, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
 			Clusters: []string{clusterId},
 		})
