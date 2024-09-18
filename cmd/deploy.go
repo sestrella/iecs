@@ -145,10 +145,11 @@ var deployCmd = &cobra.Command{
 					}
 					log.Printf("Waiting for service '%s' to be active...", *service.ServiceName)
 				case <-timeout.C:
-					log.Print("Timeout")
-					return
+					log.Fatalf("Timeout")
 				}
 			}
+		} else {
+			log.Printf("Flag --wait is disabled, no waiting for '%s' to become active", service.name)
 		}
 	},
 }
