@@ -9,7 +9,9 @@
   ];
 
   languages.go.enable = true;
+
   languages.rust.enable = true;
+  languages.rust.channel = "stable";
 
   pre-commit.hooks.gofmt.enable = true;
   pre-commit.hooks.golangci-lint.enable = true;
