@@ -161,25 +161,22 @@ async fn get_container(
     task: &String,
     container_arg: &Option<String>,
 ) -> anyhow::Result<SelectableContainer> {
-    // let output = client
-    //     .describe_tasks()
-    //     .cluster(cluster)
-    //     .tasks(task)
-    //     .send()
-    //     .await?;
-    // let containers: Vec<anyhow::Result<SelectableContainer>> = output
-    //     .tasks
-    //     .unwrap_or(Vec::new())
-    //     .into_iter()
-    //     .map(|task| task.containers.unwrap_or(Vec::new()))
-    //     .flatten()
-    //     .map(|container| SelectableContainer::try_from(container))
-    //     .collect();
-    // let foo: anyhow::Result<Vec<SelectableContainer>> = containers.into_iter().collect();
-    let containers = vec![SelectableContainer {
-        name: "foo".to_string(),
-        arn: "bar".to_string(),
-    }];
-    let container = Select::new("Container", containers).prompt().context("")?;
+    let output = client
+        .describe_tasks()
+        .cluster(cluster)
+        .tasks(task)
+        .send()
+        .await?;
+    let containers = output
+        .tasks
+        .unwrap_or(Vec::new())
+        .into_iter()
+        .map(|task| task.containers.unwrap_or(Vec::new()))
+        .flatten()
+        .map(|container| SelectableContainer::try_from(container))
+        .collect::<anyhow::Result<Vec<SelectableContainer>>>()?;
+    let container = Select::new("Container", containers)
+        .prompt()
+        .context("TODO")?;
     Ok(container)
 }
