@@ -37,6 +37,20 @@ impl Display for SelectableCluster {
     }
 }
 
+impl TryFrom<Cluster> for SelectableCluster {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Cluster) -> Result<Self, Self::Error> {
+        let name = value
+            .cluster_name
+            .ok_or_else(|| anyhow!("cluster_name not found"))?;
+        let arn = value
+            .cluster_arn
+            .ok_or_else(|| anyhow!("cluster_arn not found"))?;
+        Ok(SelectableCluster { name, arn })
+    }
+}
+
 impl TryFrom<String> for SelectableCluster {
     type Error = anyhow::Error;
 
@@ -72,10 +86,10 @@ impl TryFrom<String> for SelectableTask {
     }
 }
 
-#[derive(Debug)]
 struct SelectableContainer {
     name: String,
     arn: String,
+    runtime_id: String,
 }
 
 impl Display for SelectableContainer {
@@ -88,11 +102,18 @@ impl TryFrom<Container> for SelectableContainer {
     type Error = anyhow::Error;
 
     fn try_from(value: Container) -> Result<Self, Self::Error> {
-        let name = value.name.ok_or_else(|| anyhow!("Name not found"))?;
+        let name = value.name.ok_or_else(|| anyhow!("name not found"))?;
         let arn = value
             .container_arn
-            .ok_or_else(|| anyhow!("ARN not found"))?;
-        Ok(SelectableContainer { name, arn })
+            .ok_or_else(|| anyhow!("container_arn not found"))?;
+        let runtime_id = value
+            .runtime_id
+            .ok_or_else(|| anyhow!("runtime_id not found"))?;
+        Ok(SelectableContainer {
+            name,
+            arn,
+            runtime_id,
+        })
     }
 }
 
@@ -105,7 +126,7 @@ async fn main() -> anyhow::Result<()> {
     let cluster = get_cluster(&client, &args.cluster).await?;
     let task = get_task(&client, &cluster.arn, &args.task).await?;
     let container = get_container(&client, &cluster.arn, &task.arn, &args.container).await?;
-    println!("{:?}", container);
+    println!("{}", container.name);
     Ok(())
 }
 
@@ -114,17 +135,22 @@ async fn get_cluster(
     client: &aws_sdk_ecs::Client,
     cluster_arg: &Option<String>,
 ) -> anyhow::Result<SelectableCluster> {
-    // if let Some(cluster_name) = cluster_arg {
-    //     let output = client
-    //         .describe_clusters()
-    //         .clusters(cluster_name)
-    //         .send()
-    //         .await?;
-    //     let clusters = output.clusters.context("")?;
-    //     let cluster = clusters.first().context("")?;
-    //     let cluster_arn = cluster.cluster_arn.as_ref().context("")?;
-    //     return Ok(cluster_arn.to_string());
-    // }
+    if let Some(cluster_name) = cluster_arg {
+        let output = client
+            .describe_clusters()
+            .clusters(cluster_name)
+            .send()
+            .await?;
+        let clusters = output
+            .clusters
+            .unwrap_or_else(|| Vec::new())
+            .into_iter()
+            .map(|cluster| SelectableCluster::try_from(cluster))
+            .collect::<anyhow::Result<Vec<SelectableCluster>>>()?;
+        // TODO: return this value
+        let _cluster = clusters.first().context("TODO")?;
+        todo!()
+    }
     let output = client.list_clusters().send().await?;
     let clusters = output
         .cluster_arns
