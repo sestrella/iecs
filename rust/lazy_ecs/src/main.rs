@@ -37,17 +37,21 @@ impl Display for SelectableCluster {
     }
 }
 
-impl TryFrom<Cluster> for SelectableCluster {
+impl TryFrom<&Cluster> for SelectableCluster {
     type Error = anyhow::Error;
 
-    fn try_from(value: Cluster) -> Result<Self, Self::Error> {
-        let name = value
-            .cluster_name
-            .ok_or_else(|| anyhow!("cluster_name not found"))?;
-        let arn = value
-            .cluster_arn
-            .ok_or_else(|| anyhow!("cluster_arn not found"))?;
-        Ok(SelectableCluster { name, arn })
+    fn try_from(value: &Cluster) -> Result<Self, Self::Error> {
+        // let name = value
+        //     .cluster_name
+        //     .ok_or_else(|| anyhow!("cluster_name not found"))?;
+        // let arn = value
+        //     .cluster_arn
+        //     .ok_or_else(|| anyhow!("cluster_arn not found"))?;
+        // Ok(SelectableCluster {
+        //     name: name.to_string(),
+        //     arn: arn.to_string(),
+        // })
+        todo!()
     }
 }
 
@@ -141,15 +145,9 @@ async fn get_cluster(
             .clusters(cluster_name)
             .send()
             .await?;
-        let clusters = output
-            .clusters
-            .unwrap_or_else(|| Vec::new())
-            .into_iter()
-            .map(|cluster| SelectableCluster::try_from(cluster))
-            .collect::<anyhow::Result<Vec<SelectableCluster>>>()?;
-        // TODO: return this value
-        let _cluster = clusters.first().context("TODO")?;
-        todo!()
+        let clusters = output.clusters.unwrap_or_else(|| Vec::new());
+        let cluster = clusters.first().context("TODO")?;
+        return SelectableCluster::try_from(cluster);
     }
     let output = client.list_clusters().send().await?;
     let clusters = output
