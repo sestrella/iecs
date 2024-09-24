@@ -41,17 +41,18 @@ impl TryFrom<&Cluster> for SelectableCluster {
     type Error = anyhow::Error;
 
     fn try_from(value: &Cluster) -> Result<Self, Self::Error> {
-        // let name = value
-        //     .cluster_name
-        //     .ok_or_else(|| anyhow!("cluster_name not found"))?;
-        // let arn = value
-        //     .cluster_arn
-        //     .ok_or_else(|| anyhow!("cluster_arn not found"))?;
-        // Ok(SelectableCluster {
-        //     name: name.to_string(),
-        //     arn: arn.to_string(),
-        // })
-        todo!()
+        let name = value
+            .cluster_name
+            .as_ref()
+            .ok_or_else(|| anyhow!("cluster_name not found"))?;
+        let arn = value
+            .cluster_arn
+            .as_ref()
+            .ok_or_else(|| anyhow!("cluster_arn not found"))?;
+        Ok(SelectableCluster {
+            name: name.to_string(),
+            arn: arn.to_string(),
+        })
     }
 }
 
