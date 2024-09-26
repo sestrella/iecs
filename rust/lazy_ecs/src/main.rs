@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{anyhow, ensure, Context};
 use aws_config::BehaviorVersion;
-use aws_sdk_ecs::types::{Cluster, Container};
+use aws_sdk_ecs::types::{Cluster, Container, Task};
 use clap::Parser;
 use inquire::Select;
 
@@ -76,6 +76,21 @@ struct SelectableTask {
 impl Display for SelectableTask {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} ({})", self.name, self.arn)
+    }
+}
+
+impl TryFrom<&Task> for SelectableTask {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &Task) -> Result<Self, Self::Error> {
+        let arn = value
+            .task_arn
+            .as_ref()
+            .ok_or_else(|| anyhow!("task_arn not found"))?;
+        Ok(SelectableTask {
+            name: "".to_string(),
+            arn: arn.to_string(),
+        })
     }
 }
 
@@ -172,11 +187,16 @@ async fn get_task(
     task_arg: &Option<String>,
 ) -> anyhow::Result<SelectableTask> {
     if let Some(task_name) = task_arg {
-        let output = client.describe_tasks().tasks(task_name).send().await?;
+        let output = client
+            .describe_tasks()
+            .cluster(cluster)
+            .tasks(task_name)
+            .send()
+            .await?;
         let tasks = output.tasks.unwrap_or_else(|| Vec::new());
         let task = tasks
             .first()
-            .with_context(|| format!("Task {} not found", task_name));
+            .with_context(|| format!("Task {} not found", task_name))?;
         return SelectableTask::try_from(task);
     }
     let output = client.list_tasks().cluster(cluster).send().await?;
