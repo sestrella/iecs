@@ -83,12 +83,10 @@ impl TryFrom<&Task> for SelectableTask {
     type Error = anyhow::Error;
 
     fn try_from(value: &Task) -> Result<Self, Self::Error> {
-        let arn = value
-            .task_arn
-            .as_ref()
-            .ok_or_else(|| anyhow!("task_arn not found"))?;
+        let arn = value.task_arn.as_ref().context("TODO")?;
+        let (_, name) = arn.split_once("/").context("TODO")?;
         Ok(SelectableTask {
-            name: "".to_string(),
+            name: name.to_string(),
             arn: arn.to_string(),
         })
     }
