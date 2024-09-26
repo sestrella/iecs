@@ -135,7 +135,6 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-// TODO: Improve error message
 async fn get_cluster(
     client: &aws_sdk_ecs::Client,
     cluster_arg: &Option<String>,
@@ -147,7 +146,9 @@ async fn get_cluster(
             .send()
             .await?;
         let clusters = output.clusters.unwrap_or_else(|| Vec::new());
-        let cluster = clusters.first().context("TODO")?;
+        let cluster = clusters
+            .first()
+            .with_context(|| format!("Cluster {} not found", cluster_name))?;
         return SelectableCluster::try_from(cluster);
     }
     let output = client.list_clusters().send().await?;
@@ -158,7 +159,9 @@ async fn get_cluster(
         .map(|arn| SelectableCluster::try_from(arn))
         .collect::<anyhow::Result<Vec<SelectableCluster>>>()?;
     ensure!(!clusters.is_empty(), "No clusters found");
-    let cluster = Select::new("Cluster", clusters).prompt().context("TODO")?;
+    let cluster = Select::new("Cluster", clusters)
+        .prompt()
+        .context("Error selecting cluster")?;
     Ok(cluster)
 }
 
@@ -168,6 +171,14 @@ async fn get_task(
     cluster: &String,
     task_arg: &Option<String>,
 ) -> anyhow::Result<SelectableTask> {
+    if let Some(task_name) = task_arg {
+        let output = client.describe_tasks().tasks(task_name).send().await?;
+        let tasks = output.tasks.unwrap_or_else(|| Vec::new());
+        let task = tasks
+            .first()
+            .with_context(|| format!("Task {} not found", task_name));
+        return SelectableTask::try_from(task);
+    }
     let output = client.list_tasks().cluster(cluster).send().await?;
     let tasks = output
         .task_arns
