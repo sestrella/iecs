@@ -1,4 +1,7 @@
-use std::{fmt::Display, process::Command};
+use std::{
+    fmt::Display,
+    process::{Command, Stdio},
+};
 
 use anyhow::{anyhow, ensure, Context};
 use aws_config::BehaviorVersion;
@@ -219,7 +222,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // TODO: remove hard-coded region
-    Command::new("session-manager-plugin")
+    let mut command = Command::new("session-manager-plugin")
         .args([
             serde_json::to_string(&serializable_session)?,
             "us-east-1".to_string(),
@@ -228,8 +231,9 @@ async fn main() -> anyhow::Result<()> {
             serde_json::to_string(&start_session)?,
             "https://ssm.us-east-1.amazonaws.com".to_string(),
         ])
-        .spawn()
-        .expect("TODO");
+        .spawn()?;
+
+    command.wait()?;
 
     // println!("{:?}", foo);
 
