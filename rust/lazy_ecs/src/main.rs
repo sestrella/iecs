@@ -192,24 +192,21 @@ async fn main() -> anyhow::Result<()> {
     let Cli::Exec(args) = Cli::parse();
 
     let config = aws_config::defaults(BehaviorVersion::latest()).load().await;
-    let ecs_client = aws_sdk_ecs::Client::new(&config);
+    let client = aws_sdk_ecs::Client::new(&config);
 
-    let cluster = get_cluster(&ecs_client, &args.cluster).await?;
-    let task = get_task(&ecs_client, &cluster.arn, &args.task).await?;
-    let container = get_container(&ecs_client, &cluster.arn, &task.arn, &args.container).await?;
+    let cluster = get_cluster(&client, &args.cluster).await?;
+    let task = get_task(&client, &cluster.arn, &args.task).await?;
+    let container = get_container(&client, &cluster.arn, &task.arn, &args.container).await?;
 
-    let output = ecs_client
-        .execute_command()
-        .cluster(cluster.arn)
-        .task(task.arn)
-        .container(container.name)
-        .command(args.command)
-        .interactive(args.interactive)
-        .send()
-        .await?;
-
-    let session = output.session.ok_or(anyhow!("TODO"))?;
-    let serializable_session = SerializableSession::try_from(session)?;
+    let session = execute_command(
+        &client,
+        &cluster.arn,
+        &task.arn,
+        &container.name,
+        &args.command,
+        args.interactive,
+    )
+    .await?;
 
     let start_session = SerializableStartSession {
         target: format!(
@@ -224,7 +221,7 @@ async fn main() -> anyhow::Result<()> {
     // TODO: remove hard-coded region
     let mut command = Command::new("session-manager-plugin")
         .args([
-            serde_json::to_string(&serializable_session)?,
+            serde_json::to_string(&session)?,
             "us-east-1".to_string(),
             "StartSession".to_string(),
             "".to_string(),
@@ -234,8 +231,6 @@ async fn main() -> anyhow::Result<()> {
         .spawn()?;
 
     command.wait()?;
-
-    // println!("{:?}", foo);
 
     Ok(())
 }
@@ -326,4 +321,25 @@ async fn get_container(
         .prompt()
         .context("TODO")?;
     Ok(container)
+}
+
+async fn execute_command(
+    client: &aws_sdk_ecs::Client,
+    cluster_arn: &String,
+    task_arn: &String,
+    container_name: &String,
+    command: &String,
+    interactive: bool,
+) -> anyhow::Result<SerializableSession> {
+    let output = client
+        .execute_command()
+        .cluster(cluster_arn)
+        .task(task_arn)
+        .container(container_name)
+        .command(command)
+        .interactive(interactive)
+        .send()
+        .await?;
+    let session = output.session.ok_or(anyhow!("TODO"))?;
+    SerializableSession::try_from(session)
 }
