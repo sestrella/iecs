@@ -37,11 +37,11 @@ type model struct {
 	quitting bool
 }
 
-func (m model) Init() tea.Cmd {
+func (m *model) Init() tea.Cmd {
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -61,7 +61,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) View() string {
+func (m *model) View() string {
 	return docStyle.Render(m.list.View())
 }
 
@@ -105,20 +105,20 @@ func selectCluster(ctx context.Context, client *ecs.Client, clusterId string) (*
 }
 
 func newSelector(title string, items []list.Item) (*item, error) {
-	m := model{list: list.New(items, list.NewDefaultDelegate(), 0, 0), quitting: false}
-	m.list.Title = title
+	model := model{list: list.New(items, list.NewDefaultDelegate(), 0, 0), quitting: false}
+	model.list.Title = title
 
-	program := tea.NewProgram(m, tea.WithAltScreen())
+	program := tea.NewProgram(&model, tea.WithAltScreen())
 
 	if _, err := program.Run(); err != nil {
 		return nil, err
 	}
-	if m.quitting {
+	if model.quitting {
 		fmt.Println("Bye bye!")
 		os.Exit(1)
 	}
 
-	selected := m.list.SelectedItem().(item)
+	selected := model.list.SelectedItem().(item)
 	return &selected, nil
 }
 
