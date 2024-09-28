@@ -14,16 +14,34 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var docStyle = lipgloss.NewStyle().Margin(1, 2)
+
+var rootCmd = &cobra.Command{
+	Use:   "lazy-ecs",
+	Short: "A brief description of your application",
+	Long:  "TODO",
+}
+
+type item struct {
+	name      string
+	arn       string
+	runtimeId string
+}
+
+func (i item) Title() string       { return i.name }
+func (i item) Description() string { return i.arn }
+func (i item) FilterValue() string { return i.name }
+
 type model struct {
 	list     list.Model
 	quitting bool
 }
 
-func (m *model) Init() tea.Cmd {
+func (m model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -43,30 +61,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *model) View() string {
+func (m model) View() string {
 	return docStyle.Render(m.list.View())
-}
-
-type item struct {
-	name      string
-	arn       string
-	runtimeId string
-}
-
-func (i item) Title() string       { return i.name }
-func (i item) Description() string { return i.arn }
-func (i item) FilterValue() string { return i.name }
-
-var docStyle = lipgloss.NewStyle().Margin(1, 2)
-
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:   "lazy-ecs",
-	Short: "A brief description of your application",
-	Long:  "TODO",
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
 }
 
 func selectCluster(ctx context.Context, client *ecs.Client, clusterId string) (*item, error) {
@@ -109,19 +105,20 @@ func selectCluster(ctx context.Context, client *ecs.Client, clusterId string) (*
 }
 
 func newSelector(title string, items []list.Item) (*item, error) {
-	list := list.New(items, list.NewDefaultDelegate(), 0, 0)
-	list.Title = title
+	m := model{list: list.New(items, list.NewDefaultDelegate(), 0, 0), quitting: false}
+	m.list.Title = title
 
-	model := model{list: list}
-	if _, err := tea.NewProgram(&model).Run(); err != nil {
+	program := tea.NewProgram(m, tea.WithAltScreen())
+
+	if _, err := program.Run(); err != nil {
 		return nil, err
 	}
-	if model.quitting {
+	if m.quitting {
 		fmt.Println("Bye bye!")
 		os.Exit(1)
 	}
 
-	selected := model.list.SelectedItem().(item)
+	selected := m.list.SelectedItem().(item)
 	return &selected, nil
 }
 
