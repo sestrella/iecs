@@ -1,10 +1,12 @@
-use std::fmt::Display;
+use std::{fmt::Display, process::Command};
 
 use anyhow::{anyhow, ensure, Context};
 use aws_config::BehaviorVersion;
-use aws_sdk_ecs::types::{Cluster, Container, Task};
+use aws_sdk_ecs::types::{Cluster, Container, Session, Task};
+use aws_sdk_ssm::operation::start_session::StartSessionOutput;
 use clap::Parser;
 use inquire::Select;
+use serde::Serialize;
 
 #[derive(Parser)]
 #[command(name = "lazy-ecs")]
@@ -135,16 +137,102 @@ impl TryFrom<Container> for SelectableContainer {
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct SerializableSession {
+    session_id: String,
+    stream_url: String,
+    token_value: String,
+}
+
+impl TryFrom<Session> for SerializableSession {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Session) -> Result<Self, Self::Error> {
+        let session_id = value.session_id.ok_or(anyhow!("TODO"))?;
+        let stream_url = value.stream_url.ok_or(anyhow!("TODO"))?;
+        let token_value = value.token_value.ok_or(anyhow!("TODO"))?;
+        Ok(SerializableSession {
+            session_id,
+            stream_url,
+            token_value,
+        })
+    }
+}
+
+impl TryFrom<StartSessionOutput> for SerializableSession {
+    type Error = anyhow::Error;
+
+    fn try_from(value: StartSessionOutput) -> Result<Self, Self::Error> {
+        let session_id = value.session_id.ok_or(anyhow!("TODO"))?;
+        let stream_url = value.stream_url.ok_or(anyhow!("TODO"))?;
+        let token_value = value.token_value.ok_or(anyhow!("TODO"))?;
+        Ok(SerializableSession {
+            session_id,
+            stream_url,
+            token_value,
+        })
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct SerializableStartSession {
+    target: String,
+    document_name: Option<String>,
+    parameters: Option<String>,
+    reason: Option<String>,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let Cli::Exec(args) = Cli::parse();
 
     let config = aws_config::defaults(BehaviorVersion::latest()).load().await;
-    let client = aws_sdk_ecs::Client::new(&config);
-    let cluster = get_cluster(&client, &args.cluster).await?;
-    let task = get_task(&client, &cluster.arn, &args.task).await?;
-    let container = get_container(&client, &cluster.arn, &task.arn, &args.container).await?;
-    println!("{}", container.name);
+    let ecs_client = aws_sdk_ecs::Client::new(&config);
+
+    let cluster = get_cluster(&ecs_client, &args.cluster).await?;
+    let task = get_task(&ecs_client, &cluster.arn, &args.task).await?;
+    let container = get_container(&ecs_client, &cluster.arn, &task.arn, &args.container).await?;
+
+    let output = ecs_client
+        .execute_command()
+        .cluster(cluster.arn)
+        .task(task.arn)
+        .container(container.name)
+        .command(args.command)
+        .interactive(args.interactive)
+        .send()
+        .await?;
+
+    let session = output.session.ok_or(anyhow!("TODO"))?;
+    let serializable_session = SerializableSession::try_from(session)?;
+
+    let start_session = SerializableStartSession {
+        target: format!(
+            "ecs:{}_{}_{}",
+            cluster.name, task.name, container.runtime_id
+        ),
+        document_name: None,
+        parameters: None,
+        reason: None,
+    };
+
+    // TODO: remove hard-coded region
+    Command::new("session-manager-plugin")
+        .args([
+            serde_json::to_string(&serializable_session)?,
+            "us-east-1".to_string(),
+            "StartSession".to_string(),
+            "".to_string(),
+            serde_json::to_string(&start_session)?,
+            "https://ssm.us-east-1.amazonaws.com".to_string(),
+        ])
+        .spawn()
+        .expect("TODO");
+
+    // println!("{:?}", foo);
+
     Ok(())
 }
 
@@ -209,13 +297,13 @@ async fn get_task(
     Ok(task)
 }
 
+// TODO: use container_arg
 async fn get_container(
     client: &aws_sdk_ecs::Client,
     cluster: &String,
     task: &String,
     container_arg: &Option<String>,
 ) -> anyhow::Result<SelectableContainer> {
-    if let Some(container) = container_arg {}
     let output = client
         .describe_tasks()
         .cluster(cluster)

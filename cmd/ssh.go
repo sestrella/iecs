@@ -84,14 +84,15 @@ var sshCmd = &cobra.Command{
 		)
 
 		// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
-		smp := exec.Command("session-manager-plugin",
-			string(session),
+		var argsFoo = []string{string(session),
 			cfg.Region,
 			"StartSession",
 			"",
 			string(targetJSON),
 			fmt.Sprintf("https://ssm.%s.amazonaws.com", cfg.Region),
-		)
+		}
+		fmt.Println(argsFoo)
+		smp := exec.Command("session-manager-plugin", argsFoo...)
 		smp.Stdin = os.Stdin
 		smp.Stdout = os.Stdout
 		smp.Stderr = os.Stderr
