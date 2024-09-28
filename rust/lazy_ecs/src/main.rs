@@ -215,6 +215,7 @@ async fn get_container(
     task: &String,
     container_arg: &Option<String>,
 ) -> anyhow::Result<SelectableContainer> {
+    if let Some(container) = container_arg {}
     let output = client
         .describe_tasks()
         .cluster(cluster)
