@@ -1,12 +1,9 @@
-use std::{
-    fmt::Display,
-    process::{Command, Stdio},
-};
+use std::{fmt::Display, process::Command};
 
 use anyhow::{anyhow, ensure, Context};
 use aws_config::BehaviorVersion;
 use aws_sdk_ecs::types::{Cluster, Container, Session, Task};
-use aws_sdk_ssm::operation::start_session::{StartSessionInput, StartSessionOutput};
+use aws_sdk_ssm::operation::start_session::StartSessionInput;
 use clap::Parser;
 use inquire::Select;
 use serde::{ser::SerializeStruct, Serialize};
@@ -201,15 +198,18 @@ async fn main() -> anyhow::Result<()> {
             .build()?,
     );
 
-    // TODO: remove hard-coded region
+    let region = config
+        .region()
+        .ok_or_else(|| anyhow!("Region not available"))?;
+
     let mut command = Command::new("session-manager-plugin")
         .args([
             serde_json::to_string(&session)?,
-            "us-east-1".to_string(),
+            region.to_string(),
             "StartSession".to_string(),
             "".to_string(),
             serde_json::to_string(&start_session)?,
-            "https://ssm.us-east-1.amazonaws.com".to_string(),
+            format!("https://ssm.{}.amazonaws.com", region),
         ])
         .spawn()?;
 
