@@ -6,10 +6,10 @@ use std::{
 use anyhow::{anyhow, ensure, Context};
 use aws_config::BehaviorVersion;
 use aws_sdk_ecs::types::{Cluster, Container, Session, Task};
-use aws_sdk_ssm::operation::start_session::StartSessionOutput;
+use aws_sdk_ssm::operation::start_session::{StartSessionInput, StartSessionOutput};
 use clap::Parser;
 use inquire::Select;
-use serde::Serialize;
+use serde::{ser::SerializeStruct, Serialize};
 
 #[derive(Parser)]
 #[command(name = "lazy-ecs")]
@@ -140,51 +140,35 @@ impl TryFrom<Container> for SelectableContainer {
     }
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "PascalCase")]
-struct SerializableSession {
-    session_id: String,
-    stream_url: String,
-    token_value: String,
-}
+struct SerializableSession(Session);
 
-impl TryFrom<Session> for SerializableSession {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Session) -> Result<Self, Self::Error> {
-        let session_id = value.session_id.ok_or(anyhow!("TODO"))?;
-        let stream_url = value.stream_url.ok_or(anyhow!("TODO"))?;
-        let token_value = value.token_value.ok_or(anyhow!("TODO"))?;
-        Ok(SerializableSession {
-            session_id,
-            stream_url,
-            token_value,
-        })
+impl Serialize for SerializableSession {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("SerializableSession", 3)?;
+        state.serialize_field("SessionId", &self.0.session_id)?;
+        state.serialize_field("StreamUrl", &self.0.stream_url)?;
+        state.serialize_field("TokenValue", &self.0.token_value)?;
+        state.end()
     }
 }
 
-impl TryFrom<StartSessionOutput> for SerializableSession {
-    type Error = anyhow::Error;
+struct SerializableStartSession(StartSessionInput);
 
-    fn try_from(value: StartSessionOutput) -> Result<Self, Self::Error> {
-        let session_id = value.session_id.ok_or(anyhow!("TODO"))?;
-        let stream_url = value.stream_url.ok_or(anyhow!("TODO"))?;
-        let token_value = value.token_value.ok_or(anyhow!("TODO"))?;
-        Ok(SerializableSession {
-            session_id,
-            stream_url,
-            token_value,
-        })
+impl Serialize for SerializableStartSession {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("SerializableSession", 3)?;
+        state.serialize_field("DocumentName", &self.0.document_name)?;
+        state.serialize_field("Parameters", &self.0.parameters)?;
+        state.serialize_field("Reason", &self.0.reason)?;
+        state.serialize_field("Target", &self.0.target)?;
+        state.end()
     }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "PascalCase")]
-struct SerializableStartSession {
-    target: String,
-    document_name: Option<String>,
-    parameters: Option<String>,
-    reason: Option<String>,
 }
 
 #[tokio::main]
@@ -208,15 +192,14 @@ async fn main() -> anyhow::Result<()> {
     )
     .await?;
 
-    let start_session = SerializableStartSession {
-        target: format!(
-            "ecs:{}_{}_{}",
-            cluster.name, task.name, container.runtime_id
-        ),
-        document_name: None,
-        parameters: None,
-        reason: None,
-    };
+    let start_session = SerializableStartSession(
+        StartSessionInput::builder()
+            .target(format!(
+                "ecs:{}_{}_{}",
+                cluster.name, task.name, container.runtime_id
+            ))
+            .build()?,
+    );
 
     // TODO: remove hard-coded region
     let mut command = Command::new("session-manager-plugin")
@@ -341,5 +324,5 @@ async fn execute_command(
         .send()
         .await?;
     let session = output.session.ok_or(anyhow!("TODO"))?;
-    SerializableSession::try_from(session)
+    Ok(SerializableSession(session))
 }
