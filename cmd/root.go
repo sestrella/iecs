@@ -75,7 +75,7 @@ func selectCluster(ctx context.Context, client *ecs.Client, clusterId string) (*
 		}
 
 		if len(output.Clusters) == 0 {
-			return nil, fmt.Errorf("Cluster '%s' not found", sshClusterId)
+			return nil, fmt.Errorf("Cluster '%s' not found", clusterId)
 		}
 
 		cluster := output.Clusters[0]
