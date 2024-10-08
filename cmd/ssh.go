@@ -40,18 +40,18 @@ var sshCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		task, err := selectTask(context.TODO(), client, *cluster, taskId)
+		task, err := selectTask(context.TODO(), client, *cluster.ClusterName, taskId)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		container, err := selectContainer(context.TODO(), client, *cluster, *task, containerId)
+		container, err := selectContainer(context.TODO(), client, *cluster.ClusterName, *task, containerId)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		output, err := client.ExecuteCommand(context.TODO(), &ecs.ExecuteCommandInput{
-			Cluster:     &cluster.arn,
+			Cluster:     cluster.ClusterArn,
 			Task:        &task.arn,
 			Container:   &container.name,
 			Command:     &command,
@@ -66,7 +66,7 @@ var sshCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		var target = fmt.Sprintf("ecs:%s_%s_%s", cluster.name, task.name, container.runtimeId)
+		var target = fmt.Sprintf("ecs:%s_%s_%s", cluster.ClusterName, task.name, container.runtimeId)
 		targetJSON, err := json.Marshal(ssm.StartSessionInput{
 			Target: &target,
 		})
@@ -76,7 +76,7 @@ var sshCmd = &cobra.Command{
 
 		fmt.Print("\nNon-interactive command:\n")
 		fmt.Printf("\n\tlazy-ecs ssh --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
-			cluster.name,
+			&cluster.ClusterName,
 			task.name,
 			container.name,
 			command,
@@ -104,10 +104,10 @@ var sshCmd = &cobra.Command{
 	},
 }
 
-func selectTask(ctx context.Context, client *ecs.Client, cluster item, taskId string) (*item, error) {
+func selectTask(ctx context.Context, client *ecs.Client, cluster string, taskId string) (*item, error) {
 	if taskId != "" {
 		output, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-			Cluster: &cluster.arn,
+			Cluster: &cluster,
 			Tasks:   []string{taskId},
 		})
 		if err != nil {
@@ -127,7 +127,7 @@ func selectTask(ctx context.Context, client *ecs.Client, cluster item, taskId st
 	}
 
 	output, err := client.ListTasks(ctx, &ecs.ListTasksInput{
-		Cluster: &cluster.arn,
+		Cluster: &cluster,
 	})
 	if err != nil {
 		return nil, err
@@ -147,9 +147,9 @@ func selectTask(ctx context.Context, client *ecs.Client, cluster item, taskId st
 	return newSelector("Tasks", items)
 }
 
-func selectContainer(ctx context.Context, client *ecs.Client, cluster item, task item, containerId string) (*item, error) {
+func selectContainer(ctx context.Context, client *ecs.Client, cluster string, task item, containerId string) (*item, error) {
 	output, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: &cluster.arn,
+		Cluster: &cluster,
 		Tasks:   []string{task.arn},
 	})
 	if err != nil {

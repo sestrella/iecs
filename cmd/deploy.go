@@ -40,14 +40,14 @@ var deployCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		service, err := selectService(context.TODO(), client, *cluster)
+		service, err := selectService(context.TODO(), client, *cluster.ClusterName)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		// TODO: Try to avoid calling DescribeServices twice
 		describeServicesOutput, err := client.DescribeServices(context.TODO(), &ecs.DescribeServicesInput{
-			Cluster:  &cluster.arn,
+			Cluster:  cluster.ClusterArn,
 			Services: []string{service.arn},
 		})
 		if err != nil {
@@ -112,7 +112,7 @@ var deployCmd = &cobra.Command{
 		newTaskDefinitionArn := registerTaskDefinitionOutput.TaskDefinition.TaskDefinitionArn
 		log.Printf("Task definition ARN: %s", *newTaskDefinitionArn)
 		updateServiceOutput, err := client.UpdateService(context.TODO(), &ecs.UpdateServiceInput{
-			Cluster:        &cluster.arn,
+			Cluster:        cluster.ClusterArn,
 			Service:        &service.arn,
 			TaskDefinition: newTaskDefinitionArn,
 		})
@@ -154,10 +154,10 @@ var deployCmd = &cobra.Command{
 	},
 }
 
-func selectService(ctx context.Context, client *ecs.Client, cluster item) (*item, error) {
+func selectService(ctx context.Context, client *ecs.Client, clusterArn string) (*item, error) {
 	if deployServiceId != "" {
 		describeServicesOutput, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
-			Cluster:  &cluster.arn,
+			Cluster:  &clusterArn,
 			Services: []string{deployServiceId},
 		})
 		if err != nil {
@@ -177,13 +177,13 @@ func selectService(ctx context.Context, client *ecs.Client, cluster item) (*item
 	}
 
 	listServicesOutput, err := client.ListServices(ctx, &ecs.ListServicesInput{
-		Cluster: &cluster.arn,
+		Cluster: &clusterArn,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Unable to list services on cluster '%s': %w", cluster.name, err)
+		return nil, fmt.Errorf("Unable to list services on cluster '%s': %w", clusterArn, err)
 	}
 	if len(listServicesOutput.ServiceArns) == 0 {
-		return nil, fmt.Errorf("No services found on cluster '%s'", cluster.name)
+		return nil, fmt.Errorf("No services found on cluster '%s'", clusterArn)
 	}
 
 	items := []list.Item{}

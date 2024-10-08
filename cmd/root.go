@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
@@ -65,43 +66,33 @@ func (m *model) View() string {
 	return docStyle.Render(m.list.View())
 }
 
-func selectCluster(ctx context.Context, client *ecs.Client, clusterId string) (*item, error) {
-	if clusterId != "" {
-		output, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
-			Clusters: []string{clusterId},
-		})
+func selectCluster(ctx context.Context, client *ecs.Client, clusterId string) (*types.Cluster, error) {
+	if clusterId == "" {
+		clusters, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Error listing clusters: %w", err)
 		}
-
-		if len(output.Clusters) == 0 {
-			return nil, fmt.Errorf("Cluster '%s' not found", clusterId)
+		if len(clusters.ClusterArns) == 0 {
+			return nil, errors.New("No clusters found")
 		}
-
-		cluster := output.Clusters[0]
-		return &item{
-			name: *cluster.ClusterName,
-			arn:  *cluster.ClusterArn,
-		}, nil
+		clusterArn, err := pterm.DefaultInteractiveSelect.WithOptions(clusters.ClusterArns).Show()
+		return describeCluster(ctx, client, clusterArn)
 	}
+	return describeCluster(ctx, client, clusterId)
+}
 
-	output, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
+func describeCluster(ctx context.Context, client *ecs.Client, clusterId string) (*types.Cluster, error) {
+	clusters, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
+		Clusters: []string{clusterId},
+	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error describing cluster '%s': %w", clusterId, err)
 	}
-	if len(output.ClusterArns) == 0 {
-		return nil, errors.New("No clusters found")
+	if len(clusters.Clusters) == 0 {
+		return nil, fmt.Errorf("Cluster '%s' not found", clusterId)
 	}
-
-	items := []list.Item{}
-	for _, arn := range output.ClusterArns {
-		index := strings.LastIndex(arn, "/")
-		items = append(items, item{
-			name: arn[index+1:],
-			arn:  arn,
-		})
-	}
-	return newSelector("Clusters", items)
+	cluster := clusters.Clusters[0]
+	return &cluster, nil
 }
 
 func newSelector(title string, items []list.Item) (*item, error) {
