@@ -66,7 +66,7 @@ var sshCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		var target = fmt.Sprintf("ecs:%s_%s_%s", cluster.ClusterName, task.name, container.runtimeId)
+		var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, task.name, container.runtimeId)
 		targetJSON, err := json.Marshal(ssm.StartSessionInput{
 			Target: &target,
 		})
@@ -76,7 +76,7 @@ var sshCmd = &cobra.Command{
 
 		fmt.Print("\nNon-interactive command:\n")
 		fmt.Printf("\n\tlazy-ecs ssh --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
-			&cluster.ClusterName,
+			*cluster.ClusterName,
 			task.name,
 			container.name,
 			command,

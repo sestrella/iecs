@@ -76,6 +76,9 @@ func selectCluster(ctx context.Context, client *ecs.Client, clusterId string) (*
 			return nil, errors.New("No clusters found")
 		}
 		clusterArn, err := pterm.DefaultInteractiveSelect.WithOptions(clusters.ClusterArns).Show()
+		if err != nil {
+			return nil, fmt.Errorf("Error selecting a cluster: %w", err)
+		}
 		return describeCluster(ctx, client, clusterArn)
 	}
 	return describeCluster(ctx, client, clusterId)
