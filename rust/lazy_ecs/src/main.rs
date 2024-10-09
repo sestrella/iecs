@@ -231,7 +231,7 @@ async fn get_cluster(
         let clusters = output.clusters.unwrap_or_else(|| Vec::new());
         let cluster = clusters
             .first()
-            .with_context(|| format!("Cluster {} not found", cluster_name))?;
+            .with_context(|| format!("Cluster '{}' not found", cluster_name))?;
         return SelectableCluster::try_from(cluster);
     }
     let output = client.list_clusters().send().await?;
@@ -248,7 +248,6 @@ async fn get_cluster(
     Ok(cluster)
 }
 
-// TODO: take into account task_arg
 async fn get_task(
     client: &aws_sdk_ecs::Client,
     cluster: &String,
@@ -264,7 +263,7 @@ async fn get_task(
         let tasks = output.tasks.unwrap_or_else(|| Vec::new());
         let task = tasks
             .first()
-            .with_context(|| format!("Task {} not found", task_name))?;
+            .with_context(|| format!("Task '{}' not found", task_name))?;
         return SelectableTask::try_from(task);
     }
     let output = client.list_tasks().cluster(cluster).send().await?;
@@ -279,7 +278,6 @@ async fn get_task(
     Ok(task)
 }
 
-// TODO: use container_arg
 async fn get_container(
     client: &aws_sdk_ecs::Client,
     cluster_id: &String,
@@ -300,11 +298,11 @@ async fn get_container(
         .flatten()
         .map(|container| SelectableContainer::try_from(container))
         .collect::<anyhow::Result<Vec<SelectableContainer>>>()?;
-    let container = if let Some(foo) = container_arg {
+    let container = if let Some(container_id) = container_arg {
         containers
             .into_iter()
-            .find(|container| container.name == *foo)
-            .ok_or_else(|| anyhow!(""))?
+            .find(|container| container.name == *container_id)
+            .with_context(|| format!("Container '{}' not found", container_id))?
     } else {
         Select::new("Container", containers)
             .prompt()
