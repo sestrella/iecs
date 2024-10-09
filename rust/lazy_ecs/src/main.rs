@@ -282,27 +282,34 @@ async fn get_task(
 // TODO: use container_arg
 async fn get_container(
     client: &aws_sdk_ecs::Client,
-    cluster: &String,
-    task: &String,
+    cluster_id: &String,
+    task_id: &String,
     container_arg: &Option<String>,
 ) -> anyhow::Result<SelectableContainer> {
     let output = client
         .describe_tasks()
-        .cluster(cluster)
-        .tasks(task)
+        .cluster(cluster_id)
+        .tasks(task_id)
         .send()
         .await?;
     let containers = output
         .tasks
         .unwrap_or(Vec::new())
         .into_iter()
-        .map(|task| task.containers.unwrap_or(Vec::new()))
+        .map(|task| task.containers.unwrap_or_else(|| Vec::new()))
         .flatten()
         .map(|container| SelectableContainer::try_from(container))
         .collect::<anyhow::Result<Vec<SelectableContainer>>>()?;
-    let container = Select::new("Container", containers)
-        .prompt()
-        .context("TODO")?;
+    let container = if let Some(foo) = container_arg {
+        containers
+            .into_iter()
+            .find(|container| container.name == *foo)
+            .ok_or_else(|| anyhow!(""))?
+    } else {
+        Select::new("Container", containers)
+            .prompt()
+            .context("TODO")?
+    };
     Ok(container)
 }
 
