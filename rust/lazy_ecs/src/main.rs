@@ -46,11 +46,11 @@ impl TryFrom<&Cluster> for SelectableCluster {
         let name = value
             .cluster_name
             .as_ref()
-            .ok_or_else(|| anyhow!("cluster_name not found"))?;
+            .context("cluster_name not found")?;
         let arn = value
             .cluster_arn
             .as_ref()
-            .ok_or_else(|| anyhow!("cluster_arn not found"))?;
+            .context("cluster_arn not found")?;
         Ok(SelectableCluster {
             name: name.to_string(),
             arn: arn.to_string(),
