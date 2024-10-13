@@ -149,7 +149,7 @@ var deployCmd = &cobra.Command{
 				}
 			}
 		} else {
-			log.Printf("Flag --wait is disabled, no waiting for '%s' to become active", service.ServiceName)
+			log.Printf("Flag --wait is disabled, no waiting for '%s' to become active", *service.ServiceName)
 		}
 	},
 }
