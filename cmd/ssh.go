@@ -67,7 +67,7 @@ var sshCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, task.TaskArn, container.runtimeId)
+		var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, *task.TaskArn, container.runtimeId)
 		targetJSON, err := json.Marshal(ssm.StartSessionInput{
 			Target: &target,
 		})
