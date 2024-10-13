@@ -8,12 +8,13 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
@@ -45,14 +46,14 @@ var sshCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		container, err := selectContainer(context.TODO(), client, *cluster.ClusterName, *task, containerId)
+		container, err := selectContainer(context.TODO(), client, *cluster.ClusterName, *task.TaskArn, containerId)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		output, err := client.ExecuteCommand(context.TODO(), &ecs.ExecuteCommandInput{
 			Cluster:     cluster.ClusterArn,
-			Task:        &task.arn,
+			Task:        task.TaskArn,
 			Container:   &container.name,
 			Command:     &command,
 			Interactive: interactive,
@@ -66,7 +67,7 @@ var sshCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, task.name, container.runtimeId)
+		var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, task.TaskArn, container.runtimeId)
 		targetJSON, err := json.Marshal(ssm.StartSessionInput{
 			Target: &target,
 		})
@@ -77,7 +78,7 @@ var sshCmd = &cobra.Command{
 		fmt.Print("\nNon-interactive command:\n")
 		fmt.Printf("\n\tlazy-ecs ssh --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
 			*cluster.ClusterName,
-			task.name,
+			*task.TaskArn,
 			container.name,
 			command,
 			interactive,
@@ -104,53 +105,35 @@ var sshCmd = &cobra.Command{
 	},
 }
 
-func selectTask(ctx context.Context, client *ecs.Client, cluster string, taskId string) (*item, error) {
+func selectTask(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*types.Task, error) {
 	if taskId != "" {
-		output, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-			Cluster: &cluster,
-			Tasks:   []string{taskId},
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		if len(output.Tasks) == 0 {
-			return nil, fmt.Errorf("Task '%s' not found", taskId)
-		}
-
-		task := output.Tasks[0]
-		slices := strings.Split(*task.TaskArn, "/")
-		return &item{
-			name: fmt.Sprintf("%s/%s", slices[1], slices[2]),
-			arn:  *task.TaskArn,
-		}, nil
+		return describeTask(ctx, client, clusterId, taskId)
 	}
 
-	output, err := client.ListTasks(ctx, &ecs.ListTasksInput{
-		Cluster: &cluster,
+	output, _ := client.ListTasks(ctx, &ecs.ListTasksInput{
+		Cluster: &clusterId,
 	})
-	if err != nil {
-		return nil, err
-	}
-	if len(output.TaskArns) == 0 {
-		return nil, errors.New("No tasks found")
-	}
-
-	items := []list.Item{}
-	for _, arn := range output.TaskArns {
-		slices := strings.Split(arn, "/")
-		items = append(items, item{
-			name: fmt.Sprintf("%s/%s", slices[1], slices[2]),
-			arn:  arn,
-		})
-	}
-	return newSelector("Tasks", items)
+	// if len(output.TaskArns) == 0 {
+	// 	return nil, errors.New("No tasks found")
+	// }
+	//
+	taskArn, _ := pterm.DefaultInteractiveSelect.WithOptions(output.TaskArns).Show()
+	return describeTask(ctx, client, clusterId, taskArn)
 }
 
-func selectContainer(ctx context.Context, client *ecs.Client, cluster string, task item, containerId string) (*item, error) {
+func describeTask(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*types.Task, error) {
+	output, _ := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+		Cluster: &clusterId,
+		Tasks:   []string{taskId},
+	})
+	task := output.Tasks[0]
+	return &task, nil
+}
+
+func selectContainer(ctx context.Context, client *ecs.Client, cluster string, task string, containerId string) (*item, error) {
 	output, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
 		Cluster: &cluster,
-		Tasks:   []string{task.arn},
+		Tasks:   []string{task},
 	})
 	if err != nil {
 		return nil, err
