@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
-	"github.com/charmbracelet/bubbles/list"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +48,7 @@ var deployCmd = &cobra.Command{
 		// TODO: Try to avoid calling DescribeServices twice
 		describeServicesOutput, err := client.DescribeServices(context.TODO(), &ecs.DescribeServicesInput{
 			Cluster:  cluster.ClusterArn,
-			Services: []string{service.arn},
+			Services: []string{*service.ServiceArn},
 		})
 		if err != nil {
 			log.Fatal(err)
@@ -113,7 +113,7 @@ var deployCmd = &cobra.Command{
 		log.Printf("Task definition ARN: %s", *newTaskDefinitionArn)
 		updateServiceOutput, err := client.UpdateService(context.TODO(), &ecs.UpdateServiceInput{
 			Cluster:        cluster.ClusterArn,
-			Service:        &service.arn,
+			Service:        service.ServiceArn,
 			TaskDefinition: newTaskDefinitionArn,
 		})
 		if err != nil {
@@ -149,31 +149,14 @@ var deployCmd = &cobra.Command{
 				}
 			}
 		} else {
-			log.Printf("Flag --wait is disabled, no waiting for '%s' to become active", service.name)
+			log.Printf("Flag --wait is disabled, no waiting for '%s' to become active", service.ServiceName)
 		}
 	},
 }
 
-func selectService(ctx context.Context, client *ecs.Client, clusterArn string) (*item, error) {
+func selectService(ctx context.Context, client *ecs.Client, clusterArn string) (*types.Service, error) {
 	if deployServiceId != "" {
-		describeServicesOutput, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
-			Cluster:  &clusterArn,
-			Services: []string{deployServiceId},
-		})
-		if err != nil {
-			return nil, fmt.Errorf("Unable to describe service '%s': %w", deployServiceId, err)
-		}
-
-		if len(describeServicesOutput.Services) == 0 {
-			return nil, fmt.Errorf("Service '%s' not found", deployServiceId)
-		}
-
-		service := describeServicesOutput.Services[0]
-		serviceArnSlices := strings.Split(*service.ServiceArn, "/")
-		return &item{
-			name: fmt.Sprintf("%s/%s", serviceArnSlices[1], serviceArnSlices[2]),
-			arn:  *service.ServiceArn,
-		}, nil
+		return describeService(ctx, client, clusterArn, deployServiceId)
 	}
 
 	listServicesOutput, err := client.ListServices(ctx, &ecs.ListServicesInput{
@@ -185,16 +168,17 @@ func selectService(ctx context.Context, client *ecs.Client, clusterArn string) (
 	if len(listServicesOutput.ServiceArns) == 0 {
 		return nil, fmt.Errorf("No services found on cluster '%s'", clusterArn)
 	}
+	serviceArn, _ := pterm.DefaultInteractiveSelect.WithOptions(listServicesOutput.ServiceArns).Show()
+	return describeService(ctx, client, clusterArn, serviceArn)
+}
 
-	items := []list.Item{}
-	for _, arn := range listServicesOutput.ServiceArns {
-		index := strings.LastIndex(arn, "/")
-		items = append(items, item{
-			name: arn[index+1:],
-			arn:  arn,
-		})
-	}
-	return newSelector("Services", items)
+func describeService(ctx context.Context, client *ecs.Client, clusterId string, serviceId string) (*types.Service, error) {
+	output, _ := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
+		Cluster:  &clusterId,
+		Services: []string{serviceId},
+	})
+	service := output.Services[0]
+	return &service, nil
 }
 
 func init() {
