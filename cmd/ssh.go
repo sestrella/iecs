@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
@@ -67,7 +68,8 @@ var sshCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, *task.TaskArn, container.runtimeId)
+		foo := strings.Split(*task.TaskArn, "/")
+		var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, foo[0], container.runtimeId)
 		targetJSON, err := json.Marshal(ssm.StartSessionInput{
 			Target: &target,
 		})
