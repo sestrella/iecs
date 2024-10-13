@@ -24,9 +24,8 @@ var rootCmd = &cobra.Command{
 }
 
 type item struct {
-	name      string
-	arn       string
-	runtimeId string
+	name string
+	arn  string
 }
 
 func (i item) Title() string       { return i.name }

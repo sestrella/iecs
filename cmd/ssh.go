@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	"github.com/charmbracelet/bubbles/list"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -24,7 +22,7 @@ var sshCmd = &cobra.Command{
 	Use:   "ssh",
 	Short: "A brief description of your command",
 	Long:  "TODO",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		clusterId, _ := cmd.Flags().GetString("cluster")
 		taskId, _ := cmd.Flags().GetString("task")
 		containerId, _ := cmd.Flags().GetString("container")
@@ -47,7 +45,7 @@ var sshCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		container, err := selectContainer(context.TODO(), client, *cluster.ClusterName, *task.TaskArn, containerId)
+		container, err := selectContainer(context.TODO(), client, *task, containerId)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -55,7 +53,7 @@ var sshCmd = &cobra.Command{
 		output, err := client.ExecuteCommand(context.TODO(), &ecs.ExecuteCommandInput{
 			Cluster:     cluster.ClusterArn,
 			Task:        task.TaskArn,
-			Container:   &container.name,
+			Container:   container.Name,
 			Command:     &command,
 			Interactive: interactive,
 		})
@@ -69,7 +67,7 @@ var sshCmd = &cobra.Command{
 		}
 
 		foo := strings.Split(*task.TaskArn, "/")
-		var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, foo[0], container.runtimeId)
+		var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, foo[0], *container.RuntimeId)
 		targetJSON, err := json.Marshal(ssm.StartSessionInput{
 			Target: &target,
 		})
@@ -81,7 +79,7 @@ var sshCmd = &cobra.Command{
 		fmt.Printf("\n\tlazy-ecs ssh --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
 			*cluster.ClusterName,
 			*task.TaskArn,
-			container.name,
+			*container.Name,
 			command,
 			interactive,
 		)
@@ -100,10 +98,7 @@ var sshCmd = &cobra.Command{
 		smp.Stdout = os.Stdout
 		smp.Stderr = os.Stderr
 
-		err = smp.Run()
-		if err != nil {
-			log.Fatal(err)
-		}
+		return smp.Run()
 	},
 }
 
@@ -124,48 +119,35 @@ func selectTask(ctx context.Context, client *ecs.Client, clusterId string, taskI
 }
 
 func describeTask(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*types.Task, error) {
-	output, _ := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+	output, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
 		Cluster: &clusterId,
 		Tasks:   []string{taskId},
 	})
+	if err != nil {
+		return nil, fmt.Errorf("Error describing task: %w", err)
+	}
+	// if len(output.Tasks) < 1 {
+	// 	return nil, fmt.Errorf("Error describing task: %w", err)
+	// }
 	task := output.Tasks[0]
 	return &task, nil
 }
 
-func selectContainer(ctx context.Context, client *ecs.Client, cluster string, task string, containerId string) (*item, error) {
-	output, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: &cluster,
-		Tasks:   []string{task},
-	})
-	if err != nil {
-		return nil, err
+func selectContainer(ctx context.Context, client *ecs.Client, task types.Task, containerId string) (*types.Container, error) {
+	var containerNames []string
+	for _, container := range task.Containers {
+		if container.Name == &containerId {
+			return &container, nil
+		}
+		containerNames = append(containerNames, *container.Name)
 	}
-	if len(output.Tasks) == 0 {
-		return nil, errors.New("No tasks found")
-	}
-
-	items := []list.Item{}
-	for _, task := range output.Tasks {
-		for _, container := range task.Containers {
-			var containerItem = item{
-				name:      *container.Name,
-				arn:       *container.ContainerArn,
-				runtimeId: *container.RuntimeId,
-			}
-			if containerId != "" && *container.Name == containerId {
-				return &containerItem, nil
-			}
-			items = append(items, containerItem)
+	containerName, _ := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show()
+	for _, container := range task.Containers {
+		if container.Name == &containerName {
+			return &container, nil
 		}
 	}
-	if containerId != "" {
-		return nil, fmt.Errorf("Container '%s' not found", containerId)
-	}
-	if len(items) == 0 {
-		return nil, errors.New("No containers found")
-	}
-
-	return newSelector("Containers", items)
+	return nil, fmt.Errorf("No container '%s' found in task '%s'", containerName, *task.TaskArn)
 }
 
 func init() {
