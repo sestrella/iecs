@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -106,15 +107,19 @@ func selectTask(ctx context.Context, client *ecs.Client, clusterId string, taskI
 	if taskId != "" {
 		return describeTask(ctx, client, clusterId, taskId)
 	}
-
-	output, _ := client.ListTasks(ctx, &ecs.ListTasksInput{
+	output, err := client.ListTasks(ctx, &ecs.ListTasksInput{
 		Cluster: &clusterId,
 	})
-	// if len(output.TaskArns) == 0 {
-	// 	return nil, errors.New("No tasks found")
-	// }
-	//
-	taskArn, _ := pterm.DefaultInteractiveSelect.WithOptions(output.TaskArns).Show("Select a task")
+	if err != nil {
+		return nil, fmt.Errorf("Error listing tasks: %w", err)
+	}
+	if len(output.TaskArns) == 0 {
+		return nil, errors.New("No tasks found")
+	}
+	taskArn, err := pterm.DefaultInteractiveSelect.WithOptions(output.TaskArns).Show("Select a task")
+	if err != nil {
+		return nil, fmt.Errorf("Error selecting task: %w", err)
+	}
 	return describeTask(ctx, client, clusterId, taskArn)
 }
 
@@ -124,13 +129,12 @@ func describeTask(ctx context.Context, client *ecs.Client, clusterId string, tas
 		Tasks:   []string{taskId},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Error describing task: %w", err)
+		return nil, fmt.Errorf("Error describing task '%s': %w", taskId, err)
 	}
-	// if len(output.Tasks) < 1 {
-	// 	return nil, fmt.Errorf("Error describing task: %w", err)
-	// }
-	task := output.Tasks[0]
-	return &task, nil
+	if len(output.Tasks) == 0 {
+		return nil, fmt.Errorf("No task '%s' found", taskId)
+	}
+	return &output.Tasks[0], nil
 }
 
 func selectContainer(ctx context.Context, client *ecs.Client, task types.Task, containerId string) (*types.Container, error) {
