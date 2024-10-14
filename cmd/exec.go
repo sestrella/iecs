@@ -78,31 +78,33 @@ func runCommand(ctx context.Context, clusterId string, taskId string, containerI
 		return err
 	}
 	taskArnSlices := strings.Split(*task.TaskArn, "/")
-	var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, taskArnSlices[0], *container.RuntimeId)
+	if len(taskArnSlices) == 2 {
+		return fmt.Errorf("Unable to extract task name from '%s'", *task.TaskArn)
+	}
+	taskName := taskArnSlices[1]
+	var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, taskName, *container.RuntimeId)
 	targetJSON, err := json.Marshal(ssm.StartSessionInput{
 		Target: &target,
 	})
 	if err != nil {
 		return err
 	}
-	fmt.Print("\nNon-interactive command:\n")
-	fmt.Printf("\n\tlazy-ecs ssh --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
+	pterm.Info.Printfln("interactive-ecs exec --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
 		*cluster.ClusterName,
-		*task.TaskArn,
+		taskName,
 		*container.Name,
 		command,
 		interactive,
 	)
 	// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
-	var argsFoo = []string{string(session),
+	var smpArgs = []string{string(session),
 		cfg.Region,
 		"StartSession",
 		"",
 		string(targetJSON),
 		fmt.Sprintf("https://ssm.%s.amazonaws.com", cfg.Region),
 	}
-	fmt.Println(argsFoo)
-	smp := exec.Command("session-manager-plugin", argsFoo...)
+	smp := exec.Command("session-manager-plugin", smpArgs...)
 	smp.Stdin = os.Stdin
 	smp.Stdout = os.Stdout
 	smp.Stderr = os.Stderr

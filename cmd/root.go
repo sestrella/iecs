@@ -15,7 +15,6 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "interactive-ecs",
 	Short: "A brief description of your application",
-	Long:  "TODO",
 }
 
 func selectCluster(ctx context.Context, client *ecs.Client, clusterId string) (*types.Cluster, error) {
@@ -44,7 +43,7 @@ func describeCluster(ctx context.Context, client *ecs.Client, clusterId string) 
 		return nil, fmt.Errorf("Error describing cluster '%s': %w", clusterId, err)
 	}
 	if len(clusters.Clusters) == 0 {
-		return nil, fmt.Errorf("Cluster '%s' not found", clusterId)
+		return nil, fmt.Errorf("No cluster '%s' found", clusterId)
 	}
 	cluster := clusters.Clusters[0]
 	return &cluster, nil
