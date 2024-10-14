@@ -13,7 +13,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "lazy-ecs",
+	Use:   "interactive-ecs",
 	Short: "A brief description of your application",
 	Long:  "TODO",
 }
