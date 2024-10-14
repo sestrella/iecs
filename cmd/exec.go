@@ -17,9 +17,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// sshCmd represents the exec command
-var sshCmd = &cobra.Command{
-	Use:   "ssh",
+var execCmd = &cobra.Command{
+	Use:   "exec",
 	Short: "A brief description of your command",
 	Long:  "TODO",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -46,7 +45,7 @@ func runCommand(ctx context.Context, clusterId string, taskId string, containerI
 	if err != nil {
 		return err
 	}
-	container, err := selectContainer(ctx, client, *task, containerId)
+	container, err := selectContainer(*task, containerId)
 	if err != nil {
 		return err
 	}
@@ -130,7 +129,7 @@ func describeTask(ctx context.Context, client *ecs.Client, clusterId string, tas
 	return &output.Tasks[0], nil
 }
 
-func selectContainer(ctx context.Context, client *ecs.Client, task types.Task, containerId string) (*types.Container, error) {
+func selectContainer(task types.Task, containerId string) (*types.Container, error) {
 	var containerNames []string
 	for _, container := range task.Containers {
 		if container.Name == &containerId {
@@ -151,11 +150,11 @@ func selectContainer(ctx context.Context, client *ecs.Client, task types.Task, c
 }
 
 func init() {
-	rootCmd.AddCommand(sshCmd)
+	rootCmd.AddCommand(execCmd)
 
-	sshCmd.Flags().StringP("cluster", "c", "", "TODO")
-	sshCmd.Flags().StringP("task", "t", "", "TODO")
-	sshCmd.Flags().StringP("container", "n", "", "TODO")
-	sshCmd.Flags().StringP("command", "m", "/bin/sh", "TODO")
-	sshCmd.Flags().BoolP("interactive", "i", true, "TODO")
+	execCmd.Flags().StringP("cluster", "c", "", "TODO")
+	execCmd.Flags().StringP("task", "t", "", "TODO")
+	execCmd.Flags().StringP("container", "n", "", "TODO")
+	execCmd.Flags().StringP("command", "m", "/bin/sh", "TODO")
+	execCmd.Flags().BoolP("interactive", "i", true, "TODO")
 }
