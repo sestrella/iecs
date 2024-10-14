@@ -28,69 +28,72 @@ var sshCmd = &cobra.Command{
 		containerId, _ := cmd.Flags().GetString("container")
 		command, _ := cmd.Flags().GetString("command")
 		interactive, _ := cmd.Flags().GetBool("interactive")
-
-		cfg, err := config.LoadDefaultConfig(context.TODO())
-		if err != nil {
-			return err
-		}
-		client := ecs.NewFromConfig(cfg)
-		cluster, err := selectCluster(context.TODO(), client, clusterId)
-		if err != nil {
-			return err
-		}
-		task, err := selectTask(context.TODO(), client, *cluster.ClusterName, taskId)
-		if err != nil {
-			return err
-		}
-		container, err := selectContainer(context.TODO(), client, *task, containerId)
-		if err != nil {
-			return err
-		}
-		output, err := client.ExecuteCommand(context.TODO(), &ecs.ExecuteCommandInput{
-			Cluster:     cluster.ClusterArn,
-			Task:        task.TaskArn,
-			Container:   container.Name,
-			Command:     &command,
-			Interactive: interactive,
-		})
-		if err != nil {
-			return err
-		}
-		session, err := json.Marshal(output.Session)
-		if err != nil {
-			return err
-		}
-		taskArnSlices := strings.Split(*task.TaskArn, "/")
-		var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, taskArnSlices[0], *container.RuntimeId)
-		targetJSON, err := json.Marshal(ssm.StartSessionInput{
-			Target: &target,
-		})
-		if err != nil {
-			return err
-		}
-		fmt.Print("\nNon-interactive command:\n")
-		fmt.Printf("\n\tlazy-ecs ssh --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
-			*cluster.ClusterName,
-			*task.TaskArn,
-			*container.Name,
-			command,
-			interactive,
-		)
-		// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
-		var argsFoo = []string{string(session),
-			cfg.Region,
-			"StartSession",
-			"",
-			string(targetJSON),
-			fmt.Sprintf("https://ssm.%s.amazonaws.com", cfg.Region),
-		}
-		fmt.Println(argsFoo)
-		smp := exec.Command("session-manager-plugin", argsFoo...)
-		smp.Stdin = os.Stdin
-		smp.Stdout = os.Stdout
-		smp.Stderr = os.Stderr
-		return smp.Run()
+		return runCommand(context.TODO(), clusterId, taskId, containerId, command, interactive)
 	},
+}
+
+func runCommand(ctx context.Context, clusterId string, taskId string, containerId string, command string, interactive bool) error {
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return err
+	}
+	client := ecs.NewFromConfig(cfg)
+	cluster, err := selectCluster(ctx, client, clusterId)
+	if err != nil {
+		return err
+	}
+	task, err := selectTask(ctx, client, *cluster.ClusterName, taskId)
+	if err != nil {
+		return err
+	}
+	container, err := selectContainer(ctx, client, *task, containerId)
+	if err != nil {
+		return err
+	}
+	output, err := client.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
+		Cluster:     cluster.ClusterArn,
+		Task:        task.TaskArn,
+		Container:   container.Name,
+		Command:     &command,
+		Interactive: interactive,
+	})
+	if err != nil {
+		return err
+	}
+	session, err := json.Marshal(output.Session)
+	if err != nil {
+		return err
+	}
+	taskArnSlices := strings.Split(*task.TaskArn, "/")
+	var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, taskArnSlices[0], *container.RuntimeId)
+	targetJSON, err := json.Marshal(ssm.StartSessionInput{
+		Target: &target,
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Print("\nNon-interactive command:\n")
+	fmt.Printf("\n\tlazy-ecs ssh --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
+		*cluster.ClusterName,
+		*task.TaskArn,
+		*container.Name,
+		command,
+		interactive,
+	)
+	// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
+	var argsFoo = []string{string(session),
+		cfg.Region,
+		"StartSession",
+		"",
+		string(targetJSON),
+		fmt.Sprintf("https://ssm.%s.amazonaws.com", cfg.Region),
+	}
+	fmt.Println(argsFoo)
+	smp := exec.Command("session-manager-plugin", argsFoo...)
+	smp.Stdin = os.Stdin
+	smp.Stdout = os.Stdout
+	smp.Stderr = os.Stderr
+	return smp.Run()
 }
 
 func selectTask(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*types.Task, error) {
