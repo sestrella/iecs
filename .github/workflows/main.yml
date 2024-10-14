@@ -10,3 +10,5 @@ jobs:
         with:
           name: devenv
       - run: nix profile install nixpkgs#devenv
+      - run: devenv test
+      - run: devenv shell -- go build
