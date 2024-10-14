@@ -17,6 +17,8 @@ jobs:
           name: devenv
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
+      - name: Install dependencies
+        run: devenv shell -- true
       - name: Run checks
         run: devenv test
       - name: Compile code
