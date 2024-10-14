@@ -1,3 +1,5 @@
+name: CI
+
 on: push
 
 jobs:
@@ -9,6 +11,9 @@ jobs:
       - uses: cachix/cachix-action@v15
         with:
           name: devenv
-      - run: nix profile install nixpkgs#devenv
-      - run: devenv test
-      - run: devenv shell -- go build
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+      - name: Run checks
+        run: devenv test
+      - name: Compile code
+        run: devenv shell -- go build
