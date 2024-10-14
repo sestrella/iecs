@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"slices"
@@ -33,39 +34,25 @@ func runDeployCommand(ctx context.Context) error {
 	if len(deployImages) == 0 {
 		log.Fatal("Expected at least one image")
 	}
-
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-
 	client := ecs.NewFromConfig(cfg)
 	cluster, err := selectCluster(ctx, client, deployClusterId)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-
 	service, err := selectService(ctx, client, *cluster.ClusterName)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-
-	// TODO: Try to avoid calling DescribeServices twice
-	describeServicesOutput, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
-		Cluster:  cluster.ClusterArn,
-		Services: []string{*service.ServiceArn},
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	describeTaskDefinitionOutput, err := client.DescribeTaskDefinition(ctx, &ecs.DescribeTaskDefinitionInput{
-		TaskDefinition: describeServicesOutput.Services[0].TaskDefinition,
+		TaskDefinition: service.TaskDefinition,
 	})
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-
 	// TODO: Update image tag
 	currentTaskDefinition := describeTaskDefinitionOutput.TaskDefinition
 	newContainerDefinitions := currentTaskDefinition.ContainerDefinitions
@@ -116,7 +103,7 @@ func runDeployCommand(ctx context.Context) error {
 
 	newTaskDefinitionArn := registerTaskDefinitionOutput.TaskDefinition.TaskDefinitionArn
 	log.Printf("Task definition ARN: %s", *newTaskDefinitionArn)
-	updateServiceOutput, err := client.UpdateService(ctx, &ecs.UpdateServiceInput{
+	updatedService, err := client.UpdateService(ctx, &ecs.UpdateServiceInput{
 		Cluster:        cluster.ClusterArn,
 		Service:        service.ServiceArn,
 		TaskDefinition: newTaskDefinitionArn,
@@ -124,37 +111,30 @@ func runDeployCommand(ctx context.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	timeout := time.NewTicker(5 * time.Minute)
-	defer timeout.Stop()
-
 	if deployWait {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+
+		timeout := time.NewTicker(5 * time.Minute)
+		defer timeout.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				describeServicesOutput, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
-					Cluster:  updateServiceOutput.Service.ClusterArn,
-					Services: []string{*updateServiceOutput.Service.ServiceArn},
-				})
+				service, err := describeService(ctx, client, *cluster.ClusterName, *updatedService.Service.ServiceName)
 				if err != nil {
-					log.Fatal(err)
+					return err
 				}
-
-				service := describeServicesOutput.Services[0]
 				if *service.Status == "ACTIVE" {
-					log.Printf("Service '%s' active", *service.ServiceName)
+					pterm.Info.Printf("Service '%s' is active", *service.ServiceName)
 					return nil
 				}
-				log.Printf("Waiting for service '%s' to be active...", *service.ServiceName)
+				pterm.Info.Printf("Waiting for service '%s' to be active...", *service.ServiceName)
 			case <-timeout.C:
-				log.Fatalf("Timeout")
+				return errors.New("Timeout")
 			}
 		}
 	} else {
-		log.Printf("Flag --wait is disabled, no waiting for '%s' to become active", *service.ServiceName)
+		pterm.Info.Printf("Flag --wait is disabled, no waiting for '%s' to become active", *service.ServiceName)
 	}
 	return nil
 }
