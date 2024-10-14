@@ -114,7 +114,7 @@ func selectTask(ctx context.Context, client *ecs.Client, clusterId string, taskI
 	// 	return nil, errors.New("No tasks found")
 	// }
 	//
-	taskArn, _ := pterm.DefaultInteractiveSelect.WithOptions(output.TaskArns).Show()
+	taskArn, _ := pterm.DefaultInteractiveSelect.WithOptions(output.TaskArns).Show("Select a task")
 	return describeTask(ctx, client, clusterId, taskArn)
 }
 
@@ -141,7 +141,7 @@ func selectContainer(ctx context.Context, client *ecs.Client, task types.Task, c
 		}
 		containerNames = append(containerNames, *container.Name)
 	}
-	containerName, _ := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show()
+	containerName, _ := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Select a container")
 	for _, container := range task.Containers {
 		if container.Name == &containerName {
 			return &container, nil

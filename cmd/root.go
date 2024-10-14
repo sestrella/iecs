@@ -27,7 +27,7 @@ func selectCluster(ctx context.Context, client *ecs.Client, clusterId string) (*
 		if len(clusters.ClusterArns) == 0 {
 			return nil, errors.New("No clusters found")
 		}
-		clusterArn, err := pterm.DefaultInteractiveSelect.WithOptions(clusters.ClusterArns).Show()
+		clusterArn, err := pterm.DefaultInteractiveSelect.WithOptions(clusters.ClusterArns).Show("Select a cluster")
 		if err != nil {
 			return nil, fmt.Errorf("Error selecting a cluster: %w", err)
 		}
