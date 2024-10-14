@@ -14,7 +14,11 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "interactive-ecs",
-	Short: "A brief description of your application",
+	Short: "An interactive CLI for ECS",
+	Example: `
+    aws-vault exec <profile> -- interactive-ecs ... (recommended)
+    env AWS_PROFILE=<profile> interactive-ecs ...
+  `,
 }
 
 func selectCluster(ctx context.Context, client *ecs.Client, clusterId string) (*types.Cluster, error) {

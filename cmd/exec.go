@@ -48,7 +48,7 @@ var execCmd = &cobra.Command{
 func runCommand(ctx context.Context, clusterId string, taskId string, containerId string, command string, interactive bool) error {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error loading AWS configuration: %w", err)
 	}
 	client := ecs.NewFromConfig(cfg)
 	cluster, err := selectCluster(ctx, client, clusterId)
