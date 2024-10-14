@@ -141,7 +141,10 @@ func selectContainer(ctx context.Context, client *ecs.Client, task types.Task, c
 		}
 		containerNames = append(containerNames, *container.Name)
 	}
-	containerName, _ := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Select a container")
+	containerName, err := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Select a container")
+	if err != nil {
+		return nil, fmt.Errorf("Error selecting a container: %w", err)
+	}
 	for _, container := range task.Containers {
 		if *container.Name == containerName {
 			return &container, nil
