@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -32,25 +31,21 @@ var sshCmd = &cobra.Command{
 
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-
 		client := ecs.NewFromConfig(cfg)
 		cluster, err := selectCluster(context.TODO(), client, clusterId)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-
 		task, err := selectTask(context.TODO(), client, *cluster.ClusterName, taskId)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-
 		container, err := selectContainer(context.TODO(), client, *task, containerId)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-
 		output, err := client.ExecuteCommand(context.TODO(), &ecs.ExecuteCommandInput{
 			Cluster:     cluster.ClusterArn,
 			Task:        task.TaskArn,
@@ -59,23 +54,20 @@ var sshCmd = &cobra.Command{
 			Interactive: interactive,
 		})
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-
 		session, err := json.Marshal(output.Session)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-
-		foo := strings.Split(*task.TaskArn, "/")
-		var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, foo[0], *container.RuntimeId)
+		taskArnSlices := strings.Split(*task.TaskArn, "/")
+		var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, taskArnSlices[0], *container.RuntimeId)
 		targetJSON, err := json.Marshal(ssm.StartSessionInput{
 			Target: &target,
 		})
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-
 		fmt.Print("\nNon-interactive command:\n")
 		fmt.Printf("\n\tlazy-ecs ssh --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
 			*cluster.ClusterName,
@@ -84,7 +76,6 @@ var sshCmd = &cobra.Command{
 			command,
 			interactive,
 		)
-
 		// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
 		var argsFoo = []string{string(session),
 			cfg.Region,
@@ -98,7 +89,6 @@ var sshCmd = &cobra.Command{
 		smp.Stdin = os.Stdin
 		smp.Stdout = os.Stdout
 		smp.Stderr = os.Stderr
-
 		return smp.Run()
 	},
 }
