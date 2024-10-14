@@ -78,10 +78,10 @@ func runCommand(ctx context.Context, clusterId string, taskId string, containerI
 		return err
 	}
 	taskArnSlices := strings.Split(*task.TaskArn, "/")
-	if len(taskArnSlices) == 2 {
+	if len(taskArnSlices) < 2 {
 		return fmt.Errorf("Unable to extract task name from '%s'", *task.TaskArn)
 	}
-	taskName := taskArnSlices[1]
+	taskName := strings.Join(taskArnSlices[1:], "/")
 	var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, taskName, *container.RuntimeId)
 	targetJSON, err := json.Marshal(ssm.StartSessionInput{
 		Target: &target,
@@ -97,7 +97,8 @@ func runCommand(ctx context.Context, clusterId string, taskId string, containerI
 		interactive,
 	)
 	// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
-	var smpArgs = []string{string(session),
+	var smpArgs = []string{
+		string(session),
 		cfg.Region,
 		"StartSession",
 		"",
@@ -148,7 +149,7 @@ func describeTask(ctx context.Context, client *ecs.Client, clusterId string, tas
 func selectContainer(task types.Task, containerId string) (*types.Container, error) {
 	var containerNames []string
 	for _, container := range task.Containers {
-		if container.Name == &containerId {
+		if *container.Name == containerId {
 			return &container, nil
 		}
 		containerNames = append(containerNames, *container.Name)
