@@ -22,11 +22,26 @@ var execCmd = &cobra.Command{
 	Short: "A brief description of your command",
 	Long:  "TODO",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		clusterId, _ := cmd.Flags().GetString("cluster")
-		taskId, _ := cmd.Flags().GetString("task")
-		containerId, _ := cmd.Flags().GetString("container")
-		command, _ := cmd.Flags().GetString("command")
-		interactive, _ := cmd.Flags().GetBool("interactive")
+		clusterId, err := cmd.Flags().GetString("cluster")
+		if err != nil {
+			return err
+		}
+		taskId, err := cmd.Flags().GetString("task")
+		if err != nil {
+			return err
+		}
+		containerId, err := cmd.Flags().GetString("container")
+		if err != nil {
+			return err
+		}
+		command, err := cmd.Flags().GetString("command")
+		if err != nil {
+			return err
+		}
+		interactive, err := cmd.Flags().GetBool("interactive")
+		if err != nil {
+			return err
+		}
 		return runCommand(context.TODO(), clusterId, taskId, containerId, command, interactive)
 	},
 }
