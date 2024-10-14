@@ -9,6 +9,6 @@ devenv.local.nix
 .pre-commit-config.yaml
 
 # go
-lazy-ecs
+interactive-ecs
 # TODO: remove this line
 tmp

@@ -1,4 +1,4 @@
-module github.com/sestrella/lazy-ecs
+module github.com/sestrella/interactive-ecs
 
 go 1.22.1
 

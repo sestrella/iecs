@@ -21,7 +21,7 @@ THE SOFTWARE.
 */
 package main
 
-import "github.com/sestrella/lazy-ecs/cmd"
+import "github.com/sestrella/interactive-ecs/cmd"
 
 func main() {
 	cmd.Execute()
