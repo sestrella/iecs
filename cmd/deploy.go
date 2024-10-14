@@ -24,134 +24,139 @@ var deployCmd = &cobra.Command{
 	Use:   "deploy",
 	Short: "A brief description of your command",
 	Long:  "TODO",
-	Run: func(cmd *cobra.Command, args []string) {
-		if len(deployImages) == 0 {
-			log.Fatal("Expected at least one image")
-		}
-
-		cfg, err := config.LoadDefaultConfig(context.TODO())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		client := ecs.NewFromConfig(cfg)
-		cluster, err := selectCluster(context.TODO(), client, deployClusterId)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		service, err := selectService(context.TODO(), client, *cluster.ClusterName)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// TODO: Try to avoid calling DescribeServices twice
-		describeServicesOutput, err := client.DescribeServices(context.TODO(), &ecs.DescribeServicesInput{
-			Cluster:  cluster.ClusterArn,
-			Services: []string{*service.ServiceArn},
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		describeTaskDefinitionOutput, err := client.DescribeTaskDefinition(context.TODO(), &ecs.DescribeTaskDefinitionInput{
-			TaskDefinition: describeServicesOutput.Services[0].TaskDefinition,
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// TODO: Update image tag
-		currentTaskDefinition := describeTaskDefinitionOutput.TaskDefinition
-		newContainerDefinitions := currentTaskDefinition.ContainerDefinitions
-		availableContainers := make([]string, len(newContainerDefinitions))
-		for idx, containerDefinition := range newContainerDefinitions {
-			availableContainers[idx] = *containerDefinition.Name
-		}
-
-		for _, deployImage := range deployImages {
-			newImageSlices := strings.Split(deployImage, "@")
-			if len(newImageSlices) != 2 {
-				log.Fatalf("Expected '%s' to be of the form: <container>@<tag>", deployImage)
-			}
-
-			index := slices.IndexFunc(newContainerDefinitions, func(containerDefinition types.ContainerDefinition) bool {
-				return *containerDefinition.Name == newImageSlices[0]
-			})
-			if index == -1 {
-				log.Fatalf("Container '%s' not found, try one of the following: %s", newImageSlices[0], availableContainers)
-			}
-
-			currentImageSlices := strings.Split(*newContainerDefinitions[index].Image, ":")
-			if len(currentImageSlices) != 2 {
-				log.Fatalf("Expected '%s' to be of the form: <image>:<tag>", *newContainerDefinitions[index].Image)
-			}
-
-			newImage := fmt.Sprintf("%s:%s", currentImageSlices[0], newImageSlices[1])
-			log.Printf("Updating image for container '%s' from '%s' to '%s'", newImageSlices[0], *newContainerDefinitions[index].Image, newImage)
-			newContainerDefinitions[index].Image = &newImage
-		}
-
-		registerTaskDefinitionOutput, err := client.RegisterTaskDefinition(context.TODO(), &ecs.RegisterTaskDefinitionInput{
-			ContainerDefinitions:    newContainerDefinitions,
-			Cpu:                     currentTaskDefinition.Cpu,
-			ExecutionRoleArn:        currentTaskDefinition.ExecutionRoleArn,
-			Family:                  currentTaskDefinition.Family,
-			Memory:                  currentTaskDefinition.Memory,
-			NetworkMode:             currentTaskDefinition.NetworkMode,
-			PlacementConstraints:    currentTaskDefinition.PlacementConstraints,
-			RequiresCompatibilities: currentTaskDefinition.RequiresCompatibilities,
-			RuntimePlatform:         currentTaskDefinition.RuntimePlatform,
-			TaskRoleArn:             currentTaskDefinition.TaskRoleArn,
-			Volumes:                 currentTaskDefinition.Volumes,
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		newTaskDefinitionArn := registerTaskDefinitionOutput.TaskDefinition.TaskDefinitionArn
-		log.Printf("Task definition ARN: %s", *newTaskDefinitionArn)
-		updateServiceOutput, err := client.UpdateService(context.TODO(), &ecs.UpdateServiceInput{
-			Cluster:        cluster.ClusterArn,
-			Service:        service.ServiceArn,
-			TaskDefinition: newTaskDefinitionArn,
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		ticker := time.NewTicker(10 * time.Second)
-		defer ticker.Stop()
-
-		timeout := time.NewTicker(5 * time.Minute)
-		defer timeout.Stop()
-
-		if deployWait {
-			for {
-				select {
-				case <-ticker.C:
-					describeServicesOutput, err := client.DescribeServices(context.TODO(), &ecs.DescribeServicesInput{
-						Cluster:  updateServiceOutput.Service.ClusterArn,
-						Services: []string{*updateServiceOutput.Service.ServiceArn},
-					})
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					service := describeServicesOutput.Services[0]
-					if *service.Status == "ACTIVE" {
-						log.Printf("Service '%s' active", *service.ServiceName)
-						return
-					}
-					log.Printf("Waiting for service '%s' to be active...", *service.ServiceName)
-				case <-timeout.C:
-					log.Fatalf("Timeout")
-				}
-			}
-		} else {
-			log.Printf("Flag --wait is disabled, no waiting for '%s' to become active", *service.ServiceName)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runDeployCommand(context.TODO())
 	},
+}
+
+func runDeployCommand(ctx context.Context) error {
+	if len(deployImages) == 0 {
+		log.Fatal("Expected at least one image")
+	}
+
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := ecs.NewFromConfig(cfg)
+	cluster, err := selectCluster(ctx, client, deployClusterId)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	service, err := selectService(ctx, client, *cluster.ClusterName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// TODO: Try to avoid calling DescribeServices twice
+	describeServicesOutput, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
+		Cluster:  cluster.ClusterArn,
+		Services: []string{*service.ServiceArn},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	describeTaskDefinitionOutput, err := client.DescribeTaskDefinition(ctx, &ecs.DescribeTaskDefinitionInput{
+		TaskDefinition: describeServicesOutput.Services[0].TaskDefinition,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// TODO: Update image tag
+	currentTaskDefinition := describeTaskDefinitionOutput.TaskDefinition
+	newContainerDefinitions := currentTaskDefinition.ContainerDefinitions
+	availableContainers := make([]string, len(newContainerDefinitions))
+	for idx, containerDefinition := range newContainerDefinitions {
+		availableContainers[idx] = *containerDefinition.Name
+	}
+
+	for _, deployImage := range deployImages {
+		newImageSlices := strings.Split(deployImage, "@")
+		if len(newImageSlices) != 2 {
+			log.Fatalf("Expected '%s' to be of the form: <container>@<tag>", deployImage)
+		}
+
+		index := slices.IndexFunc(newContainerDefinitions, func(containerDefinition types.ContainerDefinition) bool {
+			return *containerDefinition.Name == newImageSlices[0]
+		})
+		if index == -1 {
+			log.Fatalf("Container '%s' not found, try one of the following: %s", newImageSlices[0], availableContainers)
+		}
+
+		currentImageSlices := strings.Split(*newContainerDefinitions[index].Image, ":")
+		if len(currentImageSlices) != 2 {
+			log.Fatalf("Expected '%s' to be of the form: <image>:<tag>", *newContainerDefinitions[index].Image)
+		}
+
+		newImage := fmt.Sprintf("%s:%s", currentImageSlices[0], newImageSlices[1])
+		log.Printf("Updating image for container '%s' from '%s' to '%s'", newImageSlices[0], *newContainerDefinitions[index].Image, newImage)
+		newContainerDefinitions[index].Image = &newImage
+	}
+
+	registerTaskDefinitionOutput, err := client.RegisterTaskDefinition(ctx, &ecs.RegisterTaskDefinitionInput{
+		ContainerDefinitions:    newContainerDefinitions,
+		Cpu:                     currentTaskDefinition.Cpu,
+		ExecutionRoleArn:        currentTaskDefinition.ExecutionRoleArn,
+		Family:                  currentTaskDefinition.Family,
+		Memory:                  currentTaskDefinition.Memory,
+		NetworkMode:             currentTaskDefinition.NetworkMode,
+		PlacementConstraints:    currentTaskDefinition.PlacementConstraints,
+		RequiresCompatibilities: currentTaskDefinition.RequiresCompatibilities,
+		RuntimePlatform:         currentTaskDefinition.RuntimePlatform,
+		TaskRoleArn:             currentTaskDefinition.TaskRoleArn,
+		Volumes:                 currentTaskDefinition.Volumes,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	newTaskDefinitionArn := registerTaskDefinitionOutput.TaskDefinition.TaskDefinitionArn
+	log.Printf("Task definition ARN: %s", *newTaskDefinitionArn)
+	updateServiceOutput, err := client.UpdateService(ctx, &ecs.UpdateServiceInput{
+		Cluster:        cluster.ClusterArn,
+		Service:        service.ServiceArn,
+		TaskDefinition: newTaskDefinitionArn,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	timeout := time.NewTicker(5 * time.Minute)
+	defer timeout.Stop()
+
+	if deployWait {
+		for {
+			select {
+			case <-ticker.C:
+				describeServicesOutput, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
+					Cluster:  updateServiceOutput.Service.ClusterArn,
+					Services: []string{*updateServiceOutput.Service.ServiceArn},
+				})
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				service := describeServicesOutput.Services[0]
+				if *service.Status == "ACTIVE" {
+					log.Printf("Service '%s' active", *service.ServiceName)
+					return nil
+				}
+				log.Printf("Waiting for service '%s' to be active...", *service.ServiceName)
+			case <-timeout.C:
+				log.Fatalf("Timeout")
+			}
+		}
+	} else {
+		log.Printf("Flag --wait is disabled, no waiting for '%s' to become active", *service.ServiceName)
+	}
+	return nil
 }
 
 func selectService(ctx context.Context, client *ecs.Client, clusterArn string) (*types.Service, error) {
