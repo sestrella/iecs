@@ -143,7 +143,7 @@ func selectContainer(ctx context.Context, client *ecs.Client, task types.Task, c
 	}
 	containerName, _ := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Select a container")
 	for _, container := range task.Containers {
-		if container.Name == &containerName {
+		if *container.Name == containerName {
 			return &container, nil
 		}
 	}
