@@ -169,9 +169,9 @@ func selectContainer(task types.Task, containerId string) (*types.Container, err
 func init() {
 	rootCmd.AddCommand(execCmd)
 
-	execCmd.Flags().StringP("cluster", "c", "", "TODO")
-	execCmd.Flags().StringP("task", "t", "", "TODO")
-	execCmd.Flags().StringP("container", "n", "", "TODO")
-	execCmd.Flags().StringP("command", "m", "/bin/sh", "TODO")
-	execCmd.Flags().BoolP("interactive", "i", true, "TODO")
+	execCmd.Flags().StringP("cluster", "c", "", "The cluster ARN or name")
+	execCmd.Flags().StringP("task", "t", "", "The task ARN or name")
+	execCmd.Flags().StringP("container", "n", "", "The container ARN or name")
+	execCmd.Flags().StringP("command", "m", "/bin/sh", "The command to run on the container")
+	execCmd.Flags().BoolP("interactive", "i", true, "Runs command on interactive mode")
 }
