@@ -19,7 +19,7 @@ import (
 
 var execCmd = &cobra.Command{
 	Use:   "exec",
-	Short: "A brief description of your command",
+	Short: "Runs a command remotely on a container",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		clusterId, err := cmd.Flags().GetString("cluster")
 		if err != nil {
