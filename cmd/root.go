@@ -13,8 +13,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "interactive-ecs",
-	Short: "An interactive CLI for ECS",
+	Use:     "interactive-ecs",
+	Short:   "An interactive CLI for ECS",
+	Version: "0.1.0",
 	Example: `
     aws-vault exec <profile> -- interactive-ecs ... (recommended)
     env AWS_PROFILE=<profile> interactive-ecs ...
@@ -58,4 +59,8 @@ func Execute() {
 	if err != nil {
 		os.Exit(1)
 	}
+}
+
+func init() {
+	rootCmd.SetVersionTemplate("{{.Version}}")
 }
