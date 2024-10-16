@@ -13,12 +13,12 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "interactive-ecs",
+	Use:     "iecs",
 	Short:   "An interactive CLI for ECS",
 	Version: "0.1.0",
 	Example: `
-    aws-vault exec <profile> -- interactive-ecs ... (recommended)
-    env AWS_PROFILE=<profile> interactive-ecs ...
+    aws-vault exec <profile> -- iecs ... (recommended)
+    env AWS_PROFILE=<profile> iecs ...
   `,
 }
 
