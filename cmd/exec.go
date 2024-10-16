@@ -23,29 +23,29 @@ var execCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		clusterId, err := cmd.Flags().GetString("cluster")
 		if err != nil {
-			return err
+			return fmt.Errorf("Unable to parse 'cluster' flag: %w", err)
 		}
 		taskId, err := cmd.Flags().GetString("task")
 		if err != nil {
-			return err
+			return fmt.Errorf("Unable to parse 'task' flag: %w", err)
 		}
 		containerId, err := cmd.Flags().GetString("container")
 		if err != nil {
-			return err
+			return fmt.Errorf("Unable to parse 'container' flag: %w", err)
 		}
 		command, err := cmd.Flags().GetString("command")
 		if err != nil {
-			return err
+			return fmt.Errorf("Unable to parse 'command' flag: %w", err)
 		}
 		interactive, err := cmd.Flags().GetBool("interactive")
 		if err != nil {
-			return err
+			return fmt.Errorf("Unable to parse 'interactive' flag: %w", err)
 		}
-		return runCommand(context.TODO(), clusterId, taskId, containerId, command, interactive)
+		return runExec(context.TODO(), clusterId, taskId, containerId, command, interactive)
 	},
 }
 
-func runCommand(ctx context.Context, clusterId string, taskId string, containerId string, command string, interactive bool) error {
+func runExec(ctx context.Context, clusterId string, taskId string, containerId string, command string, interactive bool) error {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("Error loading AWS configuration: %w", err)
