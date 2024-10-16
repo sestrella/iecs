@@ -26,12 +26,16 @@ var deployCmd = &cobra.Command{
 	Short: "A brief description of your command",
 	Long:  "TODO",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runDeployCommand(context.TODO())
+		images, err := cmd.Flags().GetStringArray("image")
+		if err != nil {
+			return err
+		}
+		return runDeployCommand(context.TODO(), images)
 	},
 }
 
-func runDeployCommand(ctx context.Context) error {
-	if len(deployImages) == 0 {
+func runDeployCommand(ctx context.Context, images []string) error {
+	if len(images) == 0 {
 		log.Fatal("Expected at least one image")
 	}
 	cfg, err := config.LoadDefaultConfig(ctx)
@@ -60,8 +64,7 @@ func runDeployCommand(ctx context.Context) error {
 	for idx, containerDefinition := range newContainerDefinitions {
 		availableContainers[idx] = *containerDefinition.Name
 	}
-
-	for _, deployImage := range deployImages {
+	for _, deployImage := range images {
 		newImageSlices := strings.Split(deployImage, "@")
 		if len(newImageSlices) != 2 {
 			log.Fatalf("Expected '%s' to be of the form: <container>@<tag>", deployImage)
