@@ -71,25 +71,25 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 		Interactive: interactive,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("Error executing command: %w", err)
 	}
 	session, err := json.Marshal(output.Session)
 	if err != nil {
-		return err
+		return fmt.Errorf("Unable to encode session: %w", err)
 	}
 	taskArnSlices := strings.Split(*task.TaskArn, "/")
 	if len(taskArnSlices) < 2 {
 		return fmt.Errorf("Unable to extract task name from '%s'", *task.TaskArn)
 	}
 	taskName := strings.Join(taskArnSlices[1:], "/")
-	var target = fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, taskName, *container.RuntimeId)
+	target := fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, taskName, *container.RuntimeId)
 	targetJSON, err := json.Marshal(ssm.StartSessionInput{
 		Target: &target,
 	})
 	if err != nil {
 		return err
 	}
-	pterm.Info.Printfln("interactive-ecs exec --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
+	pterm.Info.Printfln("iecs exec --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
 		*cluster.ClusterName,
 		taskName,
 		*container.Name,
