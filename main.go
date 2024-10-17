@@ -1,6 +1,6 @@
 package main
 
-import "github.com/sestrella/interactive-ecs/cmd"
+import "github.com/sestrella/iecs/cmd"
 
 func main() {
 	cmd.Execute()

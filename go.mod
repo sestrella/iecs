@@ -1,4 +1,4 @@
-module github.com/sestrella/interactive-ecs
+module github.com/sestrella/iecs
 
 go 1.22.1
 
