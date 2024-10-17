@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/pterm/pterm"
+	"github.com/sestrella/interactive-ecs/internal/selector"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +52,7 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 		return fmt.Errorf("Error loading AWS configuration: %w", err)
 	}
 	client := ecs.NewFromConfig(cfg)
-	cluster, err := selectCluster(ctx, client, clusterId)
+	cluster, err := selector.SelectCluster(ctx, client, clusterId)
 	if err != nil {
 		return err
 	}
