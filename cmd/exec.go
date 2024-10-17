@@ -10,7 +10,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/pterm/pterm"
 	"github.com/sestrella/iecs/internal/selector"
@@ -59,7 +58,7 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 	if err != nil {
 		return err
 	}
-	container, err := selectContainer(*task, containerId)
+	container, err := selector.SelectContainer(*task, containerId)
 	if err != nil {
 		return err
 	}
@@ -110,26 +109,6 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 	smp.Stdout = os.Stdout
 	smp.Stderr = os.Stderr
 	return smp.Run()
-}
-
-func selectContainer(task types.Task, containerId string) (*types.Container, error) {
-	var containerNames []string
-	for _, container := range task.Containers {
-		if *container.Name == containerId {
-			return &container, nil
-		}
-		containerNames = append(containerNames, *container.Name)
-	}
-	containerName, err := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Select a container")
-	if err != nil {
-		return nil, fmt.Errorf("Error selecting a container: %w", err)
-	}
-	for _, container := range task.Containers {
-		if *container.Name == containerName {
-			return &container, nil
-		}
-	}
-	return nil, fmt.Errorf("No container '%s' found in task '%s'", containerName, *task.TaskArn)
 }
 
 func init() {
