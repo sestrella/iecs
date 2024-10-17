@@ -11,8 +11,8 @@ var rootCmd = &cobra.Command{
 	Short:   "An interactive CLI for ECS",
 	Version: "0.1.0",
 	Example: `
-    aws-vault exec <profile> -- iecs ... (recommended)
-    env AWS_PROFILE=<profile> iecs ...
+  aws-vault exec <profile> -- iecs ... (recommended)
+  env AWS_PROFILE=<profile> iecs ...
   `,
 }
 

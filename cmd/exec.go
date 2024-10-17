@@ -19,6 +19,10 @@ import (
 var execCmd = &cobra.Command{
 	Use:   "exec",
 	Short: "Runs a command remotely on a container",
+	Example: `
+  aws-vault exec <profile> -- iecs exec -m /bin/bash (recommended)
+  env AWS_PROFILE=<profile> iecs exec -m /bin/bash
+  `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		clusterId, err := cmd.Flags().GetString("cluster")
 		if err != nil {
