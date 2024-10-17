@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -56,7 +55,7 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 	if err != nil {
 		return err
 	}
-	task, err := selectTask(ctx, client, *cluster.ClusterName, taskId)
+	task, err := selector.SelectTask(ctx, client, *cluster.ClusterName, taskId)
 	if err != nil {
 		return err
 	}
@@ -111,40 +110,6 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 	smp.Stdout = os.Stdout
 	smp.Stderr = os.Stderr
 	return smp.Run()
-}
-
-func selectTask(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*types.Task, error) {
-	if taskId != "" {
-		return describeTask(ctx, client, clusterId, taskId)
-	}
-	output, err := client.ListTasks(ctx, &ecs.ListTasksInput{
-		Cluster: &clusterId,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("Error listing tasks: %w", err)
-	}
-	if len(output.TaskArns) == 0 {
-		return nil, errors.New("No tasks found")
-	}
-	taskArn, err := pterm.DefaultInteractiveSelect.WithOptions(output.TaskArns).Show("Select a task")
-	if err != nil {
-		return nil, fmt.Errorf("Error selecting task: %w", err)
-	}
-	return describeTask(ctx, client, clusterId, taskArn)
-}
-
-func describeTask(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*types.Task, error) {
-	output, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: &clusterId,
-		Tasks:   []string{taskId},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("Error describing task '%s': %w", taskId, err)
-	}
-	if len(output.Tasks) == 0 {
-		return nil, fmt.Errorf("No task '%s' found", taskId)
-	}
-	return &output.Tasks[0], nil
 }
 
 func selectContainer(task types.Task, containerId string) (*types.Container, error) {
