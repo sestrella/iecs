@@ -10,5 +10,3 @@ devenv.local.nix
 
 # go
 iecs
-# TODO: remove this line
-tmp
