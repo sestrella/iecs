@@ -1,5 +1,5 @@
 [package]
-name = "lazy_ecs"
+name = "iecs"
 version = "0.1.0"
 edition = "2021"
 
