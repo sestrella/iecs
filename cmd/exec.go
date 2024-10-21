@@ -118,9 +118,9 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 func init() {
 	rootCmd.AddCommand(execCmd)
 
-	execCmd.Flags().StringP("cluster", "c", "", "The cluster ARN or name")
+	execCmd.Flags().StringP("cluster", "l", "", "The cluster ARN or name")
 	execCmd.Flags().StringP("task", "t", "", "The task ARN or name")
 	execCmd.Flags().StringP("container", "n", "", "The container ARN or name")
-	execCmd.Flags().StringP("command", "m", "/bin/sh", "The command to run on the container")
+	execCmd.Flags().StringP("command", "c", "/bin/sh", "The command to run on the container")
 	execCmd.Flags().BoolP("interactive", "i", true, "Runs command on interactive mode")
 }
