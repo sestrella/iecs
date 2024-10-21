@@ -9,7 +9,7 @@ use inquire::Select;
 use serde::{ser::SerializeStruct, Serialize};
 
 #[derive(Parser)]
-#[command(name = "lazy-ecs")]
+#[command(name = "iecs")]
 enum Cli {
     Exec(ExecArgs),
 }
