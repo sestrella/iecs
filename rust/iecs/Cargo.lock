@@ -933,6 +933,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "iecs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "aws-config",
+ "aws-sdk-ecs",
+ "aws-sdk-ssm",
+ "clap",
+ "inquire",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -970,21 +985,6 @@ name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49f1f14873335454500d59611f1cf4a4b0f786f9ac11f4312a78e4cf2566695b"
-
-[[package]]
-name = "lazy_ecs"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "aws-config",
- "aws-sdk-ecs",
- "aws-sdk-ssm",
- "clap",
- "inquire",
- "serde",
- "serde_json",
- "tokio",
-]
 
 [[package]]
 name = "libc"
