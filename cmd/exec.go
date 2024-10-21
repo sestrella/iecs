@@ -90,7 +90,7 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 		Target: &target,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("Unable to encode start session: %w", err)
 	}
 	pterm.Info.Printfln("iecs exec --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
 		*cluster.ClusterName,
@@ -100,15 +100,14 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 		interactive,
 	)
 	// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
-	var smpArgs = []string{
+	smp := exec.Command("session-manager-plugin",
 		string(session),
 		cfg.Region,
 		"StartSession",
 		"",
 		string(targetJSON),
 		fmt.Sprintf("https://ssm.%s.amazonaws.com", cfg.Region),
-	}
-	smp := exec.Command("session-manager-plugin", smpArgs...)
+	)
 	smp.Stdin = os.Stdin
 	smp.Stdout = os.Stdout
 	smp.Stderr = os.Stderr
