@@ -24,5 +24,5 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.SetVersionTemplate("{{.Version}}")
+	rootCmd.SetVersionTemplate("{{.Version}}\n")
 }
