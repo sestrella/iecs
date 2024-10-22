@@ -12,6 +12,7 @@ use serde::{ser::SerializeStruct, Serialize};
 #[command(name = "iecs")]
 enum Cli {
     Exec(ExecArgs),
+    Logs(LogsArgs),
 }
 
 #[derive(clap::Args)]
@@ -26,6 +27,12 @@ struct ExecArgs {
     command: String,
     #[arg(long, default_value_t = true)]
     interactive: bool,
+}
+
+#[derive(clap::Args)]
+struct LogsArgs {
+    #[arg(long)]
+    cluster: Option<String>,
 }
 
 struct SelectableCluster {
@@ -170,11 +177,15 @@ impl Serialize for SerializableStartSession {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let Cli::Exec(args) = Cli::parse();
-
     let config = aws_config::defaults(BehaviorVersion::latest()).load().await;
     let client = aws_sdk_ecs::Client::new(&config);
+    match Cli::parse() {
+        Cli::Exec(args) => run_exec(&client, &args).await,
+        Cli::Logs(args) => run_logs(&client, &args).await,
+    }
+}
 
+async fn run_exec(client: &aws_sdk_ecs::Client, args: &ExecArgs) -> anyhow::Result<()> {
     let cluster = get_cluster(&client, &args.cluster).await?;
     let task = get_task(&client, &cluster.arn, &args.task).await?;
     let container = get_container(&client, &cluster.arn, &task.arn, &args.container).await?;
@@ -198,7 +209,7 @@ async fn main() -> anyhow::Result<()> {
             .build()?,
     );
 
-    let region = config.region().context("Region not found")?;
+    let region = client.config().region().context("Region not found")?;
 
     let mut command = Command::new("session-manager-plugin")
         .args([
@@ -213,6 +224,10 @@ async fn main() -> anyhow::Result<()> {
 
     command.wait()?;
 
+    Ok(())
+}
+
+async fn run_logs(_client: &aws_sdk_ecs::Client, _args: &LogsArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
