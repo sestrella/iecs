@@ -2,7 +2,7 @@ use std::{fmt::Display, process::Command};
 
 use anyhow::{ensure, Context};
 use aws_config::BehaviorVersion;
-use aws_sdk_ecs::types::{Cluster, Container, Session, Task};
+use aws_sdk_ecs::types::{Cluster, Container, LogDriver, Session, Task};
 use aws_sdk_ssm::operation::start_session::StartSessionInput;
 use clap::Parser;
 use inquire::Select;
@@ -33,6 +33,10 @@ struct ExecArgs {
 struct LogsArgs {
     #[arg(long)]
     cluster: Option<String>,
+    #[arg(long)]
+    task: Option<String>,
+    #[arg(long)]
+    container: Option<String>,
 }
 
 struct SelectableCluster {
@@ -82,6 +86,7 @@ impl TryFrom<String> for SelectableCluster {
 struct SelectableTask {
     name: String,
     arn: String,
+    task_definition_arn: Option<String>,
 }
 
 impl Display for SelectableTask {
@@ -99,6 +104,7 @@ impl TryFrom<&Task> for SelectableTask {
         Ok(SelectableTask {
             name: name.to_string(),
             arn: arn.to_string(),
+            task_definition_arn: value.task_definition_arn.clone(),
         })
     }
 }
@@ -113,6 +119,7 @@ impl TryFrom<String> for SelectableTask {
         Ok(SelectableTask {
             name: name.to_string(),
             arn: value,
+            task_definition_arn: None,
         })
     }
 }
@@ -227,7 +234,36 @@ async fn run_exec(client: &aws_sdk_ecs::Client, args: &ExecArgs) -> anyhow::Resu
     Ok(())
 }
 
-async fn run_logs(_client: &aws_sdk_ecs::Client, _args: &LogsArgs) -> anyhow::Result<()> {
+async fn run_logs(client: &aws_sdk_ecs::Client, args: &LogsArgs) -> anyhow::Result<()> {
+    let cluster = get_cluster(&client, &args.cluster).await?;
+    let task = get_task(&client, &cluster.arn, &args.task).await?;
+    let task_definition_arn = task
+        .task_definition_arn
+        .context("task_definition_arn not found")?;
+    // let container = get_container(&client, &cluster.arn, &task.arn, &args.container).await?;
+    let output = client
+        .describe_task_definition()
+        .task_definition(task_definition_arn)
+        .send()
+        .await?;
+    let container_definition = output
+        .task_definition
+        .context("TODO")?
+        .container_definitions
+        .context("")?
+        .into_iter()
+        // TODO: remove hard-coded container name
+        .find(|container_definition| container_definition.name == Some("action_cable".to_string()))
+        .context("TODO")?;
+    let log_configuration = container_definition.log_configuration.context("TODO")?;
+    let log_driver = log_configuration.log_driver;
+    ensure!(
+        log_driver != LogDriver::Awslogs,
+        "Unsupported log driver '{}'",
+        log_driver
+    );
+    let log_options = log_configuration.options.context("TODO")?;
+    let _log_group = log_options.get("awslogs-group").context("TODO")?;
     Ok(())
 }
 
