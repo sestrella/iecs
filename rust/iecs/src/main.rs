@@ -62,7 +62,9 @@ impl TryFrom<String> for SelectableCluster {
     type Error = anyhow::Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        let (_, name) = value.split_once("/").ok_or_else(|| anyhow!("TODO"))?;
+        let (_, name) = value
+            .split_once("/")
+            .with_context(|| format!("Unable to split {} by /", value))?;
         Ok(SelectableCluster {
             name: name.to_string(),
             arn: value,
@@ -98,7 +100,9 @@ impl TryFrom<String> for SelectableTask {
     type Error = anyhow::Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        let (_, name) = value.split_once("/").ok_or_else(|| anyhow!("TODO"))?;
+        let (_, name) = value
+            .split_once("/")
+            .with_context(|| format!("Unable to split {}", value))?;
         Ok(SelectableTask {
             name: name.to_string(),
             arn: value,
@@ -122,13 +126,9 @@ impl TryFrom<Container> for SelectableContainer {
     type Error = anyhow::Error;
 
     fn try_from(value: Container) -> Result<Self, Self::Error> {
-        let name = value.name.ok_or_else(|| anyhow!("name not found"))?;
-        let arn = value
-            .container_arn
-            .ok_or_else(|| anyhow!("container_arn not found"))?;
-        let runtime_id = value
-            .runtime_id
-            .ok_or_else(|| anyhow!("runtime_id not found"))?;
+        let name = value.name.context("name not found")?;
+        let arn = value.container_arn.context("container_arn not found")?;
+        let runtime_id = value.runtime_id.context("runtime_id not found")?;
         Ok(SelectableContainer {
             name,
             arn,
@@ -226,7 +226,7 @@ async fn get_cluster(
             .clusters(cluster_name)
             .send()
             .await?;
-        let clusters = output.clusters.unwrap_or_else(|| Vec::new());
+        let clusters = output.clusters.context("clusters not found")?;
         let cluster = clusters
             .first()
             .with_context(|| format!("Cluster '{}' not found", cluster_name))?;
@@ -258,7 +258,7 @@ async fn get_task(
             .tasks(task_name)
             .send()
             .await?;
-        let tasks = output.tasks.unwrap_or_else(|| Vec::new());
+        let tasks = output.tasks.context("tasks not found")?;
         let task = tasks
             .first()
             .with_context(|| format!("Task '{}' not found", task_name))?;
