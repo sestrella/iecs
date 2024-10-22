@@ -1,6 +1,6 @@
 use std::{fmt::Display, process::Command};
 
-use anyhow::{anyhow, ensure, Context};
+use anyhow::{ensure, Context};
 use aws_config::BehaviorVersion;
 use aws_sdk_ecs::types::{Cluster, Container, Session, Task};
 use aws_sdk_ssm::operation::start_session::StartSessionInput;
