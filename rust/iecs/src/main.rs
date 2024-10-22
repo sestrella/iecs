@@ -185,20 +185,23 @@ impl Serialize for SerializableStartSession {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = aws_config::defaults(BehaviorVersion::latest()).load().await;
-    let client = aws_sdk_ecs::Client::new(&config);
+    let ecs_client = aws_sdk_ecs::Client::new(&config);
     match Cli::parse() {
-        Cli::Exec(args) => run_exec(&client, &args).await,
-        Cli::Logs(args) => run_logs(&client, &args).await,
+        Cli::Exec(args) => run_exec(&ecs_client, &args).await,
+        Cli::Logs(args) => {
+            let cw_logs_client = aws_sdk_cloudwatchlogs::Client::new(&config);
+            run_logs(&ecs_client, &cw_logs_client, &args).await
+        }
     }
 }
 
-async fn run_exec(client: &aws_sdk_ecs::Client, args: &ExecArgs) -> anyhow::Result<()> {
-    let cluster = get_cluster(&client, &args.cluster).await?;
-    let task = get_task(&client, &cluster.arn, &args.task).await?;
-    let container = get_container(&client, &cluster.arn, &task.arn, &args.container).await?;
+async fn run_exec(ecs_client: &aws_sdk_ecs::Client, args: &ExecArgs) -> anyhow::Result<()> {
+    let cluster = get_cluster(&ecs_client, &args.cluster).await?;
+    let task = get_task(&ecs_client, &cluster.arn, &args.task).await?;
+    let container = get_container(&ecs_client, &cluster.arn, &task.arn, &args.container).await?;
 
     let session = execute_command(
-        &client,
+        &ecs_client,
         &cluster.arn,
         &task.arn,
         &container.name,
@@ -216,7 +219,7 @@ async fn run_exec(client: &aws_sdk_ecs::Client, args: &ExecArgs) -> anyhow::Resu
             .build()?,
     );
 
-    let region = client.config().region().context("Region not found")?;
+    let region = ecs_client.config().region().context("Region not found")?;
 
     let mut command = Command::new("session-manager-plugin")
         .args([
@@ -234,14 +237,18 @@ async fn run_exec(client: &aws_sdk_ecs::Client, args: &ExecArgs) -> anyhow::Resu
     Ok(())
 }
 
-async fn run_logs(client: &aws_sdk_ecs::Client, args: &LogsArgs) -> anyhow::Result<()> {
-    let cluster = get_cluster(&client, &args.cluster).await?;
-    let task = get_task(&client, &cluster.arn, &args.task).await?;
+async fn run_logs(
+    ecs_client: &aws_sdk_ecs::Client,
+    cw_logs_client: &aws_sdk_cloudwatchlogs::Client,
+    args: &LogsArgs,
+) -> anyhow::Result<()> {
+    let cluster = get_cluster(&ecs_client, &args.cluster).await?;
+    let task = get_task(&ecs_client, &cluster.arn, &args.task).await?;
     let task_definition_arn = task
         .task_definition_arn
         .context("task_definition_arn not found")?;
     // let container = get_container(&client, &cluster.arn, &task.arn, &args.container).await?;
-    let output = client
+    let output = ecs_client
         .describe_task_definition()
         .task_definition(task_definition_arn)
         .send()
