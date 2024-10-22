@@ -198,9 +198,7 @@ async fn main() -> anyhow::Result<()> {
             .build()?,
     );
 
-    let region = config
-        .region()
-        .ok_or_else(|| anyhow!("Region not available"))?;
+    let region = config.region().context("Region not found")?;
 
     let mut command = Command::new("session-manager-plugin")
         .args([
@@ -328,6 +326,6 @@ async fn execute_command(
         .interactive(interactive)
         .send()
         .await?;
-    let session = output.session.ok_or(anyhow!("TODO"))?;
+    let session = output.session.context("session not found")?;
     Ok(SerializableSession(session))
 }
