@@ -229,7 +229,10 @@ async fn run_exec(ecs_client: &aws_sdk_ecs::Client, args: &ExecArgs) -> anyhow::
             .build()?,
     );
 
-    let region = ecs_client.config().region().context("Region not found")?;
+    let region = ecs_client
+        .config()
+        .region()
+        .context("region is not defined")?;
 
     let mut command = Command::new(session_manager_path)
         .args([
@@ -265,9 +268,9 @@ async fn run_logs(
         .await?;
     let container_definition = output
         .task_definition
-        .context("TODO")?
+        .context("Task definition is not defined")?
         .container_definitions
-        .context("TODO")?
+        .context("Container definitions is not defined")?
         .into_iter()
         // TODO: remove hard-coded container name
         .find(|container_definition| container_definition.name == Some("action_cable".to_string()))
@@ -294,10 +297,10 @@ async fn get_cluster(
             .clusters(cluster_name)
             .send()
             .await?;
-        let clusters = output.clusters.context("clusters not found")?;
+        let clusters = output.clusters.context("clusters is not defined")?;
         let cluster = clusters
             .first()
-            .with_context(|| format!("Cluster '{}' not found", cluster_name))?;
+            .with_context(|| format!("cluster '{}' not found", cluster_name))?;
         return SelectableCluster::try_from(cluster);
     }
     let output = client.list_clusters().send().await?;
@@ -307,10 +310,10 @@ async fn get_cluster(
         .into_iter()
         .map(|arn| SelectableCluster::try_from(arn))
         .collect::<anyhow::Result<Vec<SelectableCluster>>>()?;
-    ensure!(!clusters.is_empty(), "No clusters found");
+    ensure!(!clusters.is_empty(), "no clusters found");
     let cluster = Select::new("Cluster", clusters)
         .prompt()
-        .context("Error selecting cluster")?;
+        .context("unable to render cluster selector")?;
     Ok(cluster)
 }
 
@@ -326,10 +329,10 @@ async fn get_task(
             .tasks(task_name)
             .send()
             .await?;
-        let tasks = output.tasks.context("tasks not found")?;
+        let tasks = output.tasks.context("tasks is not defined")?;
         let task = tasks
             .first()
-            .with_context(|| format!("Task '{}' not found", task_name))?;
+            .with_context(|| format!("task '{}' not found", task_name))?;
         return SelectableTask::try_from(task);
     }
     let output = client.list_tasks().cluster(cluster).send().await?;
@@ -339,8 +342,10 @@ async fn get_task(
         .into_iter()
         .map(|arn| SelectableTask::try_from(arn))
         .collect::<anyhow::Result<Vec<SelectableTask>>>()?;
-    ensure!(!tasks.is_empty(), "No tasks found");
-    let task = Select::new("Task", tasks).prompt().context("TODO")?;
+    ensure!(!tasks.is_empty(), "no tasks found");
+    let task = Select::new("Task", tasks)
+        .prompt()
+        .context("unable to render task selector")?;
     Ok(task)
 }
 
@@ -368,11 +373,11 @@ async fn get_container(
         containers
             .into_iter()
             .find(|container| container.name == *container_id)
-            .with_context(|| format!("Container '{}' not found", container_id))?
+            .with_context(|| format!("container '{}' not found", container_id))?
     } else {
         Select::new("Container", containers)
             .prompt()
-            .context("TODO")?
+            .context("unable to render container selector")?
     };
     Ok(container)
 }
