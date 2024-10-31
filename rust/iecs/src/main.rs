@@ -7,6 +7,13 @@ use aws_sdk_ssm::operation::start_session::StartSessionInput;
 use clap::Parser;
 use inquire::Select;
 use serde::{ser::SerializeStruct, Serialize};
+use which::which;
+
+static SESSION_MANAGER_PLUGIN_NOT_FOUND: &str = r#"
+'session-manager-plugin' not found, install it using the instructions in the link below:
+
+https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html
+"#;
 
 #[derive(Parser)]
 #[command(name = "iecs")]
@@ -196,6 +203,9 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn run_exec(ecs_client: &aws_sdk_ecs::Client, args: &ExecArgs) -> anyhow::Result<()> {
+    let session_manager_path =
+        which("session-manager-plugin").context(SESSION_MANAGER_PLUGIN_NOT_FOUND)?;
+
     let cluster = get_cluster(&ecs_client, &args.cluster).await?;
     let task = get_task(&ecs_client, &cluster.arn, &args.task).await?;
     let container = get_container(&ecs_client, &cluster.arn, &task.arn, &args.container).await?;
@@ -221,7 +231,7 @@ async fn run_exec(ecs_client: &aws_sdk_ecs::Client, args: &ExecArgs) -> anyhow::
 
     let region = ecs_client.config().region().context("Region not found")?;
 
-    let mut command = Command::new("session-manager-plugin")
+    let mut command = Command::new(session_manager_path)
         .args([
             serde_json::to_string(&session)?,
             region.to_string(),
@@ -257,7 +267,7 @@ async fn run_logs(
         .task_definition
         .context("TODO")?
         .container_definitions
-        .context("")?
+        .context("TODO")?
         .into_iter()
         // TODO: remove hard-coded container name
         .find(|container_definition| container_definition.name == Some("action_cable".to_string()))
