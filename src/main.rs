@@ -30,7 +30,7 @@ struct ExecArgs {
     task: Option<String>,
     #[arg(long)]
     container: Option<String>,
-    #[arg(long, default_value = "/bin/sh")]
+    #[arg(long, default_value = "/bin/bash")]
     command: String,
     #[arg(long, default_value_t = true)]
     interactive: bool,
