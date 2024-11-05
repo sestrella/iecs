@@ -14,7 +14,11 @@
 
   pre-commit.hooks.clippy.enable = true;
   pre-commit.hooks.nixpkgs-fmt.enable = true;
-  pre-commit.hooks.rustfmt.enable = true;
+
+  pre-commit.hooks.rustfmt = {
+    enable = true;
+    packageOverrides.cargo = pkgs.cargo;
+  };
 
   # See full reference at https://devenv.sh/reference/options/
 }

@@ -147,9 +147,11 @@ impl TryFrom<Container> for SelectableContainer {
     type Error = anyhow::Error;
 
     fn try_from(value: Container) -> Result<Self, Self::Error> {
-        let name = value.name.context("name not found")?;
-        let arn = value.container_arn.context("container_arn not found")?;
-        let runtime_id = value.runtime_id.context("runtime_id not found")?;
+        let name = value.name.context("'name' is not defined")?;
+        let arn = value
+            .container_arn
+            .context("'container_arn' is not defined")?;
+        let runtime_id = value.runtime_id.context("'runtime_id' is not defined")?;
         Ok(SelectableContainer {
             name,
             arn,
@@ -196,8 +198,8 @@ async fn main() -> anyhow::Result<()> {
     match Cli::parse() {
         Cli::Exec(args) => run_exec(&ecs_client, &args).await,
         Cli::Logs(args) => {
-            let cw_logs_client = aws_sdk_cloudwatchlogs::Client::new(&config);
-            run_logs(&ecs_client, &cw_logs_client, &args).await
+            let cwlogs_client = aws_sdk_cloudwatchlogs::Client::new(&config);
+            run_logs(&ecs_client, &cwlogs_client, &args).await
         }
     }
 }
@@ -232,13 +234,14 @@ async fn run_exec(ecs_client: &aws_sdk_ecs::Client, args: &ExecArgs) -> anyhow::
     let region = ecs_client
         .config()
         .region()
-        .context("region is not defined")?;
+        .context("'region' is not defined")?;
 
     let mut command = Command::new(session_manager_path)
         .args([
             serde_json::to_string(&session)?,
             region.to_string(),
             "StartSession".to_string(),
+            // TODO: pass profile
             "".to_string(),
             serde_json::to_string(&start_session)?,
             format!("https://ssm.{}.amazonaws.com", region),
@@ -252,14 +255,14 @@ async fn run_exec(ecs_client: &aws_sdk_ecs::Client, args: &ExecArgs) -> anyhow::
 
 async fn run_logs(
     ecs_client: &aws_sdk_ecs::Client,
-    cw_logs_client: &aws_sdk_cloudwatchlogs::Client,
+    _cwlogs_client: &aws_sdk_cloudwatchlogs::Client,
     args: &LogsArgs,
 ) -> anyhow::Result<()> {
     let cluster = get_cluster(&ecs_client, &args.cluster).await?;
     let task = get_task(&ecs_client, &cluster.arn, &args.task).await?;
     let task_definition_arn = task
         .task_definition_arn
-        .context("task_definition_arn not found")?;
+        .context("'task_definition_arn' is not defined")?;
     // let container = get_container(&client, &cluster.arn, &task.arn, &args.container).await?;
     let output = ecs_client
         .describe_task_definition()
@@ -268,9 +271,9 @@ async fn run_logs(
         .await?;
     let container_definition = output
         .task_definition
-        .context("Task definition is not defined")?
+        .context("'task_definition' is not defined")?
         .container_definitions
-        .context("Container definitions is not defined")?
+        .context("'container_definitions' is not defined")?
         .into_iter()
         // TODO: remove hard-coded container name
         .find(|container_definition| container_definition.name == Some("action_cable".to_string()))
