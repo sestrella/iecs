@@ -19,7 +19,8 @@ jobs:
         run: nix profile install nixpkgs#devenv
       - name: Install dependencies
         run: devenv shell -- true
+      - uses: swatinem/rust-cache@v2
+      - name: Compile code
+        run: devenv shell -- cargo check
       - name: Run checks
         run: devenv test
-      - name: Compile code
-        run: devenv shell -- cargo build
