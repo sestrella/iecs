@@ -90,45 +90,42 @@ impl TryFrom<String> for SelectableCluster {
     }
 }
 
-struct SelectableTask {
-    name: String,
-    arn: String,
-    task_definition_arn: Option<String>,
-}
+struct SelectableTask(Task);
 
 impl Display for SelectableTask {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} ({})", self.name, self.arn)
+        let task_arn = self.0.task_arn.as_ref().unwrap();
+        write!(f, "{}", task_arn)
     }
 }
 
-impl TryFrom<Task> for SelectableTask {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Task) -> Result<Self, Self::Error> {
-        let arn = value.task_arn.context("TODO")?;
-        let (_, name) = arn.split_once("/").context("TODO")?;
-        Ok(SelectableTask {
-            name: name.to_string(),
-            arn: arn.to_string(),
-            task_definition_arn: value.task_definition_arn,
-        })
-    }
-}
-
-impl TryFrom<&Task> for SelectableTask {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &Task) -> Result<Self, Self::Error> {
-        let arn = value.task_arn.as_ref().context("TODO")?;
-        let (_, name) = arn.split_once("/").context("TODO")?;
-        Ok(SelectableTask {
-            name: name.to_string(),
-            arn: arn.to_string(),
-            task_definition_arn: value.task_definition_arn.clone(),
-        })
-    }
-}
+// impl TryFrom<Task> for SelectableTask {
+//     type Error = anyhow::Error;
+//
+//     fn try_from(value: Task) -> Result<Self, Self::Error> {
+//         let arn = value.task_arn.context("TODO")?;
+//         let (_, name) = arn.split_once("/").context("TODO")?;
+//         Ok(SelectableTask {
+//             name: name.to_string(),
+//             arn: arn.to_string(),
+//             task_definition_arn: value.task_definition_arn,
+//         })
+//     }
+// }
+//
+// impl TryFrom<&Task> for SelectableTask {
+//     type Error = anyhow::Error;
+//
+//     fn try_from(value: &Task) -> Result<Self, Self::Error> {
+//         let arn = value.task_arn.as_ref().context("TODO")?;
+//         let (_, name) = arn.split_once("/").context("TODO")?;
+//         Ok(SelectableTask {
+//             name: name.to_string(),
+//             arn: arn.to_string(),
+//             task_definition_arn: value.task_definition_arn.clone(),
+//         })
+//     }
+// }
 
 struct SelectableContainer {
     name: String,
@@ -209,23 +206,25 @@ async fn run_exec(ecs_client: &aws_sdk_ecs::Client, args: &ExecArgs) -> anyhow::
 
     let cluster = get_cluster(&ecs_client, &args.cluster).await?;
     let task = get_task(&ecs_client, &cluster.arn, &args.task).await?;
-    let container = get_container(&ecs_client, &cluster.arn, &task.arn, &args.container).await?;
+    let task_arn = task.task_arn.context("TODO")?;
+    let container = get_container(&ecs_client, &cluster.arn, &task_arn, &args.container).await?;
 
     let session = execute_command(
         &ecs_client,
         &cluster.arn,
-        &task.arn,
+        &task_arn,
         &container.name,
         &args.command,
         args.interactive,
     )
     .await?;
 
+    let (_, task_name) = task_arn.split_once("/").context("TODO")?;
     let start_session = SerializableStartSession(
         StartSessionInput::builder()
             .target(format!(
                 "ecs:{}_{}_{}",
-                cluster.name, task.name, container.runtime_id
+                cluster.name, task_name, container.runtime_id
             ))
             .build()?,
     );
@@ -259,7 +258,8 @@ async fn run_logs(
 ) -> anyhow::Result<()> {
     let cluster = get_cluster(&ecs_client, &args.cluster).await?;
     let task = get_task(&ecs_client, &cluster.arn, &args.task).await?;
-    let container = get_container(&ecs_client, &cluster.arn, &task.arn, &args.container).await?;
+    let task_arn = task.task_arn.context("TODO")?;
+    let container = get_container(&ecs_client, &cluster.arn, &task_arn, &args.container).await?;
     let task_definition_arn = task
         .task_definition_arn
         .context("'task_definition_arn' is not defined")?;
@@ -322,7 +322,7 @@ async fn get_task(
     client: &aws_sdk_ecs::Client,
     cluster: &String,
     task_arg: &Option<String>,
-) -> anyhow::Result<SelectableTask> {
+) -> anyhow::Result<Task> {
     if let Some(task_name) = task_arg {
         let output = client
             .describe_tasks()
@@ -334,26 +334,27 @@ async fn get_task(
         let task = tasks
             .first()
             .with_context(|| format!("task '{}' not found", task_name))?;
-        return SelectableTask::try_from(task);
+        Ok(task.clone())
+    } else {
+        let task_arns = client.list_tasks().cluster(cluster).send().await?.task_arns;
+        let output = client
+            .describe_tasks()
+            .cluster(cluster)
+            .set_tasks(task_arns)
+            .send()
+            .await?;
+        let tasks = output
+            .tasks
+            .unwrap_or_else(|| Vec::new())
+            .into_iter()
+            .map(|task| SelectableTask(task))
+            .collect::<Vec<SelectableTask>>();
+        ensure!(!tasks.is_empty(), "no tasks found");
+        let SelectableTask(task) = Select::new("Task", tasks)
+            .prompt()
+            .context("unable to render task selector")?;
+        Ok(task)
     }
-    let task_arns = client.list_tasks().cluster(cluster).send().await?.task_arns;
-    let output = client
-        .describe_tasks()
-        .cluster(cluster)
-        .set_tasks(task_arns)
-        .send()
-        .await?;
-    let tasks = output
-        .tasks
-        .unwrap_or_else(|| Vec::new())
-        .into_iter()
-        .map(|task| SelectableTask::try_from(task))
-        .collect::<anyhow::Result<Vec<SelectableTask>>>()?;
-    ensure!(!tasks.is_empty(), "no tasks found");
-    let task = Select::new("Task", tasks)
-        .prompt()
-        .context("unable to render task selector")?;
-    Ok(task)
 }
 
 async fn get_container(
