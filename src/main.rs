@@ -102,6 +102,20 @@ impl Display for SelectableTask {
     }
 }
 
+impl TryFrom<Task> for SelectableTask {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Task) -> Result<Self, Self::Error> {
+        let arn = value.task_arn.context("TODO")?;
+        let (_, name) = arn.split_once("/").context("TODO")?;
+        Ok(SelectableTask {
+            name: name.to_string(),
+            arn: arn.to_string(),
+            task_definition_arn: value.task_definition_arn,
+        })
+    }
+}
+
 impl TryFrom<&Task> for SelectableTask {
     type Error = anyhow::Error;
 
@@ -112,21 +126,6 @@ impl TryFrom<&Task> for SelectableTask {
             name: name.to_string(),
             arn: arn.to_string(),
             task_definition_arn: value.task_definition_arn.clone(),
-        })
-    }
-}
-
-impl TryFrom<String> for SelectableTask {
-    type Error = anyhow::Error;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let (_, name) = value
-            .split_once("/")
-            .with_context(|| format!("Unable to split {}", value))?;
-        Ok(SelectableTask {
-            name: name.to_string(),
-            arn: value,
-            task_definition_arn: None,
         })
     }
 }
@@ -260,10 +259,10 @@ async fn run_logs(
 ) -> anyhow::Result<()> {
     let cluster = get_cluster(&ecs_client, &args.cluster).await?;
     let task = get_task(&ecs_client, &cluster.arn, &args.task).await?;
+    let container = get_container(&ecs_client, &cluster.arn, &task.arn, &args.container).await?;
     let task_definition_arn = task
         .task_definition_arn
         .context("'task_definition_arn' is not defined")?;
-    // let container = get_container(&client, &cluster.arn, &task.arn, &args.container).await?;
     let output = ecs_client
         .describe_task_definition()
         .task_definition(task_definition_arn)
@@ -275,8 +274,7 @@ async fn run_logs(
         .container_definitions
         .context("'container_definitions' is not defined")?
         .into_iter()
-        // TODO: remove hard-coded container name
-        .find(|container_definition| container_definition.name == Some("action_cable".to_string()))
+        .find(|container_definition| container_definition.name.as_ref() == Some(&container.name))
         .context("TODO")?;
     let log_configuration = container_definition.log_configuration.context("TODO")?;
     let log_driver = log_configuration.log_driver;
@@ -338,12 +336,18 @@ async fn get_task(
             .with_context(|| format!("task '{}' not found", task_name))?;
         return SelectableTask::try_from(task);
     }
-    let output = client.list_tasks().cluster(cluster).send().await?;
+    let task_arns = client.list_tasks().cluster(cluster).send().await?.task_arns;
+    let output = client
+        .describe_tasks()
+        .cluster(cluster)
+        .set_tasks(task_arns)
+        .send()
+        .await?;
     let tasks = output
-        .task_arns
+        .tasks
         .unwrap_or_else(|| Vec::new())
         .into_iter()
-        .map(|arn| SelectableTask::try_from(arn))
+        .map(|task| SelectableTask::try_from(task))
         .collect::<anyhow::Result<Vec<SelectableTask>>>()?;
     ensure!(!tasks.is_empty(), "no tasks found");
     let task = Select::new("Task", tasks)
