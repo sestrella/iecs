@@ -99,34 +99,6 @@ impl Display for SelectableTask {
     }
 }
 
-// impl TryFrom<Task> for SelectableTask {
-//     type Error = anyhow::Error;
-//
-//     fn try_from(value: Task) -> Result<Self, Self::Error> {
-//         let arn = value.task_arn.context("TODO")?;
-//         let (_, name) = arn.split_once("/").context("TODO")?;
-//         Ok(SelectableTask {
-//             name: name.to_string(),
-//             arn: arn.to_string(),
-//             task_definition_arn: value.task_definition_arn,
-//         })
-//     }
-// }
-//
-// impl TryFrom<&Task> for SelectableTask {
-//     type Error = anyhow::Error;
-//
-//     fn try_from(value: &Task) -> Result<Self, Self::Error> {
-//         let arn = value.task_arn.as_ref().context("TODO")?;
-//         let (_, name) = arn.split_once("/").context("TODO")?;
-//         Ok(SelectableTask {
-//             name: name.to_string(),
-//             arn: arn.to_string(),
-//             task_definition_arn: value.task_definition_arn.clone(),
-//         })
-//     }
-// }
-
 struct SelectableContainer {
     name: String,
     arn: String,
