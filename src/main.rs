@@ -252,7 +252,7 @@ async fn run_logs(
     let log_driver = log_configuration.log_driver;
     ensure!(
         log_driver != LogDriver::Awslogs,
-        "Unsupported log driver '{}'",
+        "unsupported log driver '{}'",
         log_driver
     );
     let log_options = log_configuration.options.context("TODO")?;
