@@ -77,7 +77,8 @@ var logsCmd = &cobra.Command{
 					log.Println("Received SessionStart event")
 				case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
 					for _, logEvent := range e.Value.SessionResults {
-						log.Println(*logEvent.Message)
+						// TODO: format timestamp as datetime
+						fmt.Printf("%v %s\n", *logEvent.Timestamp, *logEvent.Message)
 					}
 				default:
 					fmt.Println("TODO")
