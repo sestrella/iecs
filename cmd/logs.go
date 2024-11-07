@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
@@ -78,8 +77,7 @@ var logsCmd = &cobra.Command{
 					log.Println("Received SessionStart event")
 				case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
 					for _, logEvent := range e.Value.SessionResults {
-						date := time.Unix(*logEvent.Timestamp/1000, 0)
-						fmt.Printf("%v %s\n", date, *logEvent.Message)
+						log.Println(*logEvent.Message)
 					}
 				default:
 					fmt.Println("TODO")
