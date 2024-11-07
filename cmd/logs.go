@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
@@ -30,14 +31,13 @@ var logsCmd = &cobra.Command{
 		cwlogsClient := cloudwatchlogs.NewFromConfig(cfg)
 		stsClient := sts.NewFromConfig(cfg)
 
-		listClusters, _ := ecsClient.ListClusters(context.TODO(), &ecs.ListClustersInput{})
-		clusterArn, _ := pterm.DefaultInteractiveSelect.WithOptions(listClusters.ClusterArns).Show("Cluster")
+		cluster, _ := describeCluster(context.TODO(), ecsClient, nil)
 		listTasks, _ := ecsClient.ListTasks(context.TODO(), &ecs.ListTasksInput{
-			Cluster: &clusterArn,
+			Cluster: cluster.ClusterArn,
 		})
 		taskArn, _ := pterm.DefaultInteractiveSelect.WithOptions(listTasks.TaskArns).Show("Task")
 		tasks, _ := ecsClient.DescribeTasks(context.TODO(), &ecs.DescribeTasksInput{
-			Cluster: &clusterArn,
+			Cluster: cluster.ClusterArn,
 			Tasks:   []string{taskArn},
 		})
 		task := tasks.Tasks[0]
@@ -60,6 +60,7 @@ var logsCmd = &cobra.Command{
 		logOptions := selectedContainer.LogConfiguration.Options
 		getCallerIdentity, _ := stsClient.GetCallerIdentity(context.TODO(), &sts.GetCallerIdentityInput{})
 
+		// TODO: get log_group ARN from SDK
 		startLiveTail, _ := cwlogsClient.StartLiveTail(context.TODO(), &cloudwatchlogs.StartLiveTailInput{
 			LogGroupIdentifiers:   []string{fmt.Sprintf("arn:aws:logs:%s:%s:log-group:%s", logOptions["awslogs-region"], *getCallerIdentity.Account, logOptions["awslogs-group"])},
 			LogStreamNamePrefixes: []string{logOptions["awslogs-stream-prefix"]},
@@ -77,7 +78,8 @@ var logsCmd = &cobra.Command{
 					log.Println("Received SessionStart event")
 				case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
 					for _, logEvent := range e.Value.SessionResults {
-						log.Println(*logEvent.Message)
+						date := time.UnixMilli(*logEvent.Timestamp)
+						fmt.Printf("%v %s\n", date, *logEvent.Message)
 					}
 				default:
 					fmt.Println("TODO")
@@ -89,10 +91,43 @@ var logsCmd = &cobra.Command{
 	},
 }
 
+func describeCluster(ctx context.Context, client *ecs.Client, clusterId *string) (*types.Cluster, error) {
+	selectedClusterId, err := selectClusterId(ctx, client, clusterId)
+	if err != nil {
+		return nil, err
+	}
+	describedClusters, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
+		Clusters: []string{*selectedClusterId},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(describedClusters.Clusters) == 0 {
+	}
+	return &describedClusters.Clusters[0], nil
+}
+
+func selectClusterId(ctx context.Context, client *ecs.Client, clusterId *string) (*string, error) {
+	if clusterId == nil {
+		listedClusters, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
+		if err != nil {
+			return nil, err
+		}
+		clusterArn, err := pterm.DefaultInteractiveSelect.WithOptions(listedClusters.ClusterArns).Show("Cluster")
+		if err != nil {
+			return nil, err
+		}
+		return &clusterArn, nil
+	}
+	return clusterId, nil
+}
+
 func init() {
 	rootCmd.AddCommand(logsCmd)
 
 	rootCmd.Flags().String("cluster", "", "TODO")
+	rootCmd.Flags().String("task", "", "TODO")
+	rootCmd.Flags().String("container", "", "TODO")
 
 	// Here you will define your flags and configuration settings.
 
