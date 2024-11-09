@@ -32,15 +32,7 @@ var logsCmd = &cobra.Command{
 		stsClient := sts.NewFromConfig(cfg)
 
 		cluster, _ := describeCluster(context.TODO(), ecsClient, nil)
-		listTasks, _ := ecsClient.ListTasks(context.TODO(), &ecs.ListTasksInput{
-			Cluster: cluster.ClusterArn,
-		})
-		taskArn, _ := pterm.DefaultInteractiveSelect.WithOptions(listTasks.TaskArns).Show("Task")
-		tasks, _ := ecsClient.DescribeTasks(context.TODO(), &ecs.DescribeTasksInput{
-			Cluster: cluster.ClusterArn,
-			Tasks:   []string{taskArn},
-		})
-		task := tasks.Tasks[0]
+		task, _ := describeTask(context.TODO(), ecsClient, cluster.ClusterArn)
 		taskDefinition, _ := ecsClient.DescribeTaskDefinition(context.TODO(), &ecs.DescribeTaskDefinitionInput{
 			TaskDefinition: task.TaskDefinitionArn,
 		})
@@ -122,6 +114,21 @@ func selectClusterId(ctx context.Context, client *ecs.Client, clusterId *string)
 		return &clusterArn, nil
 	}
 	return clusterId, nil
+}
+
+func describeTask(ctx context.Context, ecsClient *ecs.Client, clusterArn *string) (*types.Task, error) {
+	listTasks, _ := ecsClient.ListTasks(ctx, &ecs.ListTasksInput{
+		Cluster: clusterArn,
+	})
+	taskArn, err := pterm.DefaultInteractiveSelect.WithOptions(listTasks.TaskArns).Show("Task")
+	if err != nil {
+		return nil, err
+	}
+	tasks, _ := ecsClient.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+		Cluster: clusterArn,
+		Tasks:   []string{taskArn},
+	})
+	return &tasks.Tasks[0], nil
 }
 
 func init() {
