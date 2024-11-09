@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -102,9 +103,11 @@ func describeCluster(ctx context.Context, client *ecs.Client, clusterId *string)
 	if err != nil {
 		return nil, err
 	}
-	if len(describedClusters.Clusters) == 0 {
+	clustersCount := len(describedClusters.Clusters)
+	if clustersCount == 1 {
+		return &describedClusters.Clusters[0], nil
 	}
-	return &describedClusters.Clusters[0], nil
+	return nil, fmt.Errorf("expect 1 cluster, got %s", clustersCount)
 }
 
 func selectClusterId(ctx context.Context, client *ecs.Client, clusterId *string) (*string, error) {
