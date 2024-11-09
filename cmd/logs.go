@@ -106,7 +106,7 @@ func describeCluster(ctx context.Context, client *ecs.Client, clusterId *string)
 	if clustersCount == 1 {
 		return &describedClusters.Clusters[0], nil
 	}
-	return nil, fmt.Errorf("expect 1 cluster, got %s", clustersCount)
+	return nil, fmt.Errorf("expect 1 cluster, got %v", clustersCount)
 }
 
 func selectClusterId(ctx context.Context, client *ecs.Client, clusterId *string) (*string, error) {
