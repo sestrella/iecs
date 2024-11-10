@@ -15,7 +15,6 @@ import (
 	cwlogsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
-	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -45,7 +44,6 @@ var logsCmd = &cobra.Command{
 
 		ecsClient := ecs.NewFromConfig(cfg)
 		cwlogsClient := cloudwatchlogs.NewFromConfig(cfg)
-		stsClient := sts.NewFromConfig(cfg)
 
 		cluster, err := describeCluster(context.TODO(), ecsClient, clusterId)
 		if err != nil {
@@ -60,11 +58,17 @@ var logsCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 		logOptions := container.LogConfiguration.Options
-		getCallerIdentity, _ := stsClient.GetCallerIdentity(context.TODO(), &sts.GetCallerIdentityInput{})
+		awslogsGroup := logOptions["awslogs-group"]
+		describedLogGroups, err := cwlogsClient.DescribeLogGroups(context.TODO(), &cloudwatchlogs.DescribeLogGroupsInput{
+			LogGroupNamePrefix: &awslogsGroup,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		// TODO: get log_group ARN from SDK
 		startLiveTail, _ := cwlogsClient.StartLiveTail(context.TODO(), &cloudwatchlogs.StartLiveTailInput{
-			LogGroupIdentifiers:   []string{fmt.Sprintf("arn:aws:logs:%s:%s:log-group:%s", logOptions["awslogs-region"], *getCallerIdentity.Account, logOptions["awslogs-group"])},
+			LogGroupIdentifiers:   []string{*describedLogGroups.LogGroups[0].LogGroupArn},
 			LogStreamNamePrefixes: []string{logOptions["awslogs-stream-prefix"]},
 		})
 		stream := startLiveTail.GetStream()
