@@ -34,7 +34,10 @@ var logsCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		cfg, _ := config.LoadDefaultConfig(context.TODO())
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		ecsClient := ecs.NewFromConfig(cfg)
 		cwlogsClient := cloudwatchlogs.NewFromConfig(cfg)
@@ -48,24 +51,11 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		taskDefinition, _ := ecsClient.DescribeTaskDefinition(context.TODO(), &ecs.DescribeTaskDefinitionInput{
-			TaskDefinition: task.TaskDefinitionArn,
-		})
-
-		var containerNames []string
-		for _, container := range taskDefinition.TaskDefinition.ContainerDefinitions {
-			containerNames = append(containerNames, *container.Name)
+		container, err := describeContainerDefinition(ecsClient, *task.TaskDefinitionArn)
+		if err != nil {
+			log.Fatal(err)
 		}
-		containerName, _ := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Container")
-		var selectedContainer *ecsTypes.ContainerDefinition
-		for _, container := range taskDefinition.TaskDefinition.ContainerDefinitions {
-			if *container.Name == containerName {
-				selectedContainer = &container
-				break
-			}
-		}
-		logOptions := selectedContainer.LogConfiguration.Options
+		logOptions := container.LogConfiguration.Options
 		getCallerIdentity, _ := stsClient.GetCallerIdentity(context.TODO(), &sts.GetCallerIdentityInput{})
 
 		// TODO: get log_group ARN from SDK
@@ -163,6 +153,29 @@ func selectTaskId(ctx context.Context, client *ecs.Client, clusterId string, tas
 		return &taskArn, nil
 	}
 	return &taskId, nil
+}
+
+func describeContainerDefinition(ecsClient *ecs.Client, taskDefinitionArn string) (*ecsTypes.ContainerDefinition, error) {
+	taskDefinition, err := ecsClient.DescribeTaskDefinition(context.TODO(), &ecs.DescribeTaskDefinitionInput{
+		TaskDefinition: &taskDefinitionArn,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var containerNames []string
+	for _, container := range taskDefinition.TaskDefinition.ContainerDefinitions {
+		containerNames = append(containerNames, *container.Name)
+	}
+	containerName, err := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Container")
+	if err != nil {
+		return nil, err
+	}
+	for _, container := range taskDefinition.TaskDefinition.ContainerDefinitions {
+		if *container.Name == containerName {
+			return &container, nil
+		}
+	}
+	return nil, fmt.Errorf("no container found")
 }
 
 func init() {
