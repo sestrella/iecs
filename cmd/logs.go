@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	cwlogsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
@@ -58,7 +58,7 @@ var logsCmd = &cobra.Command{
 			containerNames = append(containerNames, *container.Name)
 		}
 		containerName, _ := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Container")
-		var selectedContainer *types.ContainerDefinition
+		var selectedContainer *ecsTypes.ContainerDefinition
 		for _, container := range taskDefinition.TaskDefinition.ContainerDefinitions {
 			if *container.Name == containerName {
 				selectedContainer = &container
@@ -99,7 +99,7 @@ var logsCmd = &cobra.Command{
 	},
 }
 
-func describeCluster(ctx context.Context, client *ecs.Client, clusterId string) (*types.Cluster, error) {
+func describeCluster(ctx context.Context, client *ecs.Client, clusterId string) (*ecsTypes.Cluster, error) {
 	selectedClusterId, err := selectClusterId(ctx, client, clusterId)
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func selectClusterId(ctx context.Context, client *ecs.Client, clusterId string) 
 	return &clusterId, nil
 }
 
-func describeTask(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*types.Task, error) {
+func describeTask(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*ecsTypes.Task, error) {
 	selectedTaskId, err := selectTaskId(ctx, client, clusterId, taskId)
 	if err != nil {
 		return nil, err
@@ -171,14 +171,4 @@ func init() {
 	logsCmd.Flags().String("cluster", "", "cluster id or ARN")
 	logsCmd.Flags().String("task", "", "task id or ARN")
 	logsCmd.Flags().String("container", "", "container id")
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// logsCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// logsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
