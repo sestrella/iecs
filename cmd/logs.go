@@ -33,6 +33,10 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
+		containerId, err := cmd.Flags().GetString("container")
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
@@ -51,7 +55,7 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-		container, err := describeContainerDefinition(ecsClient, *task.TaskDefinitionArn)
+		container, err := describeContainerDefinition(context.TODO(), ecsClient, *task.TaskDefinitionArn, containerId)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -155,27 +159,35 @@ func selectTaskId(ctx context.Context, client *ecs.Client, clusterId string, tas
 	return &taskId, nil
 }
 
-func describeContainerDefinition(ecsClient *ecs.Client, taskDefinitionArn string) (*ecsTypes.ContainerDefinition, error) {
-	taskDefinition, err := ecsClient.DescribeTaskDefinition(context.TODO(), &ecs.DescribeTaskDefinitionInput{
+func describeContainerDefinition(ctx context.Context, ecsClient *ecs.Client, taskDefinitionArn string, containerId string) (*ecsTypes.ContainerDefinition, error) {
+	describedTaskDefinition, err := ecsClient.DescribeTaskDefinition(ctx, &ecs.DescribeTaskDefinitionInput{
 		TaskDefinition: &taskDefinitionArn,
 	})
 	if err != nil {
 		return nil, err
 	}
-	var containerNames []string
-	for _, container := range taskDefinition.TaskDefinition.ContainerDefinitions {
-		containerNames = append(containerNames, *container.Name)
-	}
-	containerName, err := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Container")
+	containerDefinitions := describedTaskDefinition.TaskDefinition.ContainerDefinitions
+	containerName, err := selectContainerName(containerDefinitions, containerId)
 	if err != nil {
 		return nil, err
 	}
-	for _, container := range taskDefinition.TaskDefinition.ContainerDefinitions {
+	for _, container := range containerDefinitions {
 		if *container.Name == containerName {
 			return &container, nil
 		}
 	}
-	return nil, fmt.Errorf("no container found")
+	return nil, fmt.Errorf("no container '%v' found", containerName)
+}
+
+func selectContainerName(containerDefinitions []ecsTypes.ContainerDefinition, containerId string) (string, error) {
+	if containerId == "" {
+		var containerNames []string
+		for _, container := range containerDefinitions {
+			containerNames = append(containerNames, *container.Name)
+		}
+		return pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Container")
+	}
+	return containerId, nil
 }
 
 func init() {
