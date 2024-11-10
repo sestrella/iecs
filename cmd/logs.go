@@ -167,16 +167,16 @@ func describeContainerDefinition(ctx context.Context, ecsClient *ecs.Client, tas
 		return nil, err
 	}
 	containerDefinitions := describedTaskDefinition.TaskDefinition.ContainerDefinitions
-	containerName, err := selectContainerName(containerDefinitions, containerId)
+	selectedContainerName, err := selectContainerName(containerDefinitions, containerId)
 	if err != nil {
 		return nil, err
 	}
-	for _, container := range containerDefinitions {
-		if *container.Name == containerName {
-			return &container, nil
+	for _, containerDefinition := range containerDefinitions {
+		if *containerDefinition.Name == selectedContainerName {
+			return &containerDefinition, nil
 		}
 	}
-	return nil, fmt.Errorf("no container '%v' found", containerName)
+	return nil, fmt.Errorf("no container '%v' found", selectedContainerName)
 }
 
 func selectContainerName(containerDefinitions []ecsTypes.ContainerDefinition, containerId string) (string, error) {
