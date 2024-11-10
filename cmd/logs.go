@@ -182,8 +182,8 @@ func describeContainerDefinition(ctx context.Context, ecsClient *ecs.Client, tas
 func selectContainerName(containerDefinitions []ecsTypes.ContainerDefinition, containerId string) (string, error) {
 	if containerId == "" {
 		var containerNames []string
-		for _, container := range containerDefinitions {
-			containerNames = append(containerNames, *container.Name)
+		for _, containerDefinition := range containerDefinitions {
+			containerNames = append(containerNames, *containerDefinition.Name)
 		}
 		return pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Container")
 	}
