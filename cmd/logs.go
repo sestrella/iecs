@@ -31,8 +31,15 @@ var logsCmd = &cobra.Command{
 		cwlogsClient := cloudwatchlogs.NewFromConfig(cfg)
 		stsClient := sts.NewFromConfig(cfg)
 
-		cluster, _ := describeCluster(context.TODO(), ecsClient, nil)
-		task, _ := describeTask(context.TODO(), ecsClient, cluster.ClusterArn)
+		cluster, err := describeCluster(context.TODO(), ecsClient, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		task, err := describeTask(context.TODO(), ecsClient, cluster.ClusterArn, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		taskDefinition, _ := ecsClient.DescribeTaskDefinition(context.TODO(), &ecs.DescribeTaskDefinitionInput{
 			TaskDefinition: task.TaskDefinitionArn,
 		})
@@ -116,19 +123,37 @@ func selectClusterId(ctx context.Context, client *ecs.Client, clusterId *string)
 	return clusterId, nil
 }
 
-func describeTask(ctx context.Context, ecsClient *ecs.Client, clusterArn *string) (*types.Task, error) {
-	listTasks, _ := ecsClient.ListTasks(ctx, &ecs.ListTasksInput{
-		Cluster: clusterArn,
-	})
-	taskArn, err := pterm.DefaultInteractiveSelect.WithOptions(listTasks.TaskArns).Show("Task")
+func describeTask(ctx context.Context, client *ecs.Client, clusterId *string, taskId *string) (*types.Task, error) {
+	selectedTaskId, err := selectTaskId(ctx, client, clusterId, taskId)
 	if err != nil {
 		return nil, err
 	}
-	tasks, _ := ecsClient.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: clusterArn,
-		Tasks:   []string{taskArn},
+	describedTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+		Cluster: clusterId,
+		Tasks:   []string{*selectedTaskId},
 	})
-	return &tasks.Tasks[0], nil
+	if err != nil {
+		return nil, err
+	}
+	tasksCount := len(describedTasks.Tasks)
+	if tasksCount == 1 {
+		return &describedTasks.Tasks[0], nil
+	}
+	return nil, fmt.Errorf("expect 1 task, got %v", tasksCount)
+}
+
+func selectTaskId(ctx context.Context, client *ecs.Client, clusterId *string, taskId *string) (*string, error) {
+	if taskId == nil {
+		listTasks, _ := client.ListTasks(ctx, &ecs.ListTasksInput{
+			Cluster: clusterId,
+		})
+		taskArn, err := pterm.DefaultInteractiveSelect.WithOptions(listTasks.TaskArns).Show("Task")
+		if err != nil {
+			return nil, err
+		}
+		return &taskArn, nil
+	}
+	return taskId, nil
 }
 
 func init() {
