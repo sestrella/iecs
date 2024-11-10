@@ -191,7 +191,7 @@ func selectContainerName(containerDefinitions []ecsTypes.ContainerDefinition, co
 func init() {
 	rootCmd.AddCommand(logsCmd)
 
-	logsCmd.Flags().String("cluster", "", "cluster id or ARN")
-	logsCmd.Flags().String("task", "", "task id or ARN")
-	logsCmd.Flags().String("container", "", "container id")
+	logsCmd.Flags().StringP("cluster", "c", "", "cluster id or ARN")
+	logsCmd.Flags().StringP("task", "t", "", "task id or ARN")
+	logsCmd.Flags().StringP("container", "n", "", "container id")
 }
