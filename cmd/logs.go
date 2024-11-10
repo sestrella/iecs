@@ -104,11 +104,10 @@ func describeCluster(ctx context.Context, client *ecs.Client, clusterId string) 
 	if err != nil {
 		return nil, err
 	}
-	clustersCount := len(describedClusters.Clusters)
-	if clustersCount == 1 {
+	if len(describedClusters.Clusters) == 1 {
 		return &describedClusters.Clusters[0], nil
 	}
-	return nil, fmt.Errorf("expect 1 cluster, got %v", clustersCount)
+	return nil, fmt.Errorf("no cluster '%v' found", *selectedClusterId)
 }
 
 func selectClusterId(ctx context.Context, client *ecs.Client, clusterId string) (*string, error) {
@@ -138,11 +137,10 @@ func describeTask(ctx context.Context, client *ecs.Client, clusterId string, tas
 	if err != nil {
 		return nil, err
 	}
-	tasksCount := len(describedTasks.Tasks)
-	if tasksCount == 1 {
+	if len(describedTasks.Tasks) == 1 {
 		return &describedTasks.Tasks[0], nil
 	}
-	return nil, fmt.Errorf("expect 1 task, got %v", tasksCount)
+	return nil, fmt.Errorf("no task '%v' found", selectedTaskId)
 }
 
 func selectTaskId(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*string, error) {
