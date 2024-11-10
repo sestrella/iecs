@@ -25,17 +25,26 @@ var logsCmd = &cobra.Command{
 	Use:   "logs",
 	Short: "A brief description of your command",
 	Run: func(cmd *cobra.Command, args []string) {
+		clusterId, err := cmd.Flags().GetString("cluster")
+		if err != nil {
+			log.Fatal(err)
+		}
+		taskId, err := cmd.Flags().GetString("task")
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		cfg, _ := config.LoadDefaultConfig(context.TODO())
 
 		ecsClient := ecs.NewFromConfig(cfg)
 		cwlogsClient := cloudwatchlogs.NewFromConfig(cfg)
 		stsClient := sts.NewFromConfig(cfg)
 
-		cluster, err := describeCluster(context.TODO(), ecsClient, nil)
+		cluster, err := describeCluster(context.TODO(), ecsClient, clusterId)
 		if err != nil {
 			log.Fatal(err)
 		}
-		task, err := describeTask(context.TODO(), ecsClient, cluster.ClusterArn, nil)
+		task, err := describeTask(context.TODO(), ecsClient, *cluster.ClusterArn, taskId)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -90,7 +99,7 @@ var logsCmd = &cobra.Command{
 	},
 }
 
-func describeCluster(ctx context.Context, client *ecs.Client, clusterId *string) (*types.Cluster, error) {
+func describeCluster(ctx context.Context, client *ecs.Client, clusterId string) (*types.Cluster, error) {
 	selectedClusterId, err := selectClusterId(ctx, client, clusterId)
 	if err != nil {
 		return nil, err
@@ -108,8 +117,8 @@ func describeCluster(ctx context.Context, client *ecs.Client, clusterId *string)
 	return nil, fmt.Errorf("expect 1 cluster, got %v", clustersCount)
 }
 
-func selectClusterId(ctx context.Context, client *ecs.Client, clusterId *string) (*string, error) {
-	if clusterId == nil {
+func selectClusterId(ctx context.Context, client *ecs.Client, clusterId string) (*string, error) {
+	if clusterId == "" {
 		listedClusters, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
 		if err != nil {
 			return nil, err
@@ -120,16 +129,16 @@ func selectClusterId(ctx context.Context, client *ecs.Client, clusterId *string)
 		}
 		return &clusterArn, nil
 	}
-	return clusterId, nil
+	return &clusterId, nil
 }
 
-func describeTask(ctx context.Context, client *ecs.Client, clusterId *string, taskId *string) (*types.Task, error) {
+func describeTask(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*types.Task, error) {
 	selectedTaskId, err := selectTaskId(ctx, client, clusterId, taskId)
 	if err != nil {
 		return nil, err
 	}
 	describedTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: clusterId,
+		Cluster: &clusterId,
 		Tasks:   []string{*selectedTaskId},
 	})
 	if err != nil {
@@ -142,10 +151,10 @@ func describeTask(ctx context.Context, client *ecs.Client, clusterId *string, ta
 	return nil, fmt.Errorf("expect 1 task, got %v", tasksCount)
 }
 
-func selectTaskId(ctx context.Context, client *ecs.Client, clusterId *string, taskId *string) (*string, error) {
-	if taskId == nil {
+func selectTaskId(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*string, error) {
+	if taskId == "" {
 		listTasks, _ := client.ListTasks(ctx, &ecs.ListTasksInput{
-			Cluster: clusterId,
+			Cluster: &clusterId,
 		})
 		taskArn, err := pterm.DefaultInteractiveSelect.WithOptions(listTasks.TaskArns).Show("Task")
 		if err != nil {
@@ -153,15 +162,15 @@ func selectTaskId(ctx context.Context, client *ecs.Client, clusterId *string, ta
 		}
 		return &taskArn, nil
 	}
-	return taskId, nil
+	return &taskId, nil
 }
 
 func init() {
 	rootCmd.AddCommand(logsCmd)
 
-	rootCmd.Flags().String("cluster", "", "TODO")
-	rootCmd.Flags().String("task", "", "TODO")
-	rootCmd.Flags().String("container", "", "TODO")
+	logsCmd.Flags().String("cluster", "", "cluster id or ARN")
+	logsCmd.Flags().String("task", "", "task id or ARN")
+	logsCmd.Flags().String("container", "", "container id")
 
 	// Here you will define your flags and configuration settings.
 
