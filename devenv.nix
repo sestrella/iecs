@@ -10,7 +10,11 @@
 
   languages.go.enable = true;
 
-  pre-commit.hooks.nixpkgs-fmt.enable = true;
+  pre-commit.hooks = {
+    gofmt.enable = true;
+    golangci-lint.enable = true;
+    nixpkgs-fmt.enable = true;
+  };
 
   # See full reference at https://devenv.sh/reference/options/
 }
