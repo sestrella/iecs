@@ -26,23 +26,6 @@ func Execute() {
 }
 
 func describeCluster(ctx context.Context, client *ecs.Client, clusterId string) (*types.Cluster, error) {
-	selectedClusterId, err := selectClusterId(ctx, client, clusterId)
-	if err != nil {
-		return nil, err
-	}
-	describedClusters, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
-		Clusters: []string{*selectedClusterId},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(describedClusters.Clusters) == 1 {
-		return &describedClusters.Clusters[0], nil
-	}
-	return nil, fmt.Errorf("no cluster '%v' found", *selectedClusterId)
-}
-
-func selectClusterId(ctx context.Context, client *ecs.Client, clusterId string) (*string, error) {
 	if clusterId == "" {
 		listedClusters, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
 		if err != nil {
@@ -52,19 +35,37 @@ func selectClusterId(ctx context.Context, client *ecs.Client, clusterId string) 
 		if err != nil {
 			return nil, err
 		}
-		return &clusterArn, nil
+		clusterId = clusterArn
 	}
-	return &clusterId, nil
-}
-
-func describeTask(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*types.Task, error) {
-	selectedTaskId, err := selectTaskId(ctx, client, clusterId, taskId)
+	describedClusters, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
+		Clusters: []string{clusterId},
+	})
 	if err != nil {
 		return nil, err
 	}
+	if len(describedClusters.Clusters) == 1 {
+		return &describedClusters.Clusters[0], nil
+	}
+	return nil, fmt.Errorf("no cluster '%v' found", clusterId)
+}
+
+func describeTask(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*types.Task, error) {
+	if taskId == "" {
+		listTasks, err := client.ListTasks(ctx, &ecs.ListTasksInput{
+			Cluster: &clusterId,
+		})
+		if err != nil {
+			return nil, err
+		}
+		taskArn, err := pterm.DefaultInteractiveSelect.WithOptions(listTasks.TaskArns).Show("Task")
+		if err != nil {
+			return nil, err
+		}
+		taskId = taskArn
+	}
 	describedTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
 		Cluster: &clusterId,
-		Tasks:   []string{*selectedTaskId},
+		Tasks:   []string{taskId},
 	})
 	if err != nil {
 		return nil, err
@@ -72,21 +73,7 @@ func describeTask(ctx context.Context, client *ecs.Client, clusterId string, tas
 	if len(describedTasks.Tasks) == 1 {
 		return &describedTasks.Tasks[0], nil
 	}
-	return nil, fmt.Errorf("no task '%v' found", selectedTaskId)
-}
-
-func selectTaskId(ctx context.Context, client *ecs.Client, clusterId string, taskId string) (*string, error) {
-	if taskId == "" {
-		listTasks, _ := client.ListTasks(ctx, &ecs.ListTasksInput{
-			Cluster: &clusterId,
-		})
-		taskArn, err := pterm.DefaultInteractiveSelect.WithOptions(listTasks.TaskArns).Show("Task")
-		if err != nil {
-			return nil, err
-		}
-		return &taskArn, nil
-	}
-	return &taskId, nil
+	return nil, fmt.Errorf("no task '%v' found", taskId)
 }
 
 func describeContainer(containers []types.Container, containerId string) (*types.Container, error) {
@@ -95,11 +82,11 @@ func describeContainer(containers []types.Container, containerId string) (*types
 		for _, container := range containers {
 			containerNames = append(containerNames, *container.Name)
 		}
-		selectedContainerName, err := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Container")
+		containerName, err := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Container")
 		if err != nil {
 			return nil, err
 		}
-		containerId = selectedContainerName
+		containerId = containerName
 	}
 	for _, container := range containers {
 		if *container.Name == containerId {
@@ -117,25 +104,21 @@ func describeContainerDefinition(ctx context.Context, client *ecs.Client, taskDe
 		return nil, err
 	}
 	containerDefinitions := describedTaskDefinition.TaskDefinition.ContainerDefinitions
-	selectedContainerName, err := selectContainerName(containerDefinitions, containerId)
-	if err != nil {
-		return nil, err
-	}
-	for _, containerDefinition := range containerDefinitions {
-		if *containerDefinition.Name == selectedContainerName {
-			return &containerDefinition, nil
-		}
-	}
-	return nil, fmt.Errorf("no container '%v' found", selectedContainerName)
-}
-
-func selectContainerName(containerDefinitions []types.ContainerDefinition, containerId string) (string, error) {
 	if containerId == "" {
 		var containerNames []string
 		for _, containerDefinition := range containerDefinitions {
 			containerNames = append(containerNames, *containerDefinition.Name)
 		}
-		return pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Container")
+		containerName, err := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Container")
+		if err != nil {
+			return nil, err
+		}
+		containerId = containerName
 	}
-	return containerId, nil
+	for _, containerDefinition := range containerDefinitions {
+		if *containerDefinition.Name == containerId {
+			return &containerDefinition, nil
+		}
+	}
+	return nil, fmt.Errorf("no container '%v' found", containerId)
 }
