@@ -61,18 +61,19 @@ var logsCmd = &cobra.Command{
 		}
 		logOptions := container.LogConfiguration.Options
 		awslogsGroup := logOptions["awslogs-group"]
-		describedLogGroups, err := cwlogsClient.DescribeLogGroups(context.TODO(), &cloudwatchlogs.DescribeLogGroupsInput{
+		describeLogGroups, err := cwlogsClient.DescribeLogGroups(context.TODO(), &cloudwatchlogs.DescribeLogGroupsInput{
 			LogGroupNamePrefix: &awslogsGroup,
 		})
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		// TODO: get log_group ARN from SDK
-		startLiveTail, _ := cwlogsClient.StartLiveTail(context.TODO(), &cloudwatchlogs.StartLiveTailInput{
-			LogGroupIdentifiers:   []string{*describedLogGroups.LogGroups[0].LogGroupArn},
+		startLiveTail, err := cwlogsClient.StartLiveTail(context.TODO(), &cloudwatchlogs.StartLiveTailInput{
+			LogGroupIdentifiers:   []string{*describeLogGroups.LogGroups[0].LogGroupArn},
 			LogStreamNamePrefixes: []string{logOptions["awslogs-stream-prefix"]},
 		})
+		if err != nil {
+			log.Fatal(err)
+		}
 		stream := startLiveTail.GetStream()
 		var wg sync.WaitGroup
 		wg.Add(1)

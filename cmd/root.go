@@ -27,24 +27,24 @@ func Execute() {
 
 func describeCluster(ctx context.Context, client *ecs.Client, clusterId string) (*types.Cluster, error) {
 	if clusterId == "" {
-		listedClusters, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
+		listClusters, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
 		if err != nil {
 			return nil, err
 		}
-		clusterArn, err := pterm.DefaultInteractiveSelect.WithOptions(listedClusters.ClusterArns).Show("Cluster")
+		clusterArn, err := pterm.DefaultInteractiveSelect.WithOptions(listClusters.ClusterArns).Show("Cluster")
 		if err != nil {
 			return nil, err
 		}
 		clusterId = clusterArn
 	}
-	describedClusters, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
+	describeClusters, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
 		Clusters: []string{clusterId},
 	})
 	if err != nil {
 		return nil, err
 	}
-	if len(describedClusters.Clusters) == 1 {
-		return &describedClusters.Clusters[0], nil
+	if len(describeClusters.Clusters) == 1 {
+		return &describeClusters.Clusters[0], nil
 	}
 	return nil, fmt.Errorf("no cluster '%v' found", clusterId)
 }
@@ -63,15 +63,15 @@ func describeTask(ctx context.Context, client *ecs.Client, clusterId string, tas
 		}
 		taskId = taskArn
 	}
-	describedTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+	describeTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
 		Cluster: &clusterId,
 		Tasks:   []string{taskId},
 	})
 	if err != nil {
 		return nil, err
 	}
-	if len(describedTasks.Tasks) == 1 {
-		return &describedTasks.Tasks[0], nil
+	if len(describeTasks.Tasks) == 1 {
+		return &describeTasks.Tasks[0], nil
 	}
 	return nil, fmt.Errorf("no task '%v' found", taskId)
 }
@@ -97,13 +97,13 @@ func describeContainer(containers []types.Container, containerId string) (*types
 }
 
 func describeContainerDefinition(ctx context.Context, client *ecs.Client, taskDefinitionArn string, containerId string) (*types.ContainerDefinition, error) {
-	describedTaskDefinition, err := client.DescribeTaskDefinition(ctx, &ecs.DescribeTaskDefinitionInput{
+	describeTaskDefinition, err := client.DescribeTaskDefinition(ctx, &ecs.DescribeTaskDefinitionInput{
 		TaskDefinition: &taskDefinitionArn,
 	})
 	if err != nil {
 		return nil, err
 	}
-	containerDefinitions := describedTaskDefinition.TaskDefinition.ContainerDefinitions
+	containerDefinitions := describeTaskDefinition.TaskDefinition.ContainerDefinitions
 	if containerId == "" {
 		var containerNames []string
 		for _, containerDefinition := range containerDefinitions {
