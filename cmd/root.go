@@ -12,9 +12,10 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "iecs",
-	Short: "An interactive CLI for ECS",
-	Long:  "Performs commons tasks on ECS, such as getting remote access or viewing logs",
+	Use:     "iecs",
+	Short:   "An interactive CLI for ECS",
+	Long:    "Performs commons tasks on ECS, such as getting remote access or viewing logs",
+	Version: "0.1.0",
 }
 
 func Execute() {
