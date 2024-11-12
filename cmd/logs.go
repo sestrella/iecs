@@ -20,7 +20,11 @@ import (
 // logsCmd represents the logs command
 var logsCmd = &cobra.Command{
 	Use:   "logs",
-	Short: "A brief description of your command",
+	Short: "View the logs of a container",
+	Example: `
+  aws-vault exec <profile> -- iecs logs (recommended)
+  env AWS_PROFILE=<profile> iecs logs /bin/bash
+  `,
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterId, err := cmd.Flags().GetString("cluster")
 		if err != nil {

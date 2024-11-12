@@ -19,8 +19,8 @@ var execCmd = &cobra.Command{
 	Use:   "exec",
 	Short: "Runs a command remotely on a container",
 	Example: `
-  aws-vault exec <profile> -- iecs exec -m /bin/bash (recommended)
-  env AWS_PROFILE=<profile> iecs exec -m /bin/bash
+  aws-vault exec <profile> -- iecs exec -c /bin/bash (recommended)
+  env AWS_PROFILE=<profile> iecs exec -c /bin/bash
   `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		clusterId, err := cmd.Flags().GetString("cluster")
@@ -116,9 +116,9 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 func init() {
 	rootCmd.AddCommand(execCmd)
 
-	execCmd.Flags().StringP("cluster", "l", "", "The cluster ARN or name")
-	execCmd.Flags().StringP("task", "t", "", "The task ARN or name")
-	execCmd.Flags().StringP("container", "n", "", "The container ARN or name")
-	execCmd.Flags().StringP("command", "c", "/bin/sh", "The command to run on the container")
-	execCmd.Flags().BoolP("interactive", "i", true, "Runs command on interactive mode")
+	execCmd.Flags().StringP("cluster", "l", "", "cluster id or ARN")
+	execCmd.Flags().StringP("task", "t", "", "task id or ARN")
+	execCmd.Flags().StringP("container", "n", "", "container name")
+	execCmd.Flags().StringP("command", "c", "/bin/sh", "command to run")
+	execCmd.Flags().BoolP("interactive", "i", true, "toggles interactive mode")
 }
