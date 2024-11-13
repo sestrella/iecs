@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -27,37 +28,40 @@ var execCmd = &cobra.Command{
   aws-vault exec <profile> -- iecs exec -c /bin/bash (recommended)
   env AWS_PROFILE=<profile> iecs exec -c /bin/bash
   `,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
 		clusterId, err := cmd.Flags().GetString(EXEC_CLUSTER_FLAG)
 		if err != nil {
-			return fmt.Errorf("Unable to parse 'cluster' flag: %w", err)
+			log.Fatal(err)
 		}
 		taskId, err := cmd.Flags().GetString(EXEC_TASK_FLAG)
 		if err != nil {
-			return fmt.Errorf("Unable to parse 'task' flag: %w", err)
+			log.Fatal(err)
 		}
 		containerId, err := cmd.Flags().GetString(EXEC_CONTAINER_FLAG)
 		if err != nil {
-			return fmt.Errorf("Unable to parse 'container' flag: %w", err)
+			log.Fatal(err)
 		}
 		command, err := cmd.Flags().GetString("command")
 		if err != nil {
-			return fmt.Errorf("Unable to parse 'command' flag: %w", err)
+			log.Fatal(err)
 		}
 		interactive, err := cmd.Flags().GetBool("interactive")
 		if err != nil {
-			return fmt.Errorf("Unable to parse 'interactive' flag: %w", err)
+			log.Fatal(err)
 		}
-		return runExec(context.TODO(), clusterId, taskId, containerId, command, interactive)
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			log.Fatal(err)
+		}
+		client := ecs.NewFromConfig(cfg)
+		err = runExec(context.TODO(), client, cfg.Region, clusterId, taskId, containerId, command, interactive)
+		if err != nil {
+			log.Fatal(err)
+		}
 	},
 }
 
-func runExec(ctx context.Context, clusterId string, taskId string, containerId string, command string, interactive bool) error {
-	cfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		return fmt.Errorf("Error loading AWS configuration: %w", err)
-	}
-	client := ecs.NewFromConfig(cfg)
+func runExec(ctx context.Context, client *ecs.Client, region string, clusterId string, taskId string, containerId string, command string, interactive bool) error {
 	cluster, err := describeCluster(ctx, client, clusterId)
 	if err != nil {
 		return err
@@ -94,7 +98,7 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 		Target: &target,
 	})
 	if err != nil {
-		return fmt.Errorf("Unable to encode start session: %w", err)
+		return err
 	}
 	pterm.Info.Printfln("iecs exec --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
 		*cluster.ClusterName,
@@ -106,11 +110,11 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 	// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
 	smp := exec.Command("session-manager-plugin",
 		string(session),
-		cfg.Region,
+		region,
 		"StartSession",
 		"",
 		string(targetJSON),
-		fmt.Sprintf("https://ssm.%s.amazonaws.com", cfg.Region),
+		fmt.Sprintf("https://ssm.%s.amazonaws.com", region),
 	)
 	smp.Stdin = os.Stdin
 	smp.Stdout = os.Stdout
