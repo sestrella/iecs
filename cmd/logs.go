@@ -14,12 +14,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	cwlogsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
-// logsCmd represents the logs command
 var logsCmd = &cobra.Command{
 	Use:   "logs",
 	Short: "View the logs of a container",
@@ -40,69 +39,74 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
 			log.Fatal(err)
 		}
-
 		ecsClient := ecs.NewFromConfig(cfg)
 		cwlogsClient := cloudwatchlogs.NewFromConfig(cfg)
-
-		cluster, err := describeCluster(context.TODO(), ecsClient, clusterId)
+		err = runLogs(context.TODO(), ecsClient, cwlogsClient, clusterId, taskId, containerId)
 		if err != nil {
 			log.Fatal(err)
 		}
-		task, err := describeTask(context.TODO(), ecsClient, *cluster.ClusterArn, taskId)
-		if err != nil {
-			log.Fatal(err)
-		}
-		container, err := describeContainerDefinition(context.TODO(), ecsClient, *task.TaskDefinitionArn, containerId)
-		if err != nil {
-			log.Fatal(err)
-		}
-		logOptions := container.LogConfiguration.Options
-		awslogsGroup := logOptions["awslogs-group"]
-		describeLogGroups, err := cwlogsClient.DescribeLogGroups(context.TODO(), &cloudwatchlogs.DescribeLogGroupsInput{
-			LogGroupNamePrefix: &awslogsGroup,
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-		startLiveTail, err := cwlogsClient.StartLiveTail(context.TODO(), &cloudwatchlogs.StartLiveTailInput{
-			LogGroupIdentifiers:   []string{*describeLogGroups.LogGroups[0].LogGroupArn},
-			LogStreamNamePrefixes: []string{logOptions["awslogs-stream-prefix"]},
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-		stream := startLiveTail.GetStream()
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			eventsChannel := stream.Events()
-			for {
-				event := <-eventsChannel
-				switch e := event.(type) {
-				case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionStart:
-					log.Println("Received SessionStart event")
-				case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
-					for _, logEvent := range e.Value.SessionResults {
-						date := time.UnixMilli(*logEvent.Timestamp)
-						fmt.Printf("%v %s\n", date, *logEvent.Message)
-					}
-				default:
-					fmt.Println("TODO")
-					return
-				}
-			}
-		}()
-		wg.Wait()
 	},
 }
 
-func describeContainerDefinition(ctx context.Context, client *ecs.Client, taskDefinitionArn string, containerId string) (*types.ContainerDefinition, error) {
+func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, taskId string, containerId string) error {
+	cluster, err := describeCluster(ctx, ecsClient, clusterId)
+	if err != nil {
+		return err
+	}
+	task, err := describeTask(context.TODO(), ecsClient, *cluster.ClusterArn, taskId)
+	if err != nil {
+		return err
+	}
+	container, err := describeContainerDefinition(context.TODO(), ecsClient, *task.TaskDefinitionArn, containerId)
+	if err != nil {
+		return err
+	}
+	logOptions := container.LogConfiguration.Options
+	awslogsGroup := logOptions["awslogs-group"]
+	describeLogGroups, err := cwlogsClient.DescribeLogGroups(context.TODO(), &cloudwatchlogs.DescribeLogGroupsInput{
+		LogGroupNamePrefix: &awslogsGroup,
+	})
+	if err != nil {
+		return err
+	}
+	startLiveTail, err := cwlogsClient.StartLiveTail(context.TODO(), &cloudwatchlogs.StartLiveTailInput{
+		LogGroupIdentifiers:   []string{*describeLogGroups.LogGroups[0].LogGroupArn},
+		LogStreamNamePrefixes: []string{logOptions["awslogs-stream-prefix"]},
+	})
+	if err != nil {
+		return err
+	}
+	stream := startLiveTail.GetStream()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		eventsChannel := stream.Events()
+		for {
+			event := <-eventsChannel
+			switch e := event.(type) {
+			case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionStart:
+				log.Println("Received SessionStart event")
+			case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
+				for _, logEvent := range e.Value.SessionResults {
+					date := time.UnixMilli(*logEvent.Timestamp)
+					fmt.Printf("%v %s\n", date, *logEvent.Message)
+				}
+			default:
+				fmt.Println("TODO")
+				return
+			}
+		}
+	}()
+	wg.Wait()
+	return nil
+}
+
+func describeContainerDefinition(ctx context.Context, client *ecs.Client, taskDefinitionArn string, containerId string) (*ecsTypes.ContainerDefinition, error) {
 	describeTaskDefinition, err := client.DescribeTaskDefinition(ctx, &ecs.DescribeTaskDefinitionInput{
 		TaskDefinition: &taskDefinitionArn,
 	})
