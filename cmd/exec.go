@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
@@ -111,6 +112,26 @@ func runExec(ctx context.Context, clusterId string, taskId string, containerId s
 	smp.Stdout = os.Stdout
 	smp.Stderr = os.Stderr
 	return smp.Run()
+}
+
+func describeContainer(containers []types.Container, containerId string) (*types.Container, error) {
+	if containerId == "" {
+		var containerNames []string
+		for _, container := range containers {
+			containerNames = append(containerNames, *container.Name)
+		}
+		containerName, err := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Container")
+		if err != nil {
+			return nil, err
+		}
+		containerId = containerName
+	}
+	for _, container := range containers {
+		if *container.Name == containerId {
+			return &container, nil
+		}
+	}
+	return nil, fmt.Errorf("no container '%v' found", containerId)
 }
 
 func init() {
