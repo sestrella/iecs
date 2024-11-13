@@ -16,6 +16,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const EXEC_CLUSTER_FLAG = "cluster"
+const EXEC_TASK_FLAG = "task"
+const EXEC_CONTAINER_FLAG = "container"
+
 var execCmd = &cobra.Command{
 	Use:   "exec",
 	Short: "Runs a command remotely on a container",
@@ -24,15 +28,15 @@ var execCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs exec -c /bin/bash
   `,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		clusterId, err := cmd.Flags().GetString("cluster")
+		clusterId, err := cmd.Flags().GetString(EXEC_CLUSTER_FLAG)
 		if err != nil {
 			return fmt.Errorf("Unable to parse 'cluster' flag: %w", err)
 		}
-		taskId, err := cmd.Flags().GetString("task")
+		taskId, err := cmd.Flags().GetString(EXEC_TASK_FLAG)
 		if err != nil {
 			return fmt.Errorf("Unable to parse 'task' flag: %w", err)
 		}
-		containerId, err := cmd.Flags().GetString("container")
+		containerId, err := cmd.Flags().GetString(EXEC_CONTAINER_FLAG)
 		if err != nil {
 			return fmt.Errorf("Unable to parse 'container' flag: %w", err)
 		}
@@ -137,9 +141,9 @@ func describeContainer(containers []types.Container, containerId string) (*types
 func init() {
 	rootCmd.AddCommand(execCmd)
 
-	execCmd.Flags().StringP("cluster", "l", "", "cluster id or ARN")
-	execCmd.Flags().StringP("task", "t", "", "task id or ARN")
-	execCmd.Flags().StringP("container", "n", "", "container name")
+	execCmd.Flags().StringP(EXEC_CLUSTER_FLAG, "l", "", "cluster id or ARN")
+	execCmd.Flags().StringP(EXEC_TASK_FLAG, "t", "", "task id or ARN")
+	execCmd.Flags().StringP(EXEC_CONTAINER_FLAG, "n", "", "container name")
 	execCmd.Flags().StringP("command", "c", "/bin/sh", "command to run")
 	execCmd.Flags().BoolP("interactive", "i", true, "toggles interactive mode")
 }

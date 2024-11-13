@@ -19,6 +19,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const LOGS_CLUSTER_FLAG = "cluster"
+const LOGS_TASK_FLAG = "task"
+const LOGS_CONTAINER_FLAG = "container"
+
 var logsCmd = &cobra.Command{
 	Use:   "logs",
 	Short: "View the logs of a container",
@@ -27,15 +31,15 @@ var logsCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs logs
   `,
 	Run: func(cmd *cobra.Command, args []string) {
-		clusterId, err := cmd.Flags().GetString("cluster")
+		clusterId, err := cmd.Flags().GetString(LOGS_CLUSTER_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		taskId, err := cmd.Flags().GetString("task")
+		taskId, err := cmd.Flags().GetString(LOGS_TASK_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		containerId, err := cmd.Flags().GetString("container")
+		containerId, err := cmd.Flags().GetString(LOGS_CONTAINER_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -136,7 +140,7 @@ func describeContainerDefinition(ctx context.Context, client *ecs.Client, taskDe
 func init() {
 	rootCmd.AddCommand(logsCmd)
 
-	logsCmd.Flags().StringP("cluster", "c", "", "cluster id or ARN")
-	logsCmd.Flags().StringP("task", "t", "", "task id or ARN")
-	logsCmd.Flags().StringP("container", "n", "", "container id")
+	logsCmd.Flags().StringP(LOGS_CLUSTER_FLAG, "c", "", "cluster id or ARN")
+	logsCmd.Flags().StringP(LOGS_TASK_FLAG, "t", "", "task id or ARN")
+	logsCmd.Flags().StringP(LOGS_CONTAINER_FLAG, "n", "", "container id")
 }
