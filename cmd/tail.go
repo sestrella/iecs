@@ -19,27 +19,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const LOGS_CLUSTER_FLAG = "cluster"
-const LOGS_TASK_FLAG = "task"
-const LOGS_CONTAINER_FLAG = "container"
+const TAIL_CLUSTER_FLAG = "cluster"
+const TAIL_TASK_FLAG = "task"
+const TAIL_CONTAINER_FLAG = "container"
 
-var logsCmd = &cobra.Command{
-	Use:   "logs",
+var tailCmd = &cobra.Command{
+	Use:   "tail",
 	Short: "View the logs of a container",
 	Example: `
-  aws-vault exec <profile> -- iecs logs (recommended)
-  env AWS_PROFILE=<profile> iecs logs
+  aws-vault exec <profile> -- iecs tail (recommended)
+  env AWS_PROFILE=<profile> iecs tail
   `,
 	Run: func(cmd *cobra.Command, args []string) {
-		clusterId, err := cmd.Flags().GetString(LOGS_CLUSTER_FLAG)
+		clusterId, err := cmd.Flags().GetString(TAIL_CLUSTER_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		taskId, err := cmd.Flags().GetString(LOGS_TASK_FLAG)
+		taskId, err := cmd.Flags().GetString(TAIL_TASK_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		containerId, err := cmd.Flags().GetString(LOGS_CONTAINER_FLAG)
+		containerId, err := cmd.Flags().GetString(TAIL_CONTAINER_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -49,14 +49,15 @@ var logsCmd = &cobra.Command{
 		}
 		ecsClient := ecs.NewFromConfig(cfg)
 		cwlogsClient := cloudwatchlogs.NewFromConfig(cfg)
-		err = runLogs(context.TODO(), ecsClient, cwlogsClient, clusterId, taskId, containerId)
+		err = runTail(context.TODO(), ecsClient, cwlogsClient, clusterId, taskId, containerId)
 		if err != nil {
 			log.Fatal(err)
 		}
 	},
+	Aliases: []string{"logs"},
 }
 
-func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, taskId string, containerId string) error {
+func runTail(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, taskId string, containerId string) error {
 	cluster, err := describeCluster(ctx, ecsClient, clusterId)
 	if err != nil {
 		return err
@@ -138,9 +139,9 @@ func describeContainerDefinition(ctx context.Context, client *ecs.Client, taskDe
 }
 
 func init() {
-	rootCmd.AddCommand(logsCmd)
+	rootCmd.AddCommand(tailCmd)
 
-	logsCmd.Flags().StringP(LOGS_CLUSTER_FLAG, "c", "", "cluster id or ARN")
-	logsCmd.Flags().StringP(LOGS_TASK_FLAG, "t", "", "task id or ARN")
-	logsCmd.Flags().StringP(LOGS_CONTAINER_FLAG, "n", "", "container id")
+	tailCmd.Flags().StringP(TAIL_CLUSTER_FLAG, "c", "", "cluster id or ARN")
+	tailCmd.Flags().StringP(TAIL_TASK_FLAG, "t", "", "task id or ARN")
+	tailCmd.Flags().StringP(TAIL_CONTAINER_FLAG, "n", "", "container id")
 }

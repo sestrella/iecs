@@ -17,27 +17,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const EXEC_CLUSTER_FLAG = "cluster"
-const EXEC_TASK_FLAG = "task"
-const EXEC_CONTAINER_FLAG = "container"
+const SSH_CLUSTER_FLAG = "cluster"
+const SSH_TASK_FLAG = "task"
+const SSH_CONTAINER_FLAG = "container"
 
-var execCmd = &cobra.Command{
-	Use:   "exec",
-	Short: "Runs a command remotely on a container",
+var sshCmd = &cobra.Command{
+	Use:   "ssh",
+	Short: "Run a remote command on a container",
 	Example: `
-  aws-vault exec <profile> -- iecs exec -c /bin/bash (recommended)
-  env AWS_PROFILE=<profile> iecs exec -c /bin/bash
+  aws-vault exec <profile> -- iecs ssh (recommended)
+  env AWS_PROFILE=<profile> iecs ssh
   `,
 	Run: func(cmd *cobra.Command, args []string) {
-		clusterId, err := cmd.Flags().GetString(EXEC_CLUSTER_FLAG)
+		clusterId, err := cmd.Flags().GetString(SSH_CLUSTER_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		taskId, err := cmd.Flags().GetString(EXEC_TASK_FLAG)
+		taskId, err := cmd.Flags().GetString(SSH_TASK_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		containerId, err := cmd.Flags().GetString(EXEC_CONTAINER_FLAG)
+		containerId, err := cmd.Flags().GetString(SSH_CONTAINER_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -54,14 +54,15 @@ var execCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 		client := ecs.NewFromConfig(cfg)
-		err = runExec(context.TODO(), client, cfg.Region, clusterId, taskId, containerId, command, interactive)
+		err = runSsh(context.TODO(), client, cfg.Region, clusterId, taskId, containerId, command, interactive)
 		if err != nil {
 			log.Fatal(err)
 		}
 	},
+	Aliases: []string{"exec"},
 }
 
-func runExec(ctx context.Context, client *ecs.Client, region string, clusterId string, taskId string, containerId string, command string, interactive bool) error {
+func runSsh(ctx context.Context, client *ecs.Client, region string, clusterId string, taskId string, containerId string, command string, interactive bool) error {
 	cluster, err := describeCluster(ctx, client, clusterId)
 	if err != nil {
 		return err
@@ -143,11 +144,11 @@ func describeContainer(containers []types.Container, containerId string) (*types
 }
 
 func init() {
-	rootCmd.AddCommand(execCmd)
+	rootCmd.AddCommand(sshCmd)
 
-	execCmd.Flags().StringP(EXEC_CLUSTER_FLAG, "l", "", "cluster id or ARN")
-	execCmd.Flags().StringP(EXEC_TASK_FLAG, "t", "", "task id or ARN")
-	execCmd.Flags().StringP(EXEC_CONTAINER_FLAG, "n", "", "container name")
-	execCmd.Flags().StringP("command", "c", "/bin/sh", "command to run")
-	execCmd.Flags().BoolP("interactive", "i", true, "toggles interactive mode")
+	sshCmd.Flags().StringP(SSH_CLUSTER_FLAG, "l", "", "cluster id or ARN")
+	sshCmd.Flags().StringP(SSH_TASK_FLAG, "t", "", "task id or ARN")
+	sshCmd.Flags().StringP(SSH_CONTAINER_FLAG, "n", "", "container name")
+	sshCmd.Flags().StringP("command", "c", "/bin/bash", "command to run")
+	sshCmd.Flags().BoolP("interactive", "i", true, "toggles interactive mode")
 }
