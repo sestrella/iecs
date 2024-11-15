@@ -1,6 +1,3 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -20,6 +17,7 @@ import (
 )
 
 const TAIL_CLUSTER_FLAG = "cluster"
+const TAIL_SERVICE_FLAG = "service"
 const TAIL_TASK_FLAG = "task"
 const TAIL_CONTAINER_FLAG = "container"
 
@@ -32,6 +30,10 @@ var tailCmd = &cobra.Command{
   `,
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterId, err := cmd.Flags().GetString(TAIL_CLUSTER_FLAG)
+		if err != nil {
+			log.Fatal(err)
+		}
+		serviceId, err := cmd.Flags().GetString(TAIL_SERVICE_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -49,7 +51,7 @@ var tailCmd = &cobra.Command{
 		}
 		ecsClient := ecs.NewFromConfig(cfg)
 		cwlogsClient := cloudwatchlogs.NewFromConfig(cfg)
-		err = runTail(context.TODO(), ecsClient, cwlogsClient, clusterId, taskId, containerId)
+		err = runTail(context.TODO(), ecsClient, cwlogsClient, clusterId, serviceId, taskId, containerId)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -57,12 +59,16 @@ var tailCmd = &cobra.Command{
 	Aliases: []string{"logs"},
 }
 
-func runTail(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, taskId string, containerId string) error {
+func runTail(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, serviceId string, taskId string, containerId string) error {
 	cluster, err := describeCluster(ctx, ecsClient, clusterId)
 	if err != nil {
 		return err
 	}
-	task, err := describeTask(context.TODO(), ecsClient, *cluster.ClusterArn, taskId)
+	service, err := describeService(ctx, ecsClient, *cluster.ClusterArn, serviceId)
+	if err != nil {
+		return err
+	}
+	task, err := describeTask(context.TODO(), ecsClient, *cluster.ClusterArn, *service.ServiceName, taskId)
 	if err != nil {
 		return err
 	}
@@ -142,6 +148,7 @@ func init() {
 	rootCmd.AddCommand(tailCmd)
 
 	tailCmd.Flags().StringP(TAIL_CLUSTER_FLAG, "c", "", "cluster id or ARN")
+	tailCmd.Flags().StringP(TAIL_SERVICE_FLAG, "s", "", "service id or ARN")
 	tailCmd.Flags().StringP(TAIL_TASK_FLAG, "t", "", "task id or ARN")
 	tailCmd.Flags().StringP(TAIL_CONTAINER_FLAG, "n", "", "container id")
 }

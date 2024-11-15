@@ -18,8 +18,11 @@ import (
 )
 
 const SSH_CLUSTER_FLAG = "cluster"
+const SSH_SERVICE_FLAG = "service"
 const SSH_TASK_FLAG = "task"
 const SSH_CONTAINER_FLAG = "container"
+const SSH_COMMAND_FLAG = "command"
+const SSH_INTERACTIVE_FLAG = "interactive"
 
 var sshCmd = &cobra.Command{
 	Use:   "ssh",
@@ -41,11 +44,11 @@ var sshCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-		command, err := cmd.Flags().GetString("command")
+		command, err := cmd.Flags().GetString(SSH_COMMAND_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		interactive, err := cmd.Flags().GetBool("interactive")
+		interactive, err := cmd.Flags().GetBool(SSH_INTERACTIVE_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -67,7 +70,11 @@ func runSsh(ctx context.Context, client *ecs.Client, region string, clusterId st
 	if err != nil {
 		return err
 	}
-	task, err := describeTask(ctx, client, *cluster.ClusterArn, taskId)
+	service, err := describeService(ctx, client, *cluster.ClusterArn, "")
+	if err != nil {
+		return err
+	}
+	task, err := describeTask(ctx, client, *cluster.ClusterArn, *service.ServiceName, taskId)
 	if err != nil {
 		return err
 	}
@@ -147,8 +154,9 @@ func init() {
 	rootCmd.AddCommand(sshCmd)
 
 	sshCmd.Flags().StringP(SSH_CLUSTER_FLAG, "l", "", "cluster id or ARN")
+	sshCmd.Flags().StringP(SSH_SERVICE_FLAG, "s", "", "service id or ARN")
 	sshCmd.Flags().StringP(SSH_TASK_FLAG, "t", "", "task id or ARN")
 	sshCmd.Flags().StringP(SSH_CONTAINER_FLAG, "n", "", "container name")
-	sshCmd.Flags().StringP("command", "c", "/bin/bash", "command to run")
-	sshCmd.Flags().BoolP("interactive", "i", true, "toggles interactive mode")
+	sshCmd.Flags().StringP(SSH_COMMAND_FLAG, "c", "/bin/bash", "command to run")
+	sshCmd.Flags().BoolP(SSH_INTERACTIVE_FLAG, "i", true, "toggles interactive mode")
 }
