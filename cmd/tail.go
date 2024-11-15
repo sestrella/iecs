@@ -16,11 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const TAIL_CLUSTER_FLAG = "cluster"
-const TAIL_SERVICE_FLAG = "service"
-const TAIL_TASK_FLAG = "task"
-const TAIL_CONTAINER_FLAG = "container"
-
 var tailCmd = &cobra.Command{
 	Use:   "tail",
 	Short: "View the logs of a container",
@@ -29,19 +24,19 @@ var tailCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs tail
   `,
 	Run: func(cmd *cobra.Command, args []string) {
-		clusterId, err := cmd.Flags().GetString(TAIL_CLUSTER_FLAG)
+		clusterId, err := cmd.Flags().GetString(CLUSTER_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		serviceId, err := cmd.Flags().GetString(TAIL_SERVICE_FLAG)
+		serviceId, err := cmd.Flags().GetString(SERVICE_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		taskId, err := cmd.Flags().GetString(TAIL_TASK_FLAG)
+		taskId, err := cmd.Flags().GetString(TASK_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		containerId, err := cmd.Flags().GetString(TAIL_CONTAINER_FLAG)
+		containerId, err := cmd.Flags().GetString(CONTAINER_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -146,9 +141,4 @@ func describeContainerDefinition(ctx context.Context, client *ecs.Client, taskDe
 
 func init() {
 	rootCmd.AddCommand(tailCmd)
-
-	tailCmd.Flags().StringP(TAIL_CLUSTER_FLAG, "c", "", "cluster id or ARN")
-	tailCmd.Flags().StringP(TAIL_SERVICE_FLAG, "s", "", "service id or ARN")
-	tailCmd.Flags().StringP(TAIL_TASK_FLAG, "t", "", "task id or ARN")
-	tailCmd.Flags().StringP(TAIL_CONTAINER_FLAG, "n", "", "container id")
 }

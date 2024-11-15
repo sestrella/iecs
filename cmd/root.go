@@ -11,6 +11,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const CLUSTER_FLAG = "cluster"
+const SERVICE_FLAG = "service"
+const TASK_FLAG = "task"
+const CONTAINER_FLAG = "container"
+
 var rootCmd = &cobra.Command{
 	Use:     "iecs",
 	Short:   "An interactive CLI for ECS",
@@ -99,4 +104,11 @@ func describeTask(ctx context.Context, client *ecs.Client, clusterId string, ser
 		return &describeTasks.Tasks[0], nil
 	}
 	return nil, fmt.Errorf("no task '%v' found", taskId)
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringP(CLUSTER_FLAG, "l", "", "cluster id or ARN")
+	rootCmd.PersistentFlags().StringP(SERVICE_FLAG, "s", "", "service id or ARN")
+	rootCmd.PersistentFlags().StringP(TASK_FLAG, "t", "", "task id or ARN")
+	rootCmd.PersistentFlags().StringP(CONTAINER_FLAG, "n", "", "container name")
 }

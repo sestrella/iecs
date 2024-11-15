@@ -17,10 +17,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const SSH_CLUSTER_FLAG = "cluster"
-const SSH_SERVICE_FLAG = "service"
-const SSH_TASK_FLAG = "task"
-const SSH_CONTAINER_FLAG = "container"
 const SSH_COMMAND_FLAG = "command"
 const SSH_INTERACTIVE_FLAG = "interactive"
 
@@ -32,15 +28,19 @@ var sshCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs ssh
   `,
 	Run: func(cmd *cobra.Command, args []string) {
-		clusterId, err := cmd.Flags().GetString(SSH_CLUSTER_FLAG)
+		clusterId, err := cmd.Flags().GetString(CLUSTER_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		taskId, err := cmd.Flags().GetString(SSH_TASK_FLAG)
+		serviceId, err := cmd.Flags().GetString(SERVICE_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		containerId, err := cmd.Flags().GetString(SSH_CONTAINER_FLAG)
+		taskId, err := cmd.Flags().GetString(TASK_FLAG)
+		if err != nil {
+			log.Fatal(err)
+		}
+		containerId, err := cmd.Flags().GetString(CONTAINER_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -57,7 +57,7 @@ var sshCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 		client := ecs.NewFromConfig(cfg)
-		err = runSsh(context.TODO(), client, cfg.Region, clusterId, taskId, containerId, command, interactive)
+		err = runSsh(context.TODO(), client, cfg.Region, clusterId, serviceId, taskId, containerId, command, interactive)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -65,12 +65,12 @@ var sshCmd = &cobra.Command{
 	Aliases: []string{"exec"},
 }
 
-func runSsh(ctx context.Context, client *ecs.Client, region string, clusterId string, taskId string, containerId string, command string, interactive bool) error {
+func runSsh(ctx context.Context, client *ecs.Client, region string, clusterId string, serviceId string, taskId string, containerId string, command string, interactive bool) error {
 	cluster, err := describeCluster(ctx, client, clusterId)
 	if err != nil {
 		return err
 	}
-	service, err := describeService(ctx, client, *cluster.ClusterArn, "")
+	service, err := describeService(ctx, client, *cluster.ClusterArn, serviceId)
 	if err != nil {
 		return err
 	}
@@ -108,13 +108,6 @@ func runSsh(ctx context.Context, client *ecs.Client, region string, clusterId st
 	if err != nil {
 		return err
 	}
-	pterm.Info.Printfln("iecs exec --cluster %s --task %s --container %s --command \"%s\" --interactive %t\n",
-		*cluster.ClusterName,
-		taskName,
-		*container.Name,
-		command,
-		interactive,
-	)
 	// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
 	smp := exec.Command("session-manager-plugin",
 		string(session),
@@ -153,10 +146,6 @@ func describeContainer(containers []types.Container, containerId string) (*types
 func init() {
 	rootCmd.AddCommand(sshCmd)
 
-	sshCmd.Flags().StringP(SSH_CLUSTER_FLAG, "l", "", "cluster id or ARN")
-	sshCmd.Flags().StringP(SSH_SERVICE_FLAG, "s", "", "service id or ARN")
-	sshCmd.Flags().StringP(SSH_TASK_FLAG, "t", "", "task id or ARN")
-	sshCmd.Flags().StringP(SSH_CONTAINER_FLAG, "n", "", "container name")
 	sshCmd.Flags().StringP(SSH_COMMAND_FLAG, "c", "/bin/bash", "command to run")
 	sshCmd.Flags().BoolP(SSH_INTERACTIVE_FLAG, "i", true, "toggles interactive mode")
 }
