@@ -75,7 +75,7 @@ func runSsh(ctx context.Context, client *ecs.Client, region string, clusterId st
 	if err != nil {
 		return err
 	}
-	output, err := client.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
+	executeCommand, err := client.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
 		Cluster:     cluster.ClusterArn,
 		Task:        task.TaskArn,
 		Container:   container.Name,
@@ -83,11 +83,11 @@ func runSsh(ctx context.Context, client *ecs.Client, region string, clusterId st
 		Interactive: interactive,
 	})
 	if err != nil {
-		return fmt.Errorf("Error executing command: %w", err)
+		return err
 	}
-	session, err := json.Marshal(output.Session)
+	session, err := json.Marshal(executeCommand.Session)
 	if err != nil {
-		return fmt.Errorf("Unable to encode session: %w", err)
+		return err
 	}
 	taskArnSlices := strings.Split(*task.TaskArn, "/")
 	if len(taskArnSlices) < 2 {
