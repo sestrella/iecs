@@ -63,11 +63,7 @@ func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatc
 	if err != nil {
 		return err
 	}
-	task, err := describeTask(context.TODO(), ecsClient, *cluster.ClusterArn, *service.ServiceName, taskId)
-	if err != nil {
-		return err
-	}
-	container, err := describeContainerDefinition(context.TODO(), ecsClient, *task.TaskDefinitionArn, containerId)
+	container, err := describeContainerDefinition(context.TODO(), ecsClient, *service.TaskDefinition, containerId)
 	if err != nil {
 		return err
 	}
