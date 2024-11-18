@@ -18,16 +18,16 @@ import (
 )
 
 const (
-	SSH_COMMAND_FLAG     = "command"
-	SSH_INTERACTIVE_FLAG = "interactive"
+	EXEC_COMMAND_FLAG     = "command"
+	EXEC_INTERACTIVE_FLAG = "interactive"
 )
 
-var sshCmd = &cobra.Command{
-	Use:   "ssh",
+var execCmd = &cobra.Command{
+	Use:   "exec",
 	Short: "Run a remote command on a container",
 	Example: `
-  aws-vault exec <profile> -- iecs ssh (recommended)
-  env AWS_PROFILE=<profile> iecs ssh
+  aws-vault exec <profile> -- iecs exec (recommended)
+  env AWS_PROFILE=<profile> iecs exec
   `,
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterId, err := cmd.Flags().GetString(CLUSTER_FLAG)
@@ -46,11 +46,11 @@ var sshCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-		command, err := cmd.Flags().GetString(SSH_COMMAND_FLAG)
+		command, err := cmd.Flags().GetString(EXEC_COMMAND_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
-		interactive, err := cmd.Flags().GetBool(SSH_INTERACTIVE_FLAG)
+		interactive, err := cmd.Flags().GetBool(EXEC_INTERACTIVE_FLAG)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -59,15 +59,15 @@ var sshCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 		client := ecs.NewFromConfig(cfg)
-		err = runSsh(context.TODO(), client, cfg.Region, clusterId, serviceId, taskId, containerId, command, interactive)
+		err = runExec(context.TODO(), client, cfg.Region, clusterId, serviceId, taskId, containerId, command, interactive)
 		if err != nil {
 			log.Fatal(err)
 		}
 	},
-	Aliases: []string{"exec"},
+	Aliases: []string{"ssh"},
 }
 
-func runSsh(ctx context.Context, client *ecs.Client, region string, clusterId string, serviceId string, taskId string, containerId string, command string, interactive bool) error {
+func runExec(ctx context.Context, client *ecs.Client, region string, clusterId string, serviceId string, taskId string, containerId string, command string, interactive bool) error {
 	cluster, err := describeCluster(ctx, client, clusterId)
 	if err != nil {
 		return err
@@ -146,8 +146,8 @@ func describeContainer(containers []types.Container, containerId string) (*types
 }
 
 func init() {
-	rootCmd.AddCommand(sshCmd)
+	rootCmd.AddCommand(execCmd)
 
-	sshCmd.Flags().StringP(SSH_COMMAND_FLAG, "c", "/bin/bash", "command to run")
-	sshCmd.Flags().BoolP(SSH_INTERACTIVE_FLAG, "i", true, "toggles interactive mode")
+	execCmd.Flags().StringP(EXEC_COMMAND_FLAG, "c", "/bin/bash", "command to run")
+	execCmd.Flags().BoolP(EXEC_INTERACTIVE_FLAG, "i", true, "toggles interactive mode")
 }

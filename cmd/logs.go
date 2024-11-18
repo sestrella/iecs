@@ -16,12 +16,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var tailCmd = &cobra.Command{
-	Use:   "tail",
+var logsCmd = &cobra.Command{
+	Use:   "logs",
 	Short: "View the logs of a container",
 	Example: `
-  aws-vault exec <profile> -- iecs tail (recommended)
-  env AWS_PROFILE=<profile> iecs tail
+  aws-vault exec <profile> -- iecs logs (recommended)
+  env AWS_PROFILE=<profile> iecs logs
   `,
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterId, err := cmd.Flags().GetString(CLUSTER_FLAG)
@@ -46,15 +46,15 @@ var tailCmd = &cobra.Command{
 		}
 		ecsClient := ecs.NewFromConfig(cfg)
 		cwlogsClient := cloudwatchlogs.NewFromConfig(cfg)
-		err = runTail(context.TODO(), ecsClient, cwlogsClient, clusterId, serviceId, taskId, containerId)
+		err = runLogs(context.TODO(), ecsClient, cwlogsClient, clusterId, serviceId, taskId, containerId)
 		if err != nil {
 			log.Fatal(err)
 		}
 	},
-	Aliases: []string{"logs"},
+	Aliases: []string{"tail"},
 }
 
-func runTail(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, serviceId string, taskId string, containerId string) error {
+func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, serviceId string, taskId string, containerId string) error {
 	cluster, err := describeCluster(ctx, ecsClient, clusterId)
 	if err != nil {
 		return err
@@ -140,5 +140,5 @@ func describeContainerDefinition(ctx context.Context, client *ecs.Client, taskDe
 }
 
 func init() {
-	rootCmd.AddCommand(tailCmd)
+	rootCmd.AddCommand(logsCmd)
 }
