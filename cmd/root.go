@@ -11,10 +11,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const CLUSTER_FLAG = "cluster"
-const SERVICE_FLAG = "service"
-const TASK_FLAG = "task"
-const CONTAINER_FLAG = "container"
+const (
+	CLUSTER_FLAG   = "cluster"
+	SERVICE_FLAG   = "service"
+	TASK_FLAG      = "task"
+	CONTAINER_FLAG = "container"
+)
 
 var rootCmd = &cobra.Command{
 	Use:     "iecs",

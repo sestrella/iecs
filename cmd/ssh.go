@@ -17,8 +17,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const SSH_COMMAND_FLAG = "command"
-const SSH_INTERACTIVE_FLAG = "interactive"
+const (
+	SSH_COMMAND_FLAG     = "command"
+	SSH_INTERACTIVE_FLAG = "interactive"
+)
 
 var sshCmd = &cobra.Command{
 	Use:   "ssh",
