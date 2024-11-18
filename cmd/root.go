@@ -48,7 +48,7 @@ func describeCluster(ctx context.Context, client *ecs.Client, clusterId string) 
 	if err != nil {
 		return nil, err
 	}
-	if len(describeClusters.Clusters) == 1 {
+	if len(describeClusters.Clusters) > 0 {
 		return &describeClusters.Clusters[0], nil
 	}
 	return nil, fmt.Errorf("no cluster '%v' found", clusterId)
@@ -75,7 +75,10 @@ func describeService(ctx context.Context, client *ecs.Client, clusterId string, 
 	if err != nil {
 		return nil, err
 	}
-	return &describeService.Services[0], nil
+	if len(describeService.Services) > 0 {
+		return &describeService.Services[0], nil
+	}
+	return nil, fmt.Errorf("no service '%v' found", serviceId)
 }
 
 func describeTask(ctx context.Context, client *ecs.Client, clusterId string, serviceId string, taskId string) (*types.Task, error) {
@@ -100,7 +103,7 @@ func describeTask(ctx context.Context, client *ecs.Client, clusterId string, ser
 	if err != nil {
 		return nil, err
 	}
-	if len(describeTasks.Tasks) == 1 {
+	if len(describeTasks.Tasks) > 0 {
 		return &describeTasks.Tasks[0], nil
 	}
 	return nil, fmt.Errorf("no task '%v' found", taskId)
