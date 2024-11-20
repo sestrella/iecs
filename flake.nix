@@ -4,13 +4,15 @@
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
     gomod2nix.url = "github:nix-community/gomod2nix";
-    gomod2nix.inputs.flake-utils.follows = "flake-utils";
-    gomod2nix.inputs.nixpkgs.follows = "nixpkgs";
+    gomod2nix.inputs = {
+      flake-utils.follows = "flake-utils";
+      nixpkgs.follows = "nixpkgs";
+    };
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
   };
 
-  outputs = { flake-utils, gomod2nix, nixpkgs, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs = { self, flake-utils, gomod2nix, nixpkgs, ... }:
+    (flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
           inherit system;
@@ -27,5 +29,9 @@
           modules = ./gomod2nix.toml;
         };
       }
-    );
+    )) // {
+      overlays.default = final: prev: {
+        iecs = self.packages.${prev.system}.default;
+      };
+    };
 }
