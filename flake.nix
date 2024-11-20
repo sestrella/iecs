@@ -2,36 +2,33 @@
   description = "Interactive CLI for ECS";
 
   inputs = {
-    flake-utils.url = "github:numtide/flake-utils";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     gomod2nix.url = "github:nix-community/gomod2nix";
-    gomod2nix.inputs = {
-      flake-utils.follows = "flake-utils";
-      nixpkgs.follows = "nixpkgs";
-    };
+    gomod2nix.inputs.nixpkgs.follows = "nixpkgs";
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    systems.url = "github:nix-systems/default";
   };
 
-  outputs = { self, flake-utils, gomod2nix, nixpkgs, ... }:
-    (flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs {
+  outputs = inputs@{ flake-parts, gomod2nix, nixpkgs, systems, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [
+        flake-parts.flakeModules.easyOverlay
+      ];
+
+      systems = import systems;
+
+      perSystem = { system, pkgs, ... }: {
+        _module.args.pkgs = import nixpkgs {
           inherit system;
-          overlays = [
-            gomod2nix.overlays.default
-          ];
+          overlays = [ gomod2nix.overlays.default ];
         };
-      in
-      {
+
         packages.default = pkgs.buildGoApplication {
           pname = "iecs";
           version = "0.1.0";
           src = ./.;
           modules = ./gomod2nix.toml;
         };
-      }
-    )) // {
-      overlays.default = final: prev: {
-        iecs = self.packages.${prev.system}.default;
       };
     };
 }
