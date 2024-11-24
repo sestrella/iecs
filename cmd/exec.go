@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
 
@@ -66,19 +67,19 @@ var execCmd = &cobra.Command{
 }
 
 func runExec(ctx context.Context, client *ecs.Client, region string, clusterId string, serviceId string, taskId string, containerId string, command string, interactive bool) error {
-	cluster, err := selectCluster(ctx, client, clusterId)
+	cluster, err := selector.SelectCluster(ctx, client, clusterId)
 	if err != nil {
 		return err
 	}
-	service, err := selectService(ctx, client, *cluster.ClusterArn, serviceId)
+	service, err := selector.SelectService(ctx, client, *cluster.ClusterArn, serviceId)
 	if err != nil {
 		return err
 	}
-	task, err := selectTask(ctx, client, *cluster.ClusterArn, *service.ServiceName, taskId)
+	task, err := selector.SelectTask(ctx, client, *cluster.ClusterArn, *service.ServiceName, taskId)
 	if err != nil {
 		return err
 	}
-	container, err := selectContainer(task.Containers, containerId)
+	container, err := selector.SelectContainer(task.Containers, containerId)
 	if err != nil {
 		return err
 	}

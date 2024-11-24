@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	cwlogsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
 
@@ -53,15 +54,15 @@ var logsCmd = &cobra.Command{
 }
 
 func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, serviceId string, taskId string, containerId string) error {
-	cluster, err := selectCluster(ctx, ecsClient, clusterId)
+	cluster, err := selector.SelectCluster(ctx, ecsClient, clusterId)
 	if err != nil {
 		return err
 	}
-	service, err := selectService(ctx, ecsClient, *cluster.ClusterArn, serviceId)
+	service, err := selector.SelectService(ctx, ecsClient, *cluster.ClusterArn, serviceId)
 	if err != nil {
 		return err
 	}
-	container, err := selectContainerDefinition(context.TODO(), ecsClient, *service.TaskDefinition, containerId)
+	container, err := selector.SelectContainerDefinition(context.TODO(), ecsClient, *service.TaskDefinition, containerId)
 	if err != nil {
 		return err
 	}
