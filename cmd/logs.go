@@ -15,6 +15,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	logsClusterFlag   = "cluster"
+	logsServiceFlag   = "service"
+	logsContainerFlag = "container"
+)
+
 var logsCmd = &cobra.Command{
 	Use:   "logs",
 	Short: "View the logs of a container",
@@ -23,15 +29,15 @@ var logsCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs logs
   `,
 	Run: func(cmd *cobra.Command, args []string) {
-		clusterId, err := cmd.Flags().GetString(CLUSTER_FLAG)
+		clusterId, err := cmd.Flags().GetString(logsClusterFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
-		serviceId, err := cmd.Flags().GetString(SERVICE_FLAG)
+		serviceId, err := cmd.Flags().GetString(logsServiceFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
-		containerId, err := cmd.Flags().GetString(CONTAINER_FLAG)
+		containerId, err := cmd.Flags().GetString(logsContainerFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -105,4 +111,8 @@ func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatc
 
 func init() {
 	rootCmd.AddCommand(logsCmd)
+
+	logsCmd.Flags().StringP(logsClusterFlag, "l", "", "cluster id or ARN")
+	logsCmd.Flags().StringP(logsServiceFlag, "s", "", "service id or ARN")
+	logsCmd.Flags().StringP(logsContainerFlag, "n", "", "container name")
 }

@@ -17,8 +17,12 @@ import (
 )
 
 const (
-	EXEC_COMMAND_FLAG     = "command"
-	EXEC_INTERACTIVE_FLAG = "interactive"
+	execClusterFlag     = "cluster"
+	execServiceFlag     = "service"
+	execTaskFlag        = "task"
+	execContainerFlag   = "container"
+	execCommandFlag     = "command"
+	execInteractiveFlag = "interactive"
 )
 
 var execCmd = &cobra.Command{
@@ -29,27 +33,27 @@ var execCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs exec
   `,
 	Run: func(cmd *cobra.Command, args []string) {
-		clusterId, err := cmd.Flags().GetString(CLUSTER_FLAG)
+		clusterId, err := cmd.Flags().GetString(execClusterFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
-		serviceId, err := cmd.Flags().GetString(SERVICE_FLAG)
+		serviceId, err := cmd.Flags().GetString(execServiceFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
-		taskId, err := cmd.Flags().GetString(TASK_FLAG)
+		taskId, err := cmd.Flags().GetString(execTaskFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
-		containerId, err := cmd.Flags().GetString(CONTAINER_FLAG)
+		containerId, err := cmd.Flags().GetString(execContainerFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
-		command, err := cmd.Flags().GetString(EXEC_COMMAND_FLAG)
+		command, err := cmd.Flags().GetString(execCommandFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
-		interactive, err := cmd.Flags().GetBool(EXEC_INTERACTIVE_FLAG)
+		interactive, err := cmd.Flags().GetBool(execInteractiveFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -127,6 +131,10 @@ func runExec(ctx context.Context, client *ecs.Client, region string, clusterId s
 func init() {
 	rootCmd.AddCommand(execCmd)
 
-	execCmd.Flags().StringP(EXEC_COMMAND_FLAG, "c", "/bin/bash", "command to run")
-	execCmd.Flags().BoolP(EXEC_INTERACTIVE_FLAG, "i", true, "toggles interactive mode")
+	execCmd.Flags().StringP(execClusterFlag, "l", "", "cluster id or ARN")
+	execCmd.Flags().StringP(execServiceFlag, "s", "", "service id or ARN")
+	execCmd.Flags().StringP(execTaskFlag, "t", "", "task id or ARN")
+	execCmd.Flags().StringP(execContainerFlag, "n", "", "container name")
+	execCmd.Flags().StringP(execCommandFlag, "c", "/bin/bash", "command to run")
+	execCmd.Flags().BoolP(execInteractiveFlag, "i", true, "toggles interactive mode")
 }
