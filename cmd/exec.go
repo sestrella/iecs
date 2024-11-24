@@ -76,7 +76,7 @@ func runExec(ctx context.Context, client *ecs.Client, region string, clusterId s
 	if err != nil {
 		return err
 	}
-	service, err := selector.SelectService(ctx, client, *cluster.ClusterArn, serviceId)
+	service, err := selector.SelectService(ctx, client, defaultSelector, *cluster.ClusterArn, serviceId)
 	if err != nil {
 		return err
 	}

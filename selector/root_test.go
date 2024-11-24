@@ -1,8 +1,11 @@
+// https://quii.gitbook.io/learn-go-with-tests/go-fundamentals/mocking
+
 package selector
 
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
@@ -19,14 +22,27 @@ func (s *SpyClient) DescribeClusters(ctx context.Context, input *ecs.DescribeClu
 	}}, nil
 }
 
+func (s *SpyClient) DescribeServices(ctx context.Context, input *ecs.DescribeServicesInput, options ...func(*ecs.Options)) (*ecs.DescribeServicesOutput, error) {
+	clusterSplices := strings.Split(*input.Cluster, "/")
+	serviceName := input.Services[0]
+	serviceArn := fmt.Sprintf("arn:aws:ecs:us-east-1:111111111111:service/%s/%s", clusterSplices[1], serviceName)
+	return &ecs.DescribeServicesOutput{Services: []types.Service{
+		{ServiceName: &serviceName, ServiceArn: &serviceArn},
+	}}, nil
+}
+
 func (s *SpyClient) ListClusters(ctx context.Context, input *ecs.ListClustersInput, options ...func(*ecs.Options)) (*ecs.ListClustersOutput, error) {
-	return &ecs.ListClustersOutput{ClusterArns: []string{}}, nil
+	return &ecs.ListClustersOutput{ClusterArns: []string{"cluster-1", "cluster-2"}}, nil
+}
+
+func (s *SpyClient) ListServices(ctx context.Context, input *ecs.ListServicesInput, options ...func(*ecs.Options)) (*ecs.ListServicesOutput, error) {
+	return &ecs.ListServicesOutput{ServiceArns: []string{"service-1", "service-2"}}, nil
 }
 
 type SpySelector struct{}
 
 func (s *SpySelector) Select(title string, options []string) (string, error) {
-	return "selected-cluster", nil
+	return options[0], nil
 }
 
 func TestSelectorCluster(t *testing.T) {
@@ -39,7 +55,7 @@ func TestSelectorCluster(t *testing.T) {
 			t.Fatal(err)
 		}
 		got := *cluster.ClusterArn
-		want := "arn:aws:ecs:us-east-1:111111111111:cluster/selected-cluster"
+		want := "arn:aws:ecs:us-east-1:111111111111:cluster/cluster-1"
 		if got != want {
 			t.Errorf("got %q want %q", got, want)
 		}
@@ -52,6 +68,24 @@ func TestSelectorCluster(t *testing.T) {
 		}
 		got := *cluster.ClusterArn
 		want := "arn:aws:ecs:us-east-1:111111111111:cluster/cluster"
+		if got != want {
+			t.Errorf("got %q want %q", got, want)
+		}
+	})
+}
+
+func TestSelectorService(t *testing.T) {
+	client := &SpyClient{}
+	selector := &SpySelector{}
+	clusterId := "arn:aws:ecs:us-east-1:111111111111:cluster/cluster"
+
+	t.Run("serviceId is empty", func(t *testing.T) {
+		service, err := SelectService(context.TODO(), client, selector, clusterId, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := *service.ServiceArn
+		want := "arn:aws:ecs:us-east-1:111111111111:service/cluster/service-1"
 		if got != want {
 			t.Errorf("got %q want %q", got, want)
 		}

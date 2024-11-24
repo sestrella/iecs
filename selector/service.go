@@ -6,10 +6,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
-	"github.com/pterm/pterm"
 )
 
-func SelectService(ctx context.Context, client *ecs.Client, clusterId string, serviceId string) (*types.Service, error) {
+func SelectService(ctx context.Context, client Client, selector Selector, clusterId string, serviceId string) (*types.Service, error) {
 	if serviceId == "" {
 		listServices, err := client.ListServices(ctx, &ecs.ListServicesInput{
 			Cluster: &clusterId,
@@ -17,7 +16,7 @@ func SelectService(ctx context.Context, client *ecs.Client, clusterId string, se
 		if err != nil {
 			return nil, err
 		}
-		serviceArn, err := pterm.DefaultInteractiveSelect.WithOptions(listServices.ServiceArns).Show("Service")
+		serviceArn, err := selector.Select("Service", listServices.ServiceArns)
 		if err != nil {
 			return nil, err
 		}

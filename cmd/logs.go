@@ -61,7 +61,7 @@ func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatc
 	if err != nil {
 		return err
 	}
-	service, err := selector.SelectService(ctx, ecsClient, *cluster.ClusterArn, serviceId)
+	service, err := selector.SelectService(ctx, ecsClient, defaultSelector, *cluster.ClusterArn, serviceId)
 	if err != nil {
 		return err
 	}
