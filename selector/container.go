@@ -9,61 +9,6 @@ import (
 	"github.com/pterm/pterm"
 )
 
-func SelectService(ctx context.Context, client *ecs.Client, clusterId string, serviceId string) (*types.Service, error) {
-	if serviceId == "" {
-		listServices, err := client.ListServices(ctx, &ecs.ListServicesInput{
-			Cluster: &clusterId,
-		})
-		if err != nil {
-			return nil, err
-		}
-		serviceArn, err := pterm.DefaultInteractiveSelect.WithOptions(listServices.ServiceArns).Show("Service")
-		if err != nil {
-			return nil, err
-		}
-		serviceId = serviceArn
-	}
-	describeService, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
-		Cluster:  &clusterId,
-		Services: []string{serviceId},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(describeService.Services) > 0 {
-		return &describeService.Services[0], nil
-	}
-	return nil, fmt.Errorf("no service '%v' found", serviceId)
-}
-
-func SelectTask(ctx context.Context, client *ecs.Client, clusterId string, serviceId string, taskId string) (*types.Task, error) {
-	if taskId == "" {
-		listTasks, err := client.ListTasks(ctx, &ecs.ListTasksInput{
-			Cluster:     &clusterId,
-			ServiceName: &serviceId,
-		})
-		if err != nil {
-			return nil, err
-		}
-		taskArn, err := pterm.DefaultInteractiveSelect.WithOptions(listTasks.TaskArns).Show("Task")
-		if err != nil {
-			return nil, err
-		}
-		taskId = taskArn
-	}
-	describeTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: &clusterId,
-		Tasks:   []string{taskId},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(describeTasks.Tasks) > 0 {
-		return &describeTasks.Tasks[0], nil
-	}
-	return nil, fmt.Errorf("no task '%v' found", taskId)
-}
-
 func SelectContainer(containers []types.Container, containerId string) (*types.Container, error) {
 	if containerId == "" {
 		var containerNames []string
