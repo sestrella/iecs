@@ -12,8 +12,10 @@ import (
 type Client interface {
 	DescribeClusters(ctx context.Context, input *ecs.DescribeClustersInput, options ...func(*ecs.Options)) (*ecs.DescribeClustersOutput, error)
 	DescribeServices(ctx context.Context, input *ecs.DescribeServicesInput, options ...func(*ecs.Options)) (*ecs.DescribeServicesOutput, error)
+	DescribeTasks(ctx context.Context, input *ecs.DescribeTasksInput, options ...func(*ecs.Options)) (*ecs.DescribeTasksOutput, error)
 	ListClusters(ctx context.Context, input *ecs.ListClustersInput, options ...func(*ecs.Options)) (*ecs.ListClustersOutput, error)
 	ListServices(ctx context.Context, input *ecs.ListServicesInput, options ...func(*ecs.Options)) (*ecs.ListServicesOutput, error)
+	ListTasks(ctx context.Context, input *ecs.ListTasksInput, options ...func(*ecs.Options)) (*ecs.ListTasksOutput, error)
 }
 
 type DefaultSelector struct{}
@@ -77,7 +79,7 @@ func SelectService(ctx context.Context, client Client, selector Selector, cluste
 	return nil, fmt.Errorf("no service '%v' found", serviceId)
 }
 
-func SelectTask(ctx context.Context, client *ecs.Client, clusterId string, serviceId string, taskId string) (*types.Task, error) {
+func SelectTask(ctx context.Context, client Client, clusterId string, serviceId string, taskId string) (*types.Task, error) {
 	if taskId == "" {
 		listTasks, err := client.ListTasks(ctx, &ecs.ListTasksInput{
 			Cluster:     &clusterId,

@@ -31,12 +31,20 @@ func (s *SpyClient) DescribeServices(ctx context.Context, input *ecs.DescribeSer
 	}}, nil
 }
 
+func (s *SpyClient) DescribeTasks(ctx context.Context, input *ecs.DescribeTasksInput, options ...func(*ecs.Options)) (*ecs.DescribeTasksOutput, error) {
+	return nil, nil
+}
+
 func (s *SpyClient) ListClusters(ctx context.Context, input *ecs.ListClustersInput, options ...func(*ecs.Options)) (*ecs.ListClustersOutput, error) {
 	return &ecs.ListClustersOutput{ClusterArns: []string{"cluster-1", "cluster-2"}}, nil
 }
 
 func (s *SpyClient) ListServices(ctx context.Context, input *ecs.ListServicesInput, options ...func(*ecs.Options)) (*ecs.ListServicesOutput, error) {
 	return &ecs.ListServicesOutput{ServiceArns: []string{"service-1", "service-2"}}, nil
+}
+
+func (s *SpyClient) ListTasks(ctx context.Context, input *ecs.ListTasksInput, options ...func(*ecs.Options)) (*ecs.ListTasksOutput, error) {
+	return nil, nil
 }
 
 type SpySelector struct{}
