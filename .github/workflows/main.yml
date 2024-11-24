@@ -19,12 +19,10 @@ jobs:
         run: nix profile install nixpkgs#devenv
       - name: Install dependencies
         run: devenv shell -- true
-      - name: Run checks
-        run: devenv test
       - name: Compile code
         run: devenv shell -- go build
-      - name: Run tests
-        run: devenv shell -- go test -v ./...
+      - name: Run checks
+        run: devenv test
 
   nix-build:
     runs-on: ubuntu-latest

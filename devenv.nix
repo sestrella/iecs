@@ -9,6 +9,8 @@
     pkgs.ssm-session-manager-plugin
   ];
 
+  enterTest = "go test -v ./...";
+
   languages.go.enable = true;
 
   pre-commit.hooks = {
