@@ -31,10 +31,6 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-		taskId, err := cmd.Flags().GetString(TASK_FLAG)
-		if err != nil {
-			log.Fatal(err)
-		}
 		containerId, err := cmd.Flags().GetString(CONTAINER_FLAG)
 		if err != nil {
 			log.Fatal(err)
@@ -45,7 +41,7 @@ var logsCmd = &cobra.Command{
 		}
 		ecsClient := ecs.NewFromConfig(cfg)
 		cwlogsClient := cloudwatchlogs.NewFromConfig(cfg)
-		err = runLogs(context.TODO(), ecsClient, cwlogsClient, clusterId, serviceId, taskId, containerId)
+		err = runLogs(context.TODO(), ecsClient, cwlogsClient, clusterId, serviceId, containerId)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -53,7 +49,7 @@ var logsCmd = &cobra.Command{
 	Aliases: []string{"tail"},
 }
 
-func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, serviceId string, taskId string, containerId string) error {
+func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, serviceId string, containerId string) error {
 	cluster, err := selector.SelectCluster(ctx, ecsClient, clusterId)
 	if err != nil {
 		return err
