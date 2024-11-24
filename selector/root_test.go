@@ -90,4 +90,16 @@ func TestSelectorService(t *testing.T) {
 			t.Errorf("got %q want %q", got, want)
 		}
 	})
+
+	t.Run("serviceId is not empty", func(t *testing.T) {
+		service, err := SelectService(context.TODO(), client, selector, clusterId, "service")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := *service.ServiceArn
+		want := "arn:aws:ecs:us-east-1:111111111111:service/cluster/service"
+		if got != want {
+			t.Errorf("got %q want %q", got, want)
+		}
+	})
 }
