@@ -71,7 +71,8 @@ var execCmd = &cobra.Command{
 }
 
 func runExec(ctx context.Context, client *ecs.Client, region string, clusterId string, serviceId string, taskId string, containerId string, command string, interactive bool) error {
-	cluster, err := selector.SelectCluster(ctx, client, clusterId)
+	defaultSelector := &selector.DefaultSelector{}
+	cluster, err := selector.SelectCluster(ctx, client, defaultSelector, clusterId)
 	if err != nil {
 		return err
 	}

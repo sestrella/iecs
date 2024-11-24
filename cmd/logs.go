@@ -56,7 +56,8 @@ var logsCmd = &cobra.Command{
 }
 
 func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, serviceId string, containerId string) error {
-	cluster, err := selector.SelectCluster(ctx, ecsClient, clusterId)
+	defaultSelector := &selector.DefaultSelector{}
+	cluster, err := selector.SelectCluster(ctx, ecsClient, defaultSelector, clusterId)
 	if err != nil {
 		return err
 	}
