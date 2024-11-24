@@ -9,45 +9,6 @@ import (
 	"github.com/pterm/pterm"
 )
 
-type Client interface {
-	DescribeClusters(ctx context.Context, input *ecs.DescribeClustersInput, options ...func(*ecs.Options)) (*ecs.DescribeClustersOutput, error)
-	ListClusters(ctx context.Context, input *ecs.ListClustersInput, options ...func(*ecs.Options)) (*ecs.ListClustersOutput, error)
-}
-
-type DefaultSelector struct{}
-
-type Selector interface {
-	Select(title string, options []string) (string, error)
-}
-
-func (s *DefaultSelector) Select(title string, options []string) (string, error) {
-	return pterm.DefaultInteractiveSelect.WithOptions(options).Show(title)
-}
-
-func SelectCluster(ctx context.Context, client Client, selector Selector, clusterId string) (*types.Cluster, error) {
-	if clusterId == "" {
-		listClusters, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
-		if err != nil {
-			return nil, err
-		}
-		clusterArn, err := selector.Select("Cluster", listClusters.ClusterArns)
-		if err != nil {
-			return nil, err
-		}
-		clusterId = clusterArn
-	}
-	describeClusters, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
-		Clusters: []string{clusterId},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(describeClusters.Clusters) > 0 {
-		return &describeClusters.Clusters[0], nil
-	}
-	return nil, fmt.Errorf("no cluster '%v' found", clusterId)
-}
-
 func SelectService(ctx context.Context, client *ecs.Client, clusterId string, serviceId string) (*types.Service, error) {
 	if serviceId == "" {
 		listServices, err := client.ListServices(ctx, &ecs.ListServicesInput{
