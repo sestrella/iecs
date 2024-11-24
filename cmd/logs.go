@@ -11,8 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	cwlogsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
@@ -106,33 +104,6 @@ func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatc
 	}()
 	wg.Wait()
 	return nil
-}
-
-func selectContainerDefinition(ctx context.Context, client *ecs.Client, taskDefinitionArn string, containerId string) (*ecsTypes.ContainerDefinition, error) {
-	describeTaskDefinition, err := client.DescribeTaskDefinition(ctx, &ecs.DescribeTaskDefinitionInput{
-		TaskDefinition: &taskDefinitionArn,
-	})
-	if err != nil {
-		return nil, err
-	}
-	containerDefinitions := describeTaskDefinition.TaskDefinition.ContainerDefinitions
-	if containerId == "" {
-		var containerNames []string
-		for _, containerDefinition := range containerDefinitions {
-			containerNames = append(containerNames, *containerDefinition.Name)
-		}
-		containerName, err := pterm.DefaultInteractiveSelect.WithOptions(containerNames).Show("Container")
-		if err != nil {
-			return nil, err
-		}
-		containerId = containerName
-	}
-	for _, containerDefinition := range containerDefinitions {
-		if *containerDefinition.Name == containerId {
-			return &containerDefinition, nil
-		}
-	}
-	return nil, fmt.Errorf("no container '%v' found", containerId)
 }
 
 func init() {
