@@ -9,7 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
-	cwlogsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	cloudwatchlogsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
@@ -92,9 +92,9 @@ func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatc
 		for {
 			event := <-eventsChannel
 			switch e := event.(type) {
-			case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionStart:
+			case *cloudwatchlogsTypes.StartLiveTailResponseStreamMemberSessionStart:
 				log.Println("Received SessionStart event")
-			case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
+			case *cloudwatchlogsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
 				for _, logEvent := range e.Value.SessionResults {
 					date := time.UnixMilli(*logEvent.Timestamp)
 					fmt.Printf("%v %s\n", date, *logEvent.Message)
