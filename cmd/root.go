@@ -32,7 +32,7 @@ func Execute() {
 	}
 }
 
-func describeCluster(ctx context.Context, client *ecs.Client, clusterId string) (*types.Cluster, error) {
+func selectCluster(ctx context.Context, client *ecs.Client, clusterId string) (*types.Cluster, error) {
 	if clusterId == "" {
 		listClusters, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
 		if err != nil {
@@ -56,7 +56,7 @@ func describeCluster(ctx context.Context, client *ecs.Client, clusterId string) 
 	return nil, fmt.Errorf("no cluster '%v' found", clusterId)
 }
 
-func describeService(ctx context.Context, client *ecs.Client, clusterId string, serviceId string) (*types.Service, error) {
+func selectService(ctx context.Context, client *ecs.Client, clusterId string, serviceId string) (*types.Service, error) {
 	if serviceId == "" {
 		listServices, err := client.ListServices(ctx, &ecs.ListServicesInput{
 			Cluster: &clusterId,
@@ -83,7 +83,7 @@ func describeService(ctx context.Context, client *ecs.Client, clusterId string, 
 	return nil, fmt.Errorf("no service '%v' found", serviceId)
 }
 
-func describeTask(ctx context.Context, client *ecs.Client, clusterId string, serviceId string, taskId string) (*types.Task, error) {
+func selectTask(ctx context.Context, client *ecs.Client, clusterId string, serviceId string, taskId string) (*types.Task, error) {
 	if taskId == "" {
 		listTasks, err := client.ListTasks(ctx, &ecs.ListTasksInput{
 			Cluster:     &clusterId,

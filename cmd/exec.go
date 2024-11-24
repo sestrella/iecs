@@ -68,19 +68,19 @@ var execCmd = &cobra.Command{
 }
 
 func runExec(ctx context.Context, client *ecs.Client, region string, clusterId string, serviceId string, taskId string, containerId string, command string, interactive bool) error {
-	cluster, err := describeCluster(ctx, client, clusterId)
+	cluster, err := selectCluster(ctx, client, clusterId)
 	if err != nil {
 		return err
 	}
-	service, err := describeService(ctx, client, *cluster.ClusterArn, serviceId)
+	service, err := selectService(ctx, client, *cluster.ClusterArn, serviceId)
 	if err != nil {
 		return err
 	}
-	task, err := describeTask(ctx, client, *cluster.ClusterArn, *service.ServiceName, taskId)
+	task, err := selectTask(ctx, client, *cluster.ClusterArn, *service.ServiceName, taskId)
 	if err != nil {
 		return err
 	}
-	container, err := describeContainer(task.Containers, containerId)
+	container, err := selectContainer(task.Containers, containerId)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func runExec(ctx context.Context, client *ecs.Client, region string, clusterId s
 	return smp.Run()
 }
 
-func describeContainer(containers []types.Container, containerId string) (*types.Container, error) {
+func selectContainer(containers []types.Container, containerId string) (*types.Container, error) {
 	if containerId == "" {
 		var containerNames []string
 		for _, container := range containers {

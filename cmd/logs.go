@@ -55,15 +55,15 @@ var logsCmd = &cobra.Command{
 }
 
 func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, serviceId string, taskId string, containerId string) error {
-	cluster, err := describeCluster(ctx, ecsClient, clusterId)
+	cluster, err := selectCluster(ctx, ecsClient, clusterId)
 	if err != nil {
 		return err
 	}
-	service, err := describeService(ctx, ecsClient, *cluster.ClusterArn, serviceId)
+	service, err := selectService(ctx, ecsClient, *cluster.ClusterArn, serviceId)
 	if err != nil {
 		return err
 	}
-	container, err := describeContainerDefinition(context.TODO(), ecsClient, *service.TaskDefinition, containerId)
+	container, err := selectContainerDefinition(context.TODO(), ecsClient, *service.TaskDefinition, containerId)
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatc
 	return nil
 }
 
-func describeContainerDefinition(ctx context.Context, client *ecs.Client, taskDefinitionArn string, containerId string) (*ecsTypes.ContainerDefinition, error) {
+func selectContainerDefinition(ctx context.Context, client *ecs.Client, taskDefinitionArn string, containerId string) (*ecsTypes.ContainerDefinition, error) {
 	describeTaskDefinition, err := client.DescribeTaskDefinition(ctx, &ecs.DescribeTaskDefinitionInput{
 		TaskDefinition: &taskDefinitionArn,
 	})
