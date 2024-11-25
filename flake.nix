@@ -17,7 +17,7 @@
 
       systems = import systems;
 
-      perSystem = { system, pkgs, ... }: {
+      perSystem = { config, system, pkgs, ... }: {
         _module.args.pkgs = import nixpkgs {
           inherit system;
           overlays = [ gomod2nix.overlays.default ];
@@ -28,6 +28,10 @@
           version = "0.1.0";
           src = ./.;
           modules = ./gomod2nix.toml;
+        };
+
+        overlayAttrs = {
+          iecs = config.packages.default;
         };
       };
     };
