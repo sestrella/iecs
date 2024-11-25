@@ -43,8 +43,7 @@ cp iecs ~/.local/bin/iecs
 ```
 
 > [!NOTE]
-> Check that the path where the binary is copied exists in the `PATH`
-> environment variable.
+> Check that the path where the binary is copied exists in the `PATH` environment variable.
 
 </details>
 
