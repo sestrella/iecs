@@ -17,13 +17,13 @@
 
       systems = import systems;
 
-      perSystem = { config, system, pkgs, ... }: {
+      perSystem = { self', pkgs, system, ... }: {
         _module.args.pkgs = import nixpkgs {
           inherit system;
           overlays = [ gomod2nix.overlays.default ];
         };
 
-        packages.default = pkgs.buildGoApplication {
+        packages.iecs = pkgs.buildGoApplication {
           pname = "iecs";
           version = "0.1.0";
           src = ./.;
@@ -31,7 +31,7 @@
         };
 
         overlayAttrs = {
-          iecs = config.packages.default;
+          inherit (self'.packages) iecs;
         };
       };
     };
