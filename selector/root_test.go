@@ -15,28 +15,45 @@ import (
 type SpyClient struct{}
 
 func (s *SpyClient) DescribeClusters(ctx context.Context, input *ecs.DescribeClustersInput, options ...func(*ecs.Options)) (*ecs.DescribeClustersOutput, error) {
-	clusterName := input.Clusters[0]
-	clusterArn := fmt.Sprintf("arn:aws:ecs:us-east-1:111111111111:cluster/%s", clusterName)
+	cluster := input.Clusters[0]
+	var clusterArn string
+	if strings.Contains(cluster, "/") {
+		clusterArn = cluster
+	} else {
+		clusterArn = fmt.Sprintf("arn:aws:ecs:us-east-1:111111111111:cluster/%s", cluster)
+	}
 	return &ecs.DescribeClustersOutput{Clusters: []types.Cluster{
-		{ClusterName: &clusterName, ClusterArn: &clusterArn},
+		{ClusterArn: &clusterArn},
 	}}, nil
 }
 
 func (s *SpyClient) DescribeServices(ctx context.Context, input *ecs.DescribeServicesInput, options ...func(*ecs.Options)) (*ecs.DescribeServicesOutput, error) {
-	clusterSplices := strings.Split(*input.Cluster, "/")
-	serviceName := input.Services[0]
-	serviceArn := fmt.Sprintf("arn:aws:ecs:us-east-1:111111111111:service/%s/%s", clusterSplices[1], serviceName)
+	clusterName := strings.Split(*input.Cluster, "/")[1]
+	serviceArn := fmt.Sprintf("arn:aws:ecs:us-east-1:111111111111:service/%s/%s", clusterName, input.Services[0])
 	return &ecs.DescribeServicesOutput{Services: []types.Service{
-		{ServiceName: &serviceName, ServiceArn: &serviceArn},
+		{ServiceArn: &serviceArn},
 	}}, nil
 }
 
 func (s *SpyClient) DescribeTasks(ctx context.Context, input *ecs.DescribeTasksInput, options ...func(*ecs.Options)) (*ecs.DescribeTasksOutput, error) {
-	return nil, nil
+	task := input.Tasks[0]
+	var taskArn string
+	if strings.Contains(task, "arn:aws:ecs") {
+		taskArn = task
+	} else {
+		taskArn = fmt.Sprintf("arn:aws:ecs:us-east-1:111111111111:task/%s", task)
+	}
+	return &ecs.DescribeTasksOutput{Tasks: []types.Task{
+		{TaskArn: &taskArn},
+	}}, nil
 }
 
 func (s *SpyClient) ListClusters(ctx context.Context, input *ecs.ListClustersInput, options ...func(*ecs.Options)) (*ecs.ListClustersOutput, error) {
-	return &ecs.ListClustersOutput{ClusterArns: []string{"cluster-1", "cluster-2"}}, nil
+	clusterArns := []string{
+		"arn:aws:ecs:us-east-1:111111111111:cluster/cluster-1",
+		"arn:aws:ecs:us-east-1:111111111111:cluster/cluster-2",
+	}
+	return &ecs.ListClustersOutput{ClusterArns: clusterArns}, nil
 }
 
 func (s *SpyClient) ListServices(ctx context.Context, input *ecs.ListServicesInput, options ...func(*ecs.Options)) (*ecs.ListServicesOutput, error) {
@@ -44,7 +61,12 @@ func (s *SpyClient) ListServices(ctx context.Context, input *ecs.ListServicesInp
 }
 
 func (s *SpyClient) ListTasks(ctx context.Context, input *ecs.ListTasksInput, options ...func(*ecs.Options)) (*ecs.ListTasksOutput, error) {
-	return nil, nil
+	clusterSplices := strings.Split(*input.Cluster, "/")
+	taskArns := []string{
+		fmt.Sprintf("arn:aws:ecs:us-east-1:111111111111:task/%s/7f9ea0d0011a41b7b3f6c37cb29cd25b", clusterSplices[1]),
+		fmt.Sprintf("arn:aws:ecs:us-east-1:111111111111:task/%s/e2c735b1aca94012b37e03d8fe1bfb5f", clusterSplices[1]),
+	}
+	return &ecs.ListTasksOutput{TaskArns: taskArns}, nil
 }
 
 type SpySelector struct{}
@@ -85,10 +107,10 @@ func TestSelectorCluster(t *testing.T) {
 func TestSelectorService(t *testing.T) {
 	client := &SpyClient{}
 	selector := &SpySelector{}
-	clusterId := "arn:aws:ecs:us-east-1:111111111111:cluster/cluster"
+	clusterArn := "arn:aws:ecs:us-east-1:111111111111:cluster/cluster"
 
 	t.Run("serviceId is empty", func(t *testing.T) {
-		service, err := SelectService(context.TODO(), client, selector, clusterId, "")
+		service, err := SelectService(context.TODO(), client, selector, clusterArn, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -100,12 +122,43 @@ func TestSelectorService(t *testing.T) {
 	})
 
 	t.Run("serviceId is not empty", func(t *testing.T) {
-		service, err := SelectService(context.TODO(), client, selector, clusterId, "service")
+		service, err := SelectService(context.TODO(), client, selector, clusterArn, "service")
 		if err != nil {
 			t.Fatal(err)
 		}
 		got := *service.ServiceArn
 		want := "arn:aws:ecs:us-east-1:111111111111:service/cluster/service"
+		if got != want {
+			t.Errorf("got %q want %q", got, want)
+		}
+	})
+}
+
+func TestSelectorTask(t *testing.T) {
+	client := &SpyClient{}
+	selector := &SpySelector{}
+	clusterArn := "arn:aws:ecs:us-east-1:111111111111:cluster/cluster"
+	serviceName := "service"
+
+	t.Run("taskId is empty", func(t *testing.T) {
+		task, err := SelectTask(context.TODO(), client, selector, clusterArn, serviceName, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := *task.TaskArn
+		want := "arn:aws:ecs:us-east-1:111111111111:task/cluster/7f9ea0d0011a41b7b3f6c37cb29cd25b"
+		if got != want {
+			t.Errorf("got %q want %q", got, want)
+		}
+	})
+
+	t.Run("taskId is not empty", func(t *testing.T) {
+		task, err := SelectTask(context.TODO(), client, selector, clusterArn, serviceName, "cluster/44d9c0c0af0348ec9f57e4e413293c6b")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := *task.TaskArn
+		want := "arn:aws:ecs:us-east-1:111111111111:task/cluster/44d9c0c0af0348ec9f57e4e413293c6b"
 		if got != want {
 			t.Errorf("got %q want %q", got, want)
 		}

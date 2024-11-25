@@ -52,10 +52,10 @@ func SelectCluster(ctx context.Context, client Client, selector Selector, cluste
 	return nil, fmt.Errorf("no cluster '%v' found", clusterId)
 }
 
-func SelectService(ctx context.Context, client Client, selector Selector, clusterId string, serviceId string) (*types.Service, error) {
+func SelectService(ctx context.Context, client Client, selector Selector, clusterArn string, serviceId string) (*types.Service, error) {
 	if serviceId == "" {
 		listServices, err := client.ListServices(ctx, &ecs.ListServicesInput{
-			Cluster: &clusterId,
+			Cluster: &clusterArn,
 		})
 		if err != nil {
 			return nil, err
@@ -67,7 +67,7 @@ func SelectService(ctx context.Context, client Client, selector Selector, cluste
 		serviceId = serviceArn
 	}
 	describeService, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
-		Cluster:  &clusterId,
+		Cluster:  &clusterArn,
 		Services: []string{serviceId},
 	})
 	if err != nil {
@@ -79,23 +79,23 @@ func SelectService(ctx context.Context, client Client, selector Selector, cluste
 	return nil, fmt.Errorf("no service '%v' found", serviceId)
 }
 
-func SelectTask(ctx context.Context, client Client, clusterId string, serviceId string, taskId string) (*types.Task, error) {
+func SelectTask(ctx context.Context, client Client, selector Selector, clusterArn string, serviceName string, taskId string) (*types.Task, error) {
 	if taskId == "" {
 		listTasks, err := client.ListTasks(ctx, &ecs.ListTasksInput{
-			Cluster:     &clusterId,
-			ServiceName: &serviceId,
+			Cluster:     &clusterArn,
+			ServiceName: &serviceName,
 		})
 		if err != nil {
 			return nil, err
 		}
-		taskArn, err := pterm.DefaultInteractiveSelect.WithOptions(listTasks.TaskArns).Show("Task")
+		taskArn, err := selector.Select("Task", listTasks.TaskArns)
 		if err != nil {
 			return nil, err
 		}
 		taskId = taskArn
 	}
 	describeTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: &clusterId,
+		Cluster: &clusterArn,
 		Tasks:   []string{taskId},
 	})
 	if err != nil {
