@@ -13,13 +13,6 @@ list of all tasks running on ECS.
 
 ## Installation
 
-<details>
-<summary>Nix users</summary>
-</details>
-
-<details>
-<summary>Non-Nix users</summary>
-
 Clone the repository:
 
 ```
@@ -43,9 +36,8 @@ cp iecs ~/.local/bin/iecs
 ```
 
 > [!NOTE]
-> Check that the path where the binary is copied exists in the `PATH` environment variable.
-
-</details>
+> Check that the path where the binary is copied exists in the `PATH`
+> environment variable.
 
 ## References
 
