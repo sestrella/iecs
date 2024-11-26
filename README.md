@@ -13,6 +13,41 @@ list of all tasks running on ECS.
 
 ## Installation
 
+<details>
+<summary>Nix users</summary>
+
+### devenv
+
+Add the project input into the `devenv.yaml` file:
+
+```yml
+inputs:
+  iecs:
+    url: github:sestrella/iecs
+    overlays:
+      - default
+  ...
+```
+
+To install the binary, add it to the `packages` section in the `devenv.nix`
+file:
+
+```nix
+{ pkgs, lib, config, inputs, ... }:
+
+{
+  packages = [
+    pkgs.iecs
+    ...
+  ];
+}
+```
+
+</details>
+
+<details>
+<summary>Non-Nix users</summary>
+
 Clone the repository:
 
 ```
@@ -38,6 +73,8 @@ cp iecs ~/.local/bin/iecs
 > [!NOTE]
 > Check that the path where the binary is copied exists in the `PATH`
 > environment variable.
+
+</details>
 
 ## References
 
