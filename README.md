@@ -33,7 +33,7 @@ To install the binary, add it to the `packages` section in the `devenv.nix`
 file:
 
 ```nix
-{ pkgs, lib, config, inputs, ... }:
+{ pkgs, ... }:
 
 {
   packages = [
@@ -41,6 +41,11 @@ file:
     ...
   ];
 }
+```
+
+### flakes
+
+```
 ```
 
 </details>
