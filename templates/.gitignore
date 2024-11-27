@@ -1,2 +1,2 @@
-devenv/devenv.lock
-flakes/flake.lock
+devenv.lock
+flake.lock

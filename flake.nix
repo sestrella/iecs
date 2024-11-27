@@ -23,7 +23,7 @@
           overlays = [ gomod2nix.overlays.default ];
         };
 
-        packages.iecs = pkgs.buildGoApplication {
+        packages.default = pkgs.buildGoApplication {
           pname = "iecs";
           version = "0.1.0";
           src = ./.;
@@ -31,7 +31,7 @@
         };
 
         overlayAttrs = {
-          inherit (self'.packages) iecs;
+          iecs = self'.packages.default;
         };
       };
     };

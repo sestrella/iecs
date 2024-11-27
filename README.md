@@ -26,26 +26,44 @@ inputs:
     url: github:sestrella/iecs
     overlays:
       - default
-  ...
 ```
 
 To install the binary, add it to the `packages` section in the `devenv.nix`
 file:
 
 ```nix
-{ pkgs, ... }:
-
-{
-  packages = [
-    pkgs.iecs
-    ...
-  ];
-}
+packages = [ pkgs.iecs ];
 ```
 
 ### flakes
 
+Add the project input into the `flake.nix` file:
+
+```nix
+inputs.iecs.url = "github:sestrella/iecs/nix_templates";
 ```
+
+overlays
+
+Add the project overlay to `nixpkgs`:
+
+```nix
+pkgs = import nixpkgs {
+  inherit system;
+  overlays = [ iecs.overlays.default ];
+};
+```
+
+Use the binary as derivation input for creating packages or shells:
+
+```nix
+buildInputs = [ pkgs.iecs ];
+```
+
+packages
+
+```nix
+buildInputs = [ iecs.packages.${system}.iecs ];
 ```
 
 </details>
