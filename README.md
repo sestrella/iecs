@@ -57,9 +57,7 @@ pkgs = import nixpkgs {
 Use the binary as derivation input for creating packages or shells:
 
 ```nix
-pkgs.mkShell {
-  buildInputs = [ pkgs.iecs ];
-};
+buildInputs = [ pkgs.iecs ];
 ```
 
 #### Using it as a package
@@ -67,9 +65,7 @@ pkgs.mkShell {
 Use the binary as derivation input for creating packages or shells:
 
 ```nix
-pkgs.mkShell {
-  buildInputs = [ iecs.packages.${system}.default ];
-};
+buildInputs = [ iecs.packages.${system}.default ];
 ```
 
 </details>
