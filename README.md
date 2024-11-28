@@ -16,6 +16,9 @@ list of all tasks running on ECS.
 <details>
 <summary>Nix users</summary>
 
+The [templates](templates) directory contains a complete version of the code
+snippets presented in this section.
+
 ### devenv
 
 Add the project input into the `devenv.yaml` file:
