@@ -35,7 +35,7 @@ file:
 packages = [ pkgs.iecs ];
 ```
 
-### flakes
+### flake
 
 Add the project input into the `flake.nix` file:
 
@@ -43,7 +43,7 @@ Add the project input into the `flake.nix` file:
 inputs.iecs.url = "github:sestrella/iecs/nix_templates";
 ```
 
-overlays
+#### Using it as an overlay
 
 Add the project overlay to `nixpkgs`:
 
@@ -60,10 +60,12 @@ Use the binary as derivation input for creating packages or shells:
 buildInputs = [ pkgs.iecs ];
 ```
 
-packages
+#### Using it as a package
+
+Use the binary as derivation input for creating packages or shells:
 
 ```nix
-buildInputs = [ iecs.packages.${system}.iecs ];
+buildInputs = [ iecs.packages.${system}.default ];
 ```
 
 </details>
