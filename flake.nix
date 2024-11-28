@@ -5,11 +5,12 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     gomod2nix.url = "github:nix-community/gomod2nix";
     gomod2nix.inputs.nixpkgs.follows = "nixpkgs";
+    nix-filter.url = "github:numtide/nix-filter";
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default";
   };
 
-  outputs = inputs@{ flake-parts, gomod2nix, nixpkgs, systems, ... }:
+  outputs = inputs@{ flake-parts, gomod2nix, nix-filter, nixpkgs, systems, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         flake-parts.flakeModules.easyOverlay
@@ -26,7 +27,16 @@
         packages.default = pkgs.buildGoApplication {
           pname = "iecs";
           version = "0.1.0";
-          src = ./.;
+          src = nix-filter.lib {
+            root = ./.;
+            include = [
+              "./go.mod"
+              "./go.sum"
+              "./main.go"
+              "cmd"
+              "selector"
+            ];
+          };
           modules = ./gomod2nix.toml;
         };
 
