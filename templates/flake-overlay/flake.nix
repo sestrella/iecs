@@ -1,21 +1,26 @@
 {
   inputs = {
-    flake-utils.url = "github:numtide/flake-utils";
     iecs.url = "github:sestrella/iecs/nix_templates";
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    systems.url = "github:nix-systems/default";
   };
 
-  outputs = { flake-utils, iecs, nixpkgs, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ iecs.overlays.default ];
-        };
-      in
-      {
-        devShells.default = pkgs.mkShell {
-          buildInputs = [ pkgs.iecs ];
-        };
-      });
+  outputs = { iecs, nixpkgs, systems, ... }:
+    let
+      eachSystem = nixpkgs.lib.genAttrs (import systems);
+    in
+    {
+      devShells = eachSystem (system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ iecs.overlays.default ];
+          };
+        in
+        {
+          default = pkgs.mkShell {
+            buildInputs = [ pkgs.iecs ];
+          };
+        });
+    };
 }
