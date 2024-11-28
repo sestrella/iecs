@@ -1,6 +1,6 @@
 {
   inputs = {
-    iecs.url = "github:sestrella/iecs/nix_templates";
+    iecs.url = "github:sestrella/iecs";
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default";
   };
