@@ -17,7 +17,9 @@ list of all tasks running on ECS.
 <summary>Nix users</summary>
 
 The [templates](templates) directory contains a complete version of the code
-snippets presented in this section.
+snippets presented in this section. For a better user experience, setup
+[sestrella](https://app.cachix.org/cache/sestrella) binary cache to download
+pre-built binaries.
 
 ### devenv
 
