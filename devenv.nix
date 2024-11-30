@@ -9,13 +9,18 @@
     pkgs.ssm-session-manager-plugin
   ];
 
-  enterTest = "go test -v ./...";
-
   languages.go.enable = true;
 
   pre-commit.hooks = {
     gofmt.enable = true;
     golangci-lint.enable = true;
+    gomod2nix = {
+      enable = true;
+      entry = "${pkgs.gomod2nix}/bin/gomod2nix";
+      pass_filenames = false;
+      files = "go.mod";
+    };
+    gotest.enable = true;
     nixpkgs-fmt.enable = true;
   };
 
