@@ -44,5 +44,20 @@
           iecs = self'.packages.default;
         };
       };
+
+      flake.templates = {
+        default = {
+          description = "Shows how to install iecs in flake";
+          path = ./templates/default;
+        };
+        devenv = {
+          description = "Shows how to install iecs in devenv";
+          path = ./templates/devenv;
+        };
+        overlay = {
+          description = "Shows how to use iecs as an overlay";
+          path = ./templates/overlay;
+        };
+      };
     };
 }
