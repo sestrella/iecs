@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -85,29 +84,21 @@ func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatc
 		return err
 	}
 	stream := startLiveTail.GetStream()
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		eventsChannel := stream.Events()
-		for {
-			event := <-eventsChannel
-			switch e := event.(type) {
-			case *cloudwatchlogsTypes.StartLiveTailResponseStreamMemberSessionStart:
-				log.Println("Received SessionStart event")
-			case *cloudwatchlogsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
-				for _, logEvent := range e.Value.SessionResults {
-					date := time.UnixMilli(*logEvent.Timestamp)
-					fmt.Printf("%v %s\n", date, *logEvent.Message)
-				}
-			default:
-				fmt.Println("TODO")
-				return
+	eventsChannel := stream.Events()
+	for {
+		event := <-eventsChannel
+		switch e := event.(type) {
+		case *cloudwatchlogsTypes.StartLiveTailResponseStreamMemberSessionStart:
+			log.Println("Received SessionStart event")
+		case *cloudwatchlogsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
+			for _, logEvent := range e.Value.SessionResults {
+				date := time.UnixMilli(*logEvent.Timestamp)
+				fmt.Printf("%v %s\n", date, *logEvent.Message)
 			}
+		default:
+			log.Fatalf("Unknown event type: %s", e)
 		}
-	}()
-	wg.Wait()
-	return nil
+	}
 }
 
 func init() {
