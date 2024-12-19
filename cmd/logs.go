@@ -30,25 +30,25 @@ var logsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterId, err := cmd.Flags().GetString(logsClusterFlag)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		serviceId, err := cmd.Flags().GetString(logsServiceFlag)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		containerId, err := cmd.Flags().GetString(logsContainerFlag)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		ecsClient := ecs.NewFromConfig(cfg)
 		cwlogsClient := cwlogs.NewFromConfig(cfg)
 		err = runLogs(context.TODO(), ecsClient, cwlogsClient, clusterId, serviceId, containerId)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 	},
 	Aliases: []string{"tail"},
@@ -96,7 +96,7 @@ func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cwlogs.Cl
 				fmt.Printf("%v %s\n", date, *logEvent.Message)
 			}
 		default:
-			log.Fatalf("Unknown event type: %s", e)
+			panic(fmt.Sprintf("Unknown event type: %s", e))
 		}
 	}
 }

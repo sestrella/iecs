@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -35,36 +34,36 @@ var execCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterId, err := cmd.Flags().GetString(execClusterFlag)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		serviceId, err := cmd.Flags().GetString(execServiceFlag)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		taskId, err := cmd.Flags().GetString(execTaskFlag)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		containerId, err := cmd.Flags().GetString(execContainerFlag)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		command, err := cmd.Flags().GetString(execCommandFlag)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		interactive, err := cmd.Flags().GetBool(execInteractiveFlag)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		client := ecs.NewFromConfig(cfg)
 		err = runExec(context.TODO(), client, cfg.Region, clusterId, serviceId, taskId, containerId, command, interactive)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 	},
 	Aliases: []string{"ssh"},
