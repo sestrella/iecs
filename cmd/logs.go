@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
-	cloudwatchlogsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	cwlogs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	cwlogsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
@@ -45,7 +45,7 @@ var logsCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 		ecsClient := ecs.NewFromConfig(cfg)
-		cwlogsClient := cloudwatchlogs.NewFromConfig(cfg)
+		cwlogsClient := cwlogs.NewFromConfig(cfg)
 		err = runLogs(context.TODO(), ecsClient, cwlogsClient, clusterId, serviceId, containerId)
 		if err != nil {
 			log.Fatal(err)
@@ -54,7 +54,7 @@ var logsCmd = &cobra.Command{
 	Aliases: []string{"tail"},
 }
 
-func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatchlogs.Client, clusterId string, serviceId string, containerId string) error {
+func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cwlogs.Client, clusterId string, serviceId string, containerId string) error {
 	defaultSelector := &selector.DefaultSelector{}
 	cluster, err := selector.SelectCluster(ctx, ecsClient, defaultSelector, clusterId)
 	if err != nil {
@@ -70,13 +70,13 @@ func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatc
 	}
 	logOptions := container.LogConfiguration.Options
 	awslogsGroup := logOptions["awslogs-group"]
-	describeLogGroups, err := cwlogsClient.DescribeLogGroups(context.TODO(), &cloudwatchlogs.DescribeLogGroupsInput{
+	describeLogGroups, err := cwlogsClient.DescribeLogGroups(context.TODO(), &cwlogs.DescribeLogGroupsInput{
 		LogGroupNamePrefix: &awslogsGroup,
 	})
 	if err != nil {
 		return err
 	}
-	startLiveTail, err := cwlogsClient.StartLiveTail(context.TODO(), &cloudwatchlogs.StartLiveTailInput{
+	startLiveTail, err := cwlogsClient.StartLiveTail(context.TODO(), &cwlogs.StartLiveTailInput{
 		LogGroupIdentifiers:   []string{*describeLogGroups.LogGroups[0].LogGroupArn},
 		LogStreamNamePrefixes: []string{logOptions["awslogs-stream-prefix"]},
 	})
@@ -88,9 +88,9 @@ func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cloudwatc
 	for {
 		event := <-eventsChannel
 		switch e := event.(type) {
-		case *cloudwatchlogsTypes.StartLiveTailResponseStreamMemberSessionStart:
+		case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionStart:
 			log.Println("Received SessionStart event")
-		case *cloudwatchlogsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
+		case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
 			for _, logEvent := range e.Value.SessionResults {
 				date := time.UnixMilli(*logEvent.Timestamp)
 				fmt.Printf("%v %s\n", date, *logEvent.Message)
