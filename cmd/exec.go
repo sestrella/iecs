@@ -32,6 +32,10 @@ var execCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs exec
   `,
 	Run: func(cmd *cobra.Command, args []string) {
+		smpPath, err := exec.LookPath("session-manager-plugin")
+		if err != nil {
+			panic(err)
+		}
 		clusterId, err := cmd.Flags().GetString(execClusterFlag)
 		if err != nil {
 			panic(err)
@@ -61,7 +65,7 @@ var execCmd = &cobra.Command{
 			panic(err)
 		}
 		client := ecs.NewFromConfig(cfg)
-		err = runExec(context.TODO(), client, cfg.Region, clusterId, serviceId, taskId, containerId, command, interactive)
+		err = runExec(context.TODO(), smpPath, client, cfg.Region, clusterId, serviceId, taskId, containerId, command, interactive)
 		if err != nil {
 			panic(err)
 		}
@@ -69,7 +73,7 @@ var execCmd = &cobra.Command{
 	Aliases: []string{"ssh"},
 }
 
-func runExec(ctx context.Context, client *ecs.Client, region string, clusterId string, serviceId string, taskId string, containerId string, command string, interactive bool) error {
+func runExec(ctx context.Context, smpPath string, client *ecs.Client, region string, clusterId string, serviceId string, taskId string, containerId string, command string, interactive bool) error {
 	defaultSelector := &selector.DefaultSelector{}
 	cluster, err := selector.SelectCluster(ctx, client, defaultSelector, clusterId)
 	if err != nil {
@@ -114,7 +118,7 @@ func runExec(ctx context.Context, client *ecs.Client, region string, clusterId s
 		return err
 	}
 	// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
-	smp := exec.Command("session-manager-plugin",
+	smp := exec.Command(smpPath,
 		string(session),
 		region,
 		"StartSession",
