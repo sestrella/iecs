@@ -120,7 +120,7 @@ func runExec(ctx context.Context, smpPath string, client *ecs.Client, region str
 		return err
 	}
 	// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
-	smp := exec.Command(smpPath,
+	cmd := exec.Command(smpPath,
 		string(session),
 		region,
 		"StartSession",
@@ -128,11 +128,11 @@ func runExec(ctx context.Context, smpPath string, client *ecs.Client, region str
 		string(targetJSON),
 		fmt.Sprintf("https://ssm.%s.amazonaws.com", region),
 	)
-	smp.Stdin = os.Stdin
-	smp.Stdout = os.Stdout
-	smp.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-	err = smp.Start()
+	err = cmd.Start()
 	if err != nil {
 		return err
 	}
@@ -146,12 +146,12 @@ func runExec(ctx context.Context, smpPath string, client *ecs.Client, region str
 			sig := <-sigs
 			switch sig {
 			case syscall.SIGINT:
-				err = syscall.Kill(smp.Process.Pid, syscall.SIGINT)
+				err = syscall.Kill(cmd.Process.Pid, syscall.SIGINT)
 				if err != nil {
 					panic(err)
 				}
 			case syscall.SIGTERM:
-				err = syscall.Kill(smp.Process.Pid, syscall.SIGTERM)
+				err = syscall.Kill(cmd.Process.Pid, syscall.SIGTERM)
 				if err != nil {
 					panic(err)
 				}
@@ -159,7 +159,7 @@ func runExec(ctx context.Context, smpPath string, client *ecs.Client, region str
 		}
 	}()
 
-	return smp.Wait()
+	return cmd.Wait()
 }
 
 func init() {
