@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
@@ -129,7 +131,35 @@ func runExec(ctx context.Context, smpPath string, client *ecs.Client, region str
 	smp.Stdin = os.Stdin
 	smp.Stdout = os.Stdout
 	smp.Stderr = os.Stderr
-	return smp.Run()
+
+	err = smp.Start()
+	if err != nil {
+		return err
+	}
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	// TODO: handle errors
+	go func() {
+		for {
+			sig := <-sigs
+			switch sig {
+			case syscall.SIGINT:
+				err = syscall.Kill(smp.Process.Pid, syscall.SIGINT)
+				if err != nil {
+					panic(err)
+				}
+			case syscall.SIGTERM:
+				err = syscall.Kill(smp.Process.Pid, syscall.SIGTERM)
+				if err != nil {
+					panic(err)
+				}
+			}
+		}
+	}()
+
+	return smp.Wait()
 }
 
 func init() {
