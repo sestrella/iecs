@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
@@ -118,7 +120,7 @@ func runExec(ctx context.Context, smpPath string, client *ecs.Client, region str
 		return err
 	}
 	// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
-	smp := exec.Command(smpPath,
+	cmd := exec.Command(smpPath,
 		string(session),
 		region,
 		"StartSession",
@@ -126,10 +128,27 @@ func runExec(ctx context.Context, smpPath string, client *ecs.Client, region str
 		string(targetJSON),
 		fmt.Sprintf("https://ssm.%s.amazonaws.com", region),
 	)
-	smp.Stdin = os.Stdin
-	smp.Stdout = os.Stdout
-	smp.Stderr = os.Stderr
-	return smp.Run()
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+
+	// Reference: https://github.com/kubernetes/kubectl/blob/master/pkg/util/interrupt/interrupt.go
+	go func() {
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
+		sig := <-sigs
+		err = cmd.Process.Signal(sig)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	return cmd.Wait()
 }
 
 func init() {
