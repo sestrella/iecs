@@ -137,25 +137,14 @@ func runExec(ctx context.Context, smpPath string, client *ecs.Client, region str
 		return err
 	}
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	// TODO: handle errors
+	// Reference: https://github.com/kubernetes/kubectl/blob/master/pkg/util/interrupt/interrupt.go
 	go func() {
-		for {
-			sig := <-sigs
-			switch sig {
-			case syscall.SIGINT:
-				err = syscall.Kill(cmd.Process.Pid, syscall.SIGINT)
-				if err != nil {
-					panic(err)
-				}
-			case syscall.SIGTERM:
-				err = syscall.Kill(cmd.Process.Pid, syscall.SIGTERM)
-				if err != nil {
-					panic(err)
-				}
-			}
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
+		sig := <-sigs
+		err = cmd.Process.Signal(sig)
+		if err != nil {
+			panic(err)
 		}
 	}()
 
