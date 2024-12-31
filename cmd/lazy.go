@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
@@ -24,6 +25,9 @@ var lazyCmd = &cobra.Command{
 		ecsClient := ecs.NewFromConfig(cfg)
 
 		app := tview.NewApplication()
+
+		logs := tview.NewTextView()
+		logs.SetTitle("Log").SetBorder(true)
 
 		clusters := tview.NewList()
 		clusters.SetTitle("Clusters").SetBorder(true)
@@ -63,6 +67,18 @@ var lazyCmd = &cobra.Command{
 				services.Clear()
 				for _, service := range describeServices.Services {
 					services.AddItem(*service.ServiceName, *service.ServiceArn, 'f', func() {
+						describeTaskDefinition, err := ecsClient.DescribeTaskDefinition(context.TODO(), &ecs.DescribeTaskDefinitionInput{
+							TaskDefinition: service.TaskDefinition,
+						})
+						if err != nil {
+							panic(err)
+						}
+						jsonTaskDefinition, err := json.MarshalIndent(describeTaskDefinition.TaskDefinition, "", "  ")
+						if err != nil {
+							panic(err)
+						}
+						logs.SetText(string(jsonTaskDefinition))
+
 						listTasks, err := ecsClient.ListTasks(context.TODO(), &ecs.ListTasksInput{
 							Cluster:     cluster.ClusterArn,
 							ServiceName: service.ServiceName,
@@ -91,8 +107,6 @@ var lazyCmd = &cobra.Command{
 			AddItem(clusters, 0, 1, true).
 			AddItem(services, 0, 1, false).
 			AddItem(tasks, 0, 1, false)
-
-		logs := tview.NewFlex().SetTitle("Logs").SetBorder(true)
 
 		root := tview.NewFlex().
 			AddItem(leftPanel, 0, 1, false).
