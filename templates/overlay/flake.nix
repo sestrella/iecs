@@ -10,12 +10,18 @@
     extra-trusted-public-keys = "sestrella.cachix.org-1:uf75o4yckcsAOFu6ldfPug/kTUMybvT0IY61sck2qnA=";
   };
 
-  outputs = { iecs, nixpkgs, systems, ... }:
+  outputs =
+    { iecs
+    , nixpkgs
+    , systems
+    , ...
+    }:
     let
-      eachSystem = nixpkgs.lib.genAttrs (import systems);
+      forAllSystems = nixpkgs.lib.genAttrs (import systems);
     in
     {
-      devShells = eachSystem (system:
+      devShells = forAllSystems (
+        system:
         let
           pkgs = import nixpkgs {
             inherit system;
@@ -26,6 +32,7 @@
           default = pkgs.mkShell {
             buildInputs = [ pkgs.iecs ];
           };
-        });
+        }
+      );
     };
 }
