@@ -36,7 +36,7 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 		return nil, fmt.Errorf("no clusters found")
 	}
 
-	// Create the form
+	// Create the form with all selections
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
@@ -45,150 +45,151 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 					huh.NewOptions(listClusters.ClusterArns...)...,
 				).
 				Value(&selectedClusterArn),
+
+			// Service selection with dynamic options based on cluster selection
+			huh.NewSelect[string]().
+				Title("Select Service").
+				OptionsFunc(func() []huh.Option[string] {
+					// Return empty options if no cluster selected yet
+					if selectedClusterArn == "" {
+						return []huh.Option[string]{}
+					}
+
+					// Get services for selected cluster
+					listServices, err := client.ListServices(ctx, &ecs.ListServicesInput{
+						Cluster: &selectedClusterArn,
+					})
+					if err != nil {
+						// Just return empty options on error, the final validation will catch it
+						return []huh.Option[string]{}
+					}
+					if len(listServices.ServiceArns) == 0 {
+						return []huh.Option[string]{}
+					}
+
+					// Get cluster details for result
+					describeClusters, err := client.DescribeClusters(
+						ctx,
+						&ecs.DescribeClustersInput{
+							Clusters: []string{selectedClusterArn},
+						},
+					)
+					if err == nil && len(describeClusters.Clusters) > 0 {
+						result.Cluster = &describeClusters.Clusters[0]
+					}
+
+					return huh.NewOptions(listServices.ServiceArns...)
+				}, &selectedClusterArn).
+				Value(&selectedServiceArn),
+
+			// Task selection with dynamic options based on service selection
+			huh.NewSelect[string]().
+				Title("Select Task").
+				OptionsFunc(func() []huh.Option[string] {
+					// Return empty options if no service selected yet
+					if selectedClusterArn == "" || selectedServiceArn == "" {
+						return []huh.Option[string]{}
+					}
+
+					// Get service details for result
+					describeService, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
+						Cluster:  &selectedClusterArn,
+						Services: []string{selectedServiceArn},
+					})
+					if err != nil {
+						return []huh.Option[string]{}
+					}
+					if len(describeService.Services) == 0 {
+						return []huh.Option[string]{}
+					}
+					result.Service = &describeService.Services[0]
+
+					// Get tasks for selected service
+					listTasks, err := client.ListTasks(ctx, &ecs.ListTasksInput{
+						Cluster:     &selectedClusterArn,
+						ServiceName: result.Service.ServiceName,
+					})
+					if err != nil {
+						return []huh.Option[string]{}
+					}
+					if len(listTasks.TaskArns) == 0 {
+						return []huh.Option[string]{}
+					}
+
+					return huh.NewOptions(listTasks.TaskArns...)
+				}, &selectedServiceArn).
+				Value(&selectedTaskArn),
+
+			// Container selection with dynamic options based on task selection
+			huh.NewSelect[string]().
+				Title("Select Container").
+				OptionsFunc(func() []huh.Option[string] {
+					// Return empty options if no task selected yet
+					if selectedClusterArn == "" || selectedTaskArn == "" {
+						return []huh.Option[string]{}
+					}
+
+					// Get task details for result
+					describeTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+						Cluster: &selectedClusterArn,
+						Tasks:   []string{selectedTaskArn},
+					})
+					if err != nil {
+						return []huh.Option[string]{}
+					}
+					if len(describeTasks.Tasks) == 0 {
+						return []huh.Option[string]{}
+					}
+					result.Task = &describeTasks.Tasks[0]
+
+					// Build container options
+					var containerNames []string
+					for _, container := range result.Task.Containers {
+						containerNames = append(containerNames, *container.Name)
+					}
+
+					if len(containerNames) == 0 {
+						return []huh.Option[string]{}
+					}
+
+					return huh.NewOptions(containerNames...)
+				}, &selectedTaskArn).
+				Value(&selectedContainerName).
+				WithHeight(10),
 		),
 	)
 
-	// Run the form to select cluster
+	// Run the combined form
 	err = form.Run()
 	if err != nil {
 		return nil, fmt.Errorf("form error: %w", err)
 	}
 
-	// Get selected cluster details
-	describeClusters, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
-		Clusters: []string{selectedClusterArn},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to describe cluster: %w", err)
-	}
-	if len(describeClusters.Clusters) == 0 {
-		return nil, fmt.Errorf("cluster not found: %s", selectedClusterArn)
-	}
-	result.Cluster = &describeClusters.Clusters[0]
-
-	// Get services for selected cluster
-	listServices, err := client.ListServices(ctx, &ecs.ListServicesInput{
-		Cluster: &selectedClusterArn,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list services: %w", err)
-	}
-	if len(listServices.ServiceArns) == 0 {
-		return nil, fmt.Errorf("no services found in cluster: %s", selectedClusterArn)
+	// Additional validations after form completion
+	if result.Cluster == nil {
+		return nil, fmt.Errorf("cluster not selected or not found: %s", selectedClusterArn)
 	}
 
-	// Create service selection form
-	serviceForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Select Service").
-				Options(
-					huh.NewOptions(listServices.ServiceArns...)...,
-				).
-				Value(&selectedServiceArn),
-		),
-	)
-
-	// Run service selection
-	err = serviceForm.Run()
-	if err != nil {
-		return nil, fmt.Errorf("form error: %w", err)
+	if result.Service == nil {
+		return nil, fmt.Errorf("service not selected or not found: %s", selectedServiceArn)
 	}
 
-	// Get selected service details
-	describeService, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
-		Cluster:  &selectedClusterArn,
-		Services: []string{selectedServiceArn},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to describe service: %w", err)
-	}
-	if len(describeService.Services) == 0 {
-		return nil, fmt.Errorf("service not found: %s", selectedServiceArn)
-	}
-	result.Service = &describeService.Services[0]
-
-	// Get tasks for selected service
-	listTasks, err := client.ListTasks(ctx, &ecs.ListTasksInput{
-		Cluster:     &selectedClusterArn,
-		ServiceName: result.Service.ServiceName,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list tasks: %w", err)
-	}
-	if len(listTasks.TaskArns) == 0 {
-		return nil, fmt.Errorf("no tasks found for service: %s", *result.Service.ServiceName)
-	}
-
-	// Create task selection form
-	taskForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Select Task").
-				Options(
-					huh.NewOptions(listTasks.TaskArns...)...,
-				).
-				Value(&selectedTaskArn),
-		),
-	)
-
-	// Run task selection
-	err = taskForm.Run()
-	if err != nil {
-		return nil, fmt.Errorf("form error: %w", err)
-	}
-
-	// Get selected task details
-	describeTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: &selectedClusterArn,
-		Tasks:   []string{selectedTaskArn},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to describe task: %w", err)
-	}
-	if len(describeTasks.Tasks) == 0 {
-		return nil, fmt.Errorf("task not found: %s", selectedTaskArn)
-	}
-	result.Task = &describeTasks.Tasks[0]
-
-	// Build container options
-	var containerNames []string
-	for _, container := range result.Task.Containers {
-		containerNames = append(containerNames, *container.Name)
-	}
-
-	if len(containerNames) == 0 {
-		return nil, fmt.Errorf("no containers found for task: %s", selectedTaskArn)
-	}
-
-	// Create container selection form
-	containerForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Select Container").
-				Options(
-					huh.NewOptions(containerNames...)...,
-				).
-				Value(&selectedContainerName),
-		),
-	)
-
-	// Run container selection
-	err = containerForm.Run()
-	if err != nil {
-		return nil, fmt.Errorf("form error: %w", err)
+	if result.Task == nil {
+		return nil, fmt.Errorf("task not selected or not found: %s", selectedTaskArn)
 	}
 
 	// Find selected container
-	for _, container := range result.Task.Containers {
-		if *container.Name == selectedContainerName {
-			result.Container = &container
-			break
+	if result.Task != nil {
+		for _, container := range result.Task.Containers {
+			if *container.Name == selectedContainerName {
+				result.Container = &container
+				break
+			}
 		}
 	}
 
 	if result.Container == nil {
-		return nil, fmt.Errorf("container not found: %s", selectedContainerName)
+		return nil, fmt.Errorf("container not selected or not found: %s", selectedContainerName)
 	}
 
 	return result, nil
