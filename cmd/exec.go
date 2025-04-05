@@ -38,22 +38,6 @@ var execCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		clusterId, err := cmd.Flags().GetString(execClusterFlag)
-		if err != nil {
-			panic(err)
-		}
-		serviceId, err := cmd.Flags().GetString(execServiceFlag)
-		if err != nil {
-			panic(err)
-		}
-		taskId, err := cmd.Flags().GetString(execTaskFlag)
-		if err != nil {
-			panic(err)
-		}
-		containerId, err := cmd.Flags().GetString(execContainerFlag)
-		if err != nil {
-			panic(err)
-		}
 		command, err := cmd.Flags().GetString(execCommandFlag)
 		if err != nil {
 			panic(err)
@@ -67,7 +51,14 @@ var execCmd = &cobra.Command{
 			panic(err)
 		}
 		client := ecs.NewFromConfig(cfg)
-		err = runExec(context.TODO(), smpPath, client, cfg.Region, clusterId, serviceId, taskId, containerId, command, interactive)
+		err = runExec(
+			context.TODO(),
+			smpPath,
+			client,
+			cfg.Region,
+			command,
+			interactive,
+		)
 		if err != nil {
 			panic(err)
 		}
@@ -75,28 +66,22 @@ var execCmd = &cobra.Command{
 	Aliases: []string{"ssh"},
 }
 
-func runExec(ctx context.Context, smpPath string, client *ecs.Client, region string, clusterId string, serviceId string, taskId string, containerId string, command string, interactive bool) error {
-	defaultSelector := &selector.DefaultSelector{}
-	cluster, err := selector.SelectCluster(ctx, client, defaultSelector, clusterId)
-	if err != nil {
-		return err
-	}
-	service, err := selector.SelectService(ctx, client, defaultSelector, *cluster.ClusterArn, serviceId)
-	if err != nil {
-		return err
-	}
-	task, err := selector.SelectTask(ctx, client, defaultSelector, *cluster.ClusterArn, *service.ServiceName, taskId)
-	if err != nil {
-		return err
-	}
-	container, err := selector.SelectContainer(task.Containers, containerId)
+func runExec(
+	ctx context.Context,
+	smpPath string,
+	client *ecs.Client,
+	region string,
+	command string,
+	interactive bool,
+) error {
+	result, err := selector.RunSelectionForm(context.TODO(), client)
 	if err != nil {
 		return err
 	}
 	executeCommand, err := client.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
-		Cluster:     cluster.ClusterArn,
-		Task:        task.TaskArn,
-		Container:   container.Name,
+		Cluster:     result.Cluster.ClusterArn,
+		Task:        result.Task.TaskArn,
+		Container:   result.Container.Name,
 		Command:     &command,
 		Interactive: interactive,
 	})
@@ -107,12 +92,17 @@ func runExec(ctx context.Context, smpPath string, client *ecs.Client, region str
 	if err != nil {
 		return err
 	}
-	taskArnSlices := strings.Split(*task.TaskArn, "/")
+	taskArnSlices := strings.Split(*result.Task.TaskArn, "/")
 	if len(taskArnSlices) < 2 {
-		return fmt.Errorf("Unable to extract task name from '%s'", *task.TaskArn)
+		return fmt.Errorf("Unable to extract task name from '%s'", *result.Task.TaskArn)
 	}
 	taskName := strings.Join(taskArnSlices[1:], "/")
-	target := fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, taskName, *container.RuntimeId)
+	target := fmt.Sprintf(
+		"ecs:%s_%s_%s",
+		*result.Cluster.ClusterName,
+		taskName,
+		*result.Container.RuntimeId,
+	)
 	targetJSON, err := json.Marshal(ssm.StartSessionInput{
 		Target: &target,
 	})
@@ -154,10 +144,6 @@ func runExec(ctx context.Context, smpPath string, client *ecs.Client, region str
 func init() {
 	rootCmd.AddCommand(execCmd)
 
-	execCmd.Flags().StringP(execClusterFlag, "l", "", "cluster id or ARN")
-	execCmd.Flags().StringP(execServiceFlag, "s", "", "service id or ARN")
-	execCmd.Flags().StringP(execTaskFlag, "t", "", "task id or ARN")
-	execCmd.Flags().StringP(execContainerFlag, "n", "", "container name")
 	execCmd.Flags().StringP(execCommandFlag, "c", "/bin/bash", "command to run")
 	execCmd.Flags().BoolP(execInteractiveFlag, "i", true, "toggles interactive mode")
 }

@@ -17,8 +17,8 @@ type SelectionResult struct {
 	Container *types.Container
 }
 
-// RunHuhForm runs an interactive form to select an ECS cluster, service, task and container
-func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
+// RunSelectionForm runs an interactive form to select an ECS cluster, service, task and container
+func RunSelectionForm(ctx context.Context, client Client) (*SelectionResult, error) {
 	result := &SelectionResult{}
 
 	// Variables to store form selections
