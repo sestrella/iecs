@@ -44,7 +44,8 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 				Options(
 					huh.NewOptions(listClusters.ClusterArns...)...,
 				).
-				Value(&selectedClusterArn),
+				Value(&selectedClusterArn).
+				WithHeight(5),
 
 			// Service selection with dynamic options based on cluster selection
 			huh.NewSelect[string]().
@@ -69,7 +70,8 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 
 					return huh.NewOptions(listServices.ServiceArns...)
 				}, &selectedClusterArn).
-				Value(&selectedServiceArn),
+				Value(&selectedServiceArn).
+				WithHeight(5),
 
 			// Task selection with dynamic options based on service selection
 			huh.NewSelect[string]().
@@ -94,7 +96,8 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 
 					return huh.NewOptions(listTasks.TaskArns...)
 				}, &selectedServiceArn).
-				Value(&selectedTaskArn),
+				Value(&selectedTaskArn).
+				WithHeight(5),
 
 			// Container selection with dynamic options based on task selection
 			huh.NewSelect[string]().
@@ -133,7 +136,8 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 
 					return huh.NewOptions(containerNames...)
 				}, &selectedTaskArn).
-				Value(&selectedContainerName),
+				Value(&selectedContainerName).
+				WithHeight(5),
 		),
 	)
 
