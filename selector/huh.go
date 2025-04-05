@@ -72,7 +72,8 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 				}, &selectedClusterArn).
 				Value(&selectedServiceArn).
 				WithHeight(5),
-
+		),
+		huh.NewGroup(
 			// Task selection with dynamic options based on service selection
 			huh.NewSelect[string]().
 				Title("Select Task").
