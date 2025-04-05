@@ -18,10 +18,6 @@ import (
 )
 
 const (
-	execClusterFlag     = "cluster"
-	execServiceFlag     = "service"
-	execTaskFlag        = "task"
-	execContainerFlag   = "container"
 	execCommandFlag     = "command"
 	execInteractiveFlag = "interactive"
 )
