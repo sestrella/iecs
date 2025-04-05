@@ -26,8 +26,8 @@ var execCmd = &cobra.Command{
 	Use:   "exec",
 	Short: "Run a remote command on a container",
 	Example: `
-  aws-vault exec <profile> -- iecs exec (recommended)
-  env AWS_PROFILE=<profile> iecs exec
+  aws-vault exec <profile> -- iecs exec [flags] (recommended)
+  env AWS_PROFILE=<profile> iecs exec [flags]
   `,
 	Run: func(cmd *cobra.Command, args []string) {
 		smpPath, err := exec.LookPath("session-manager-plugin")

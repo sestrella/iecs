@@ -24,8 +24,8 @@ var logsCmd = &cobra.Command{
 	Use:   "logs",
 	Short: "View the logs of a container",
 	Example: `
-  aws-vault exec <profile> -- iecs logs (recommended)
-  env AWS_PROFILE=<profile> iecs logs
+  aws-vault exec <profile> -- iecs logs [flags] (recommended)
+  env AWS_PROFILE=<profile> iecs logs [flags]
   `,
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterId, err := cmd.Flags().GetString(logsClusterFlag)
@@ -54,25 +54,46 @@ var logsCmd = &cobra.Command{
 	Aliases: []string{"tail"},
 }
 
-func runLogs(ctx context.Context, ecsClient *ecs.Client, cwlogsClient *cwlogs.Client, clusterId string, serviceId string, containerId string) error {
+func runLogs(
+	ctx context.Context,
+	ecsClient *ecs.Client,
+	cwlogsClient *cwlogs.Client,
+	clusterId string,
+	serviceId string,
+	containerId string,
+) error {
 	defaultSelector := &selector.DefaultSelector{}
 	cluster, err := selector.SelectCluster(ctx, ecsClient, defaultSelector, clusterId)
 	if err != nil {
 		return err
 	}
-	service, err := selector.SelectService(ctx, ecsClient, defaultSelector, *cluster.ClusterArn, serviceId)
+	service, err := selector.SelectService(
+		ctx,
+		ecsClient,
+		defaultSelector,
+		*cluster.ClusterArn,
+		serviceId,
+	)
 	if err != nil {
 		return err
 	}
-	container, err := selector.SelectContainerDefinition(context.TODO(), ecsClient, *service.TaskDefinition, containerId)
+	container, err := selector.SelectContainerDefinition(
+		context.TODO(),
+		ecsClient,
+		*service.TaskDefinition,
+		containerId,
+	)
 	if err != nil {
 		return err
 	}
 	logOptions := container.LogConfiguration.Options
 	awslogsGroup := logOptions["awslogs-group"]
-	describeLogGroups, err := cwlogsClient.DescribeLogGroups(context.TODO(), &cwlogs.DescribeLogGroupsInput{
-		LogGroupNamePrefix: &awslogsGroup,
-	})
+	describeLogGroups, err := cwlogsClient.DescribeLogGroups(
+		context.TODO(),
+		&cwlogs.DescribeLogGroupsInput{
+			LogGroupNamePrefix: &awslogsGroup,
+		},
+	)
 	if err != nil {
 		return err
 	}
