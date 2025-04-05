@@ -67,17 +67,6 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 						return []huh.Option[string]{}
 					}
 
-					// Get cluster details for result
-					describeClusters, err := client.DescribeClusters(
-						ctx,
-						&ecs.DescribeClustersInput{
-							Clusters: []string{selectedClusterArn},
-						},
-					)
-					if err == nil && len(describeClusters.Clusters) > 0 {
-						result.Cluster = &describeClusters.Clusters[0]
-					}
-
 					return huh.NewOptions(listServices.ServiceArns...)
 				}, &selectedClusterArn).
 				Value(&selectedServiceArn),
@@ -91,23 +80,10 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 						return []huh.Option[string]{}
 					}
 
-					// Get service details for result
-					describeService, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
-						Cluster:  &selectedClusterArn,
-						Services: []string{selectedServiceArn},
-					})
-					if err != nil {
-						return []huh.Option[string]{}
-					}
-					if len(describeService.Services) == 0 {
-						return []huh.Option[string]{}
-					}
-					result.Service = &describeService.Services[0]
-
 					// Get tasks for selected service
 					listTasks, err := client.ListTasks(ctx, &ecs.ListTasksInput{
 						Cluster:     &selectedClusterArn,
-						ServiceName: result.Service.ServiceName,
+						ServiceName: &selectedServiceArn,
 					})
 					if err != nil {
 						return []huh.Option[string]{}
@@ -129,7 +105,7 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 						return []huh.Option[string]{}
 					}
 
-					// Get task details for result
+					// Get task details to extract container names
 					describeTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
 						Cluster: &selectedClusterArn,
 						Tasks:   []string{selectedTaskArn},
@@ -140,11 +116,14 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 					if len(describeTasks.Tasks) == 0 {
 						return []huh.Option[string]{}
 					}
-					result.Task = &describeTasks.Tasks[0]
+
+					// We still need task details here to get container names
+					// But we won't store the task in result yet
+					task := &describeTasks.Tasks[0]
 
 					// Build container options
 					var containerNames []string
-					for _, container := range result.Task.Containers {
+					for _, container := range task.Containers {
 						containerNames = append(containerNames, *container.Name)
 					}
 
@@ -154,8 +133,7 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 
 					return huh.NewOptions(containerNames...)
 				}, &selectedTaskArn).
-				Value(&selectedContainerName).
-				WithHeight(10),
+				Value(&selectedContainerName),
 		),
 	)
 
@@ -165,31 +143,56 @@ func RunHuhForm(ctx context.Context, client Client) (*SelectionResult, error) {
 		return nil, fmt.Errorf("form error: %w", err)
 	}
 
-	// Additional validations after form completion
-	if result.Cluster == nil {
-		return nil, fmt.Errorf("cluster not selected or not found: %s", selectedClusterArn)
-	}
+	// After the form exits, explicitly describe each selected component to ensure we have complete data
 
-	if result.Service == nil {
-		return nil, fmt.Errorf("service not selected or not found: %s", selectedServiceArn)
+	// Describe selected cluster
+	describeClusters, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
+		Clusters: []string{selectedClusterArn},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe cluster after selection: %w", err)
 	}
+	if len(describeClusters.Clusters) == 0 {
+		return nil, fmt.Errorf("cluster not found: %s", selectedClusterArn)
+	}
+	result.Cluster = &describeClusters.Clusters[0]
 
-	if result.Task == nil {
-		return nil, fmt.Errorf("task not selected or not found: %s", selectedTaskArn)
+	// Describe selected service
+	describeService, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
+		Cluster:  &selectedClusterArn,
+		Services: []string{selectedServiceArn},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe service after selection: %w", err)
 	}
+	if len(describeService.Services) == 0 {
+		return nil, fmt.Errorf("service not found: %s", selectedServiceArn)
+	}
+	result.Service = &describeService.Services[0]
+
+	// Describe selected task
+	describeTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+		Cluster: &selectedClusterArn,
+		Tasks:   []string{selectedTaskArn},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe task after selection: %w", err)
+	}
+	if len(describeTasks.Tasks) == 0 {
+		return nil, fmt.Errorf("task not found: %s", selectedTaskArn)
+	}
+	result.Task = &describeTasks.Tasks[0]
 
 	// Find selected container
-	if result.Task != nil {
-		for _, container := range result.Task.Containers {
-			if *container.Name == selectedContainerName {
-				result.Container = &container
-				break
-			}
+	for _, container := range result.Task.Containers {
+		if *container.Name == selectedContainerName {
+			result.Container = &container
+			break
 		}
 	}
 
 	if result.Container == nil {
-		return nil, fmt.Errorf("container not selected or not found: %s", selectedContainerName)
+		return nil, fmt.Errorf("container not found: %s", selectedContainerName)
 	}
 
 	return result, nil
