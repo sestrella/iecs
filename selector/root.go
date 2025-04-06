@@ -7,45 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/pterm/pterm"
+	"github.com/sestrella/iecs/client"
 )
-
-type Client interface {
-	DescribeClusters(
-		ctx context.Context,
-		input *ecs.DescribeClustersInput,
-		options ...func(*ecs.Options),
-	) (*ecs.DescribeClustersOutput, error)
-	DescribeServices(
-		ctx context.Context,
-		input *ecs.DescribeServicesInput,
-		options ...func(*ecs.Options),
-	) (*ecs.DescribeServicesOutput, error)
-	DescribeTasks(
-		ctx context.Context,
-		input *ecs.DescribeTasksInput,
-		options ...func(*ecs.Options),
-	) (*ecs.DescribeTasksOutput, error)
-	DescribeTaskDefinition(
-		ctx context.Context,
-		input *ecs.DescribeTaskDefinitionInput,
-		options ...func(*ecs.Options),
-	) (*ecs.DescribeTaskDefinitionOutput, error)
-	ListClusters(
-		ctx context.Context,
-		input *ecs.ListClustersInput,
-		options ...func(*ecs.Options),
-	) (*ecs.ListClustersOutput, error)
-	ListServices(
-		ctx context.Context,
-		input *ecs.ListServicesInput,
-		options ...func(*ecs.Options),
-	) (*ecs.ListServicesOutput, error)
-	ListTasks(
-		ctx context.Context,
-		input *ecs.ListTasksInput,
-		options ...func(*ecs.Options),
-	) (*ecs.ListTasksOutput, error)
-}
 
 type DefaultSelector struct{}
 
@@ -59,7 +22,7 @@ func (s *DefaultSelector) Select(title string, options []string) (string, error)
 
 func SelectCluster(
 	ctx context.Context,
-	client Client,
+	client client.Client,
 	selector Selector,
 	clusterId string,
 ) (*types.Cluster, error) {
@@ -88,7 +51,7 @@ func SelectCluster(
 
 func SelectService(
 	ctx context.Context,
-	client Client,
+	client client.Client,
 	selector Selector,
 	clusterArn string,
 	serviceId string,
@@ -121,7 +84,7 @@ func SelectService(
 
 func SelectTask(
 	ctx context.Context,
-	client Client,
+	client client.Client,
 	selector Selector,
 	clusterArn string,
 	serviceName string,

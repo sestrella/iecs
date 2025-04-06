@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/huh"
+	"github.com/sestrella/iecs/client"
 )
 
 // SelectedContainer holds the selected cluster, service, task and container
@@ -20,7 +21,7 @@ type SelectedContainerDefinition struct {
 // RunContainerSelector runs an interactive form to select an ECS cluster, service, task and container
 func RunContainerDefinitionSelector(
 	ctx context.Context,
-	client Client,
+	client client.Client,
 ) (*SelectedContainerDefinition, error) {
 	result := &SelectedContainerDefinition{}
 
