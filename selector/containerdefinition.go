@@ -13,8 +13,7 @@ import (
 type SelectedContainerDefinition struct {
 	Cluster             *types.Cluster
 	Service             *types.Service
-	Task                *types.Task
-	Container           *types.Container
+	TaskDefinition      *types.TaskDefinition
 	ContainerDefinition *types.ContainerDefinition
 }
 
@@ -28,8 +27,7 @@ func RunContainerDefinitionSelector(
 	// Variables to store form selections
 	var selectedClusterArn string
 	var selectedServiceArn string
-	var selectedTaskArn string
-	var selectedContainerName string
+	var selectedContainerDefinitionName string
 
 	// Get clusters
 	listClusters, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
@@ -78,70 +76,52 @@ func RunContainerDefinitionSelector(
 				WithHeight(5),
 		),
 		huh.NewGroup(
-			// Task selection with dynamic options based on service selection
+			// Container selection with dynamic options based on task selection
 			huh.NewSelect[string]().
-				Title("Select Task").
+				Title("Select Container Definition").
 				OptionsFunc(func() []huh.Option[string] {
-					// Return empty options if no service selected yet
+					// Return empty options if no task selected yet
 					if selectedClusterArn == "" || selectedServiceArn == "" {
 						return []huh.Option[string]{}
 					}
 
-					// Get tasks for selected service
-					listTasks, err := client.ListTasks(ctx, &ecs.ListTasksInput{
-						Cluster:     &selectedClusterArn,
-						ServiceName: &selectedServiceArn,
-					})
+					describeServices, err := client.DescribeServices(
+						ctx,
+						&ecs.DescribeServicesInput{
+							Cluster:  &selectedClusterArn,
+							Services: []string{selectedServiceArn},
+						},
+					)
 					if err != nil {
 						return []huh.Option[string]{}
 					}
-					if len(listTasks.TaskArns) == 0 {
+					if len(describeServices.Services) == 0 {
 						return []huh.Option[string]{}
 					}
+					result.Service = &describeServices.Services[0]
 
-					return huh.NewOptions(listTasks.TaskArns...)
-				}, &selectedServiceArn).
-				Value(&selectedTaskArn).
-				WithHeight(5),
-
-			// Container selection with dynamic options based on task selection
-			huh.NewSelect[string]().
-				Title("Select Container").
-				OptionsFunc(func() []huh.Option[string] {
-					// Return empty options if no task selected yet
-					if selectedClusterArn == "" || selectedTaskArn == "" {
-						return []huh.Option[string]{}
-					}
-
-					// Get task details to extract container names
-					describeTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-						Cluster: &selectedClusterArn,
-						Tasks:   []string{selectedTaskArn},
-					})
+					describeTaskDefinition, err := client.DescribeTaskDefinition(
+						ctx,
+						&ecs.DescribeTaskDefinitionInput{
+							TaskDefinition: result.Service.TaskDefinition,
+						},
+					)
 					if err != nil {
 						return []huh.Option[string]{}
 					}
-					if len(describeTasks.Tasks) == 0 {
-						return []huh.Option[string]{}
-					}
+					result.TaskDefinition = describeTaskDefinition.TaskDefinition
 
-					// We still need task details here to get container names
-					// But we won't store the task in result yet
-					task := &describeTasks.Tasks[0]
-
-					// Build container options
 					var containerNames []string
-					for _, container := range task.Containers {
-						containerNames = append(containerNames, *container.Name)
+					for _, containerDefinition := range result.TaskDefinition.ContainerDefinitions {
+						containerNames = append(containerNames, *containerDefinition.Name)
 					}
-
 					if len(containerNames) == 0 {
 						return []huh.Option[string]{}
 					}
 
 					return huh.NewOptions(containerNames...)
-				}, &selectedTaskArn).
-				Value(&selectedContainerName).
+				}, &selectedServiceArn).
+				Value(&selectedContainerDefinitionName).
 				WithHeight(5),
 		),
 	)
@@ -166,42 +146,11 @@ func RunContainerDefinitionSelector(
 	}
 	result.Cluster = &describeClusters.Clusters[0]
 
-	// Describe selected service
-	describeService, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
-		Cluster:  &selectedClusterArn,
-		Services: []string{selectedServiceArn},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to describe service after selection: %w", err)
-	}
-	if len(describeService.Services) == 0 {
-		return nil, fmt.Errorf("service not found: %s", selectedServiceArn)
-	}
-	result.Service = &describeService.Services[0]
-
-	// Describe selected task
-	describeTasks, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: &selectedClusterArn,
-		Tasks:   []string{selectedTaskArn},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to describe task after selection: %w", err)
-	}
-	if len(describeTasks.Tasks) == 0 {
-		return nil, fmt.Errorf("task not found: %s", selectedTaskArn)
-	}
-	result.Task = &describeTasks.Tasks[0]
-
-	// Find selected container
-	for _, container := range result.Task.Containers {
-		if *container.Name == selectedContainerName {
-			result.Container = &container
+	for _, containerDefinition := range result.TaskDefinition.ContainerDefinitions {
+		if containerDefinition.Name == &selectedContainerDefinitionName {
+			result.ContainerDefinition = &containerDefinition
 			break
 		}
-	}
-
-	if result.Container == nil {
-		return nil, fmt.Errorf("container not found: %s", selectedContainerName)
 	}
 
 	return result, nil
