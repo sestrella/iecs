@@ -14,12 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	logsClusterFlag   = "cluster"
-	logsServiceFlag   = "service"
-	logsContainerFlag = "container"
-)
-
 var logsCmd = &cobra.Command{
 	Use:   "logs",
 	Short: "View the logs of a container",
@@ -28,25 +22,13 @@ var logsCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs logs [flags]
   `,
 	Run: func(cmd *cobra.Command, args []string) {
-		clusterId, err := cmd.Flags().GetString(logsClusterFlag)
-		if err != nil {
-			panic(err)
-		}
-		serviceId, err := cmd.Flags().GetString(logsServiceFlag)
-		if err != nil {
-			panic(err)
-		}
-		containerId, err := cmd.Flags().GetString(logsContainerFlag)
-		if err != nil {
-			panic(err)
-		}
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
 			panic(err)
 		}
 		ecsClient := ecs.NewFromConfig(cfg)
 		cwlogsClient := cwlogs.NewFromConfig(cfg)
-		err = runLogs(context.TODO(), ecsClient, cwlogsClient, clusterId, serviceId, containerId)
+		err = runLogs(context.TODO(), ecsClient, cwlogsClient)
 		if err != nil {
 			panic(err)
 		}
@@ -58,35 +40,13 @@ func runLogs(
 	ctx context.Context,
 	ecsClient *ecs.Client,
 	cwlogsClient *cwlogs.Client,
-	clusterId string,
-	serviceId string,
-	containerId string,
 ) error {
-	defaultSelector := &selector.DefaultSelector{}
-	cluster, err := selector.SelectCluster(ctx, ecsClient, defaultSelector, clusterId)
+	selection, err := selector.RunContainerDefinitionSelector(ctx, ecsClient)
 	if err != nil {
 		return err
 	}
-	service, err := selector.SelectService(
-		ctx,
-		ecsClient,
-		defaultSelector,
-		*cluster.ClusterArn,
-		serviceId,
-	)
-	if err != nil {
-		return err
-	}
-	container, err := selector.SelectContainerDefinition(
-		context.TODO(),
-		ecsClient,
-		*service.TaskDefinition,
-		containerId,
-	)
-	if err != nil {
-		return err
-	}
-	logOptions := container.LogConfiguration.Options
+
+	logOptions := selection.ContainerDefinition.LogConfiguration.Options
 	awslogsGroup := logOptions["awslogs-group"]
 	describeLogGroups, err := cwlogsClient.DescribeLogGroups(
 		context.TODO(),
@@ -124,8 +84,4 @@ func runLogs(
 
 func init() {
 	rootCmd.AddCommand(logsCmd)
-
-	logsCmd.Flags().StringP(logsClusterFlag, "l", "", "cluster id or ARN")
-	logsCmd.Flags().StringP(logsServiceFlag, "s", "", "service id or ARN")
-	logsCmd.Flags().StringP(logsContainerFlag, "n", "", "container name")
 }
