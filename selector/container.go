@@ -9,17 +9,17 @@ import (
 	"github.com/charmbracelet/huh"
 )
 
-// SelectionResult holds the selected cluster, service, task and container
-type SelectionResult struct {
+// SelectedContainer holds the selected cluster, service, task and container
+type SelectedContainer struct {
 	Cluster   *types.Cluster
 	Service   *types.Service
 	Task      *types.Task
 	Container *types.Container
 }
 
-// RunSelectionForm runs an interactive form to select an ECS cluster, service, task and container
-func RunSelectionForm(ctx context.Context, client Client) (*SelectionResult, error) {
-	result := &SelectionResult{}
+// RunContainerSelector runs an interactive form to select an ECS cluster, service, task and container
+func RunContainerSelector(ctx context.Context, client Client) (*SelectedContainer, error) {
+	result := &SelectedContainer{}
 
 	// Variables to store form selections
 	var selectedClusterArn string

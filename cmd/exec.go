@@ -70,14 +70,14 @@ func runExec(
 	command string,
 	interactive bool,
 ) error {
-	result, err := selector.RunSelectionForm(context.TODO(), client)
+	selection, err := selector.RunContainerSelector(context.TODO(), client)
 	if err != nil {
 		return err
 	}
 	executeCommand, err := client.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
-		Cluster:     result.Cluster.ClusterArn,
-		Task:        result.Task.TaskArn,
-		Container:   result.Container.Name,
+		Cluster:     selection.Cluster.ClusterArn,
+		Task:        selection.Task.TaskArn,
+		Container:   selection.Container.Name,
 		Command:     &command,
 		Interactive: interactive,
 	})
@@ -88,16 +88,16 @@ func runExec(
 	if err != nil {
 		return err
 	}
-	taskArnSlices := strings.Split(*result.Task.TaskArn, "/")
+	taskArnSlices := strings.Split(*selection.Task.TaskArn, "/")
 	if len(taskArnSlices) < 2 {
-		return fmt.Errorf("Unable to extract task name from '%s'", *result.Task.TaskArn)
+		return fmt.Errorf("Unable to extract task name from '%s'", *selection.Task.TaskArn)
 	}
 	taskName := strings.Join(taskArnSlices[1:], "/")
 	target := fmt.Sprintf(
 		"ecs:%s_%s_%s",
-		*result.Cluster.ClusterName,
+		*selection.Cluster.ClusterName,
 		taskName,
-		*result.Container.RuntimeId,
+		*selection.Container.RuntimeId,
 	)
 	targetJSON, err := json.Marshal(ssm.StartSessionInput{
 		Target: &target,
