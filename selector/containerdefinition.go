@@ -148,7 +148,7 @@ func RunContainerDefinitionSelector(
 	result.Cluster = &describeClusters.Clusters[0]
 
 	for _, containerDefinition := range result.TaskDefinition.ContainerDefinitions {
-		if containerDefinition.Name == &selectedContainerDefinitionName {
+		if *containerDefinition.Name == selectedContainerDefinitionName {
 			result.ContainerDefinition = &containerDefinition
 			break
 		}
