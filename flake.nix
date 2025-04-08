@@ -39,6 +39,7 @@
                 "./go.mod"
                 "./go.sum"
                 "./main.go"
+                "client"
                 "cmd"
                 "selector"
               ];

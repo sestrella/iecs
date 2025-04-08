@@ -18,10 +18,6 @@ import (
 )
 
 const (
-	execClusterFlag     = "cluster"
-	execServiceFlag     = "service"
-	execTaskFlag        = "task"
-	execContainerFlag   = "container"
 	execCommandFlag     = "command"
 	execInteractiveFlag = "interactive"
 )
@@ -30,27 +26,11 @@ var execCmd = &cobra.Command{
 	Use:   "exec",
 	Short: "Run a remote command on a container",
 	Example: `
-  aws-vault exec <profile> -- iecs exec (recommended)
-  env AWS_PROFILE=<profile> iecs exec
+  aws-vault exec <profile> -- iecs exec [flags] (recommended)
+  env AWS_PROFILE=<profile> iecs exec [flags]
   `,
 	Run: func(cmd *cobra.Command, args []string) {
 		smpPath, err := exec.LookPath("session-manager-plugin")
-		if err != nil {
-			panic(err)
-		}
-		clusterId, err := cmd.Flags().GetString(execClusterFlag)
-		if err != nil {
-			panic(err)
-		}
-		serviceId, err := cmd.Flags().GetString(execServiceFlag)
-		if err != nil {
-			panic(err)
-		}
-		taskId, err := cmd.Flags().GetString(execTaskFlag)
-		if err != nil {
-			panic(err)
-		}
-		containerId, err := cmd.Flags().GetString(execContainerFlag)
 		if err != nil {
 			panic(err)
 		}
@@ -67,7 +47,14 @@ var execCmd = &cobra.Command{
 			panic(err)
 		}
 		client := ecs.NewFromConfig(cfg)
-		err = runExec(context.TODO(), smpPath, client, cfg.Region, clusterId, serviceId, taskId, containerId, command, interactive)
+		err = runExec(
+			context.TODO(),
+			smpPath,
+			client,
+			cfg.Region,
+			command,
+			interactive,
+		)
 		if err != nil {
 			panic(err)
 		}
@@ -75,28 +62,22 @@ var execCmd = &cobra.Command{
 	Aliases: []string{"ssh"},
 }
 
-func runExec(ctx context.Context, smpPath string, client *ecs.Client, region string, clusterId string, serviceId string, taskId string, containerId string, command string, interactive bool) error {
-	defaultSelector := &selector.DefaultSelector{}
-	cluster, err := selector.SelectCluster(ctx, client, defaultSelector, clusterId)
-	if err != nil {
-		return err
-	}
-	service, err := selector.SelectService(ctx, client, defaultSelector, *cluster.ClusterArn, serviceId)
-	if err != nil {
-		return err
-	}
-	task, err := selector.SelectTask(ctx, client, defaultSelector, *cluster.ClusterArn, *service.ServiceName, taskId)
-	if err != nil {
-		return err
-	}
-	container, err := selector.SelectContainer(task.Containers, containerId)
+func runExec(
+	ctx context.Context,
+	smpPath string,
+	client *ecs.Client,
+	region string,
+	command string,
+	interactive bool,
+) error {
+	selection, err := selector.RunContainerSelector(context.TODO(), client)
 	if err != nil {
 		return err
 	}
 	executeCommand, err := client.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
-		Cluster:     cluster.ClusterArn,
-		Task:        task.TaskArn,
-		Container:   container.Name,
+		Cluster:     selection.Cluster.ClusterArn,
+		Task:        selection.Task.TaskArn,
+		Container:   selection.Container.Name,
 		Command:     &command,
 		Interactive: interactive,
 	})
@@ -107,12 +88,17 @@ func runExec(ctx context.Context, smpPath string, client *ecs.Client, region str
 	if err != nil {
 		return err
 	}
-	taskArnSlices := strings.Split(*task.TaskArn, "/")
+	taskArnSlices := strings.Split(*selection.Task.TaskArn, "/")
 	if len(taskArnSlices) < 2 {
-		return fmt.Errorf("Unable to extract task name from '%s'", *task.TaskArn)
+		return fmt.Errorf("Unable to extract task name from '%s'", *selection.Task.TaskArn)
 	}
 	taskName := strings.Join(taskArnSlices[1:], "/")
-	target := fmt.Sprintf("ecs:%s_%s_%s", *cluster.ClusterName, taskName, *container.RuntimeId)
+	target := fmt.Sprintf(
+		"ecs:%s_%s_%s",
+		*selection.Cluster.ClusterName,
+		taskName,
+		*selection.Container.RuntimeId,
+	)
 	targetJSON, err := json.Marshal(ssm.StartSessionInput{
 		Target: &target,
 	})
@@ -154,10 +140,6 @@ func runExec(ctx context.Context, smpPath string, client *ecs.Client, region str
 func init() {
 	rootCmd.AddCommand(execCmd)
 
-	execCmd.Flags().StringP(execClusterFlag, "l", "", "cluster id or ARN")
-	execCmd.Flags().StringP(execServiceFlag, "s", "", "service id or ARN")
-	execCmd.Flags().StringP(execTaskFlag, "t", "", "task id or ARN")
-	execCmd.Flags().StringP(execContainerFlag, "n", "", "container name")
 	execCmd.Flags().StringP(execCommandFlag, "c", "/bin/bash", "command to run")
 	execCmd.Flags().BoolP(execInteractiveFlag, "i", true, "toggles interactive mode")
 }
