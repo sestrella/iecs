@@ -20,7 +20,7 @@ type SelectedContainer struct {
 // RunContainerSelector runs an interactive form to select an ECS cluster, service, task and container
 func RunContainerSelector(
 	ctx context.Context,
-	client client.ClientV2,
+	client client.EcsClient,
 ) (*SelectedContainer, error) {
 	result := &SelectedContainer{}
 

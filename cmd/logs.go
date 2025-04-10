@@ -27,7 +27,7 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		ecsClient := client.NewClientV2(ecs.NewFromConfig(cfg))
+		ecsClient := client.NewEcsClient(ecs.NewFromConfig(cfg))
 		cwlogsClient := cwlogs.NewFromConfig(cfg)
 		err = runLogs(context.TODO(), ecsClient, cwlogsClient)
 		if err != nil {
@@ -39,7 +39,7 @@ var logsCmd = &cobra.Command{
 
 func runLogs(
 	ctx context.Context,
-	ecsClient client.ClientV2,
+	ecsClient client.EcsClient,
 	cwlogsClient *cwlogs.Client,
 ) error {
 	selection, err := selector.RunContainerDefinitionSelector(ctx, ecsClient)

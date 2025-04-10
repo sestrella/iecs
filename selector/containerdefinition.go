@@ -20,7 +20,7 @@ type SelectedContainerDefinition struct {
 // RunContainerDefinitionSelector runs an interactive form to select an ECS cluster, service and container definition
 func RunContainerDefinitionSelector(
 	ctx context.Context,
-	client client.ClientV2,
+	client client.EcsClient,
 ) (*SelectedContainerDefinition, error) {
 	result := &SelectedContainerDefinition{}
 

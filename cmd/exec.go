@@ -47,7 +47,7 @@ var execCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		client := client.NewClientV2(ecs.NewFromConfig(cfg))
+		client := client.NewEcsClient(ecs.NewFromConfig(cfg))
 		err = runExec(
 			context.TODO(),
 			smpPath,
@@ -66,7 +66,7 @@ var execCmd = &cobra.Command{
 func runExec(
 	ctx context.Context,
 	smpPath string,
-	client client.ClientV2,
+	client client.EcsClient,
 	region string,
 	command string,
 	interactive bool,

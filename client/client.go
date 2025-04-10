@@ -8,45 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 )
 
-type Client interface {
-	DescribeClusters(
-		ctx context.Context,
-		input *ecs.DescribeClustersInput,
-		options ...func(*ecs.Options),
-	) (*ecs.DescribeClustersOutput, error)
-	DescribeServices(
-		ctx context.Context,
-		input *ecs.DescribeServicesInput,
-		options ...func(*ecs.Options),
-	) (*ecs.DescribeServicesOutput, error)
-	DescribeTasks(
-		ctx context.Context,
-		input *ecs.DescribeTasksInput,
-		options ...func(*ecs.Options),
-	) (*ecs.DescribeTasksOutput, error)
-	DescribeTaskDefinition(
-		ctx context.Context,
-		input *ecs.DescribeTaskDefinitionInput,
-		options ...func(*ecs.Options),
-	) (*ecs.DescribeTaskDefinitionOutput, error)
-	ListClusters(
-		ctx context.Context,
-		input *ecs.ListClustersInput,
-		options ...func(*ecs.Options),
-	) (*ecs.ListClustersOutput, error)
-	ListServices(
-		ctx context.Context,
-		input *ecs.ListServicesInput,
-		options ...func(*ecs.Options),
-	) (*ecs.ListServicesOutput, error)
-	ListTasks(
-		ctx context.Context,
-		input *ecs.ListTasksInput,
-		options ...func(*ecs.Options),
-	) (*ecs.ListTasksOutput, error)
-}
-
-type ClientV2 interface {
+type EcsClient interface {
 	DescribeCluster(ctx context.Context, clusterArn string) (*types.Cluster, error)
 	DescribeService(
 		ctx context.Context,
@@ -71,17 +33,17 @@ type ClientV2 interface {
 	) (*ecs.ExecuteCommandOutput, error)
 }
 
-type newClient struct {
+type awsEcsClient struct {
 	client *ecs.Client
 }
 
-func NewClientV2(client *ecs.Client) ClientV2 {
-	return newClient{
+func NewEcsClient(client *ecs.Client) EcsClient {
+	return awsEcsClient{
 		client: client,
 	}
 }
 
-func (c newClient) DescribeCluster(
+func (c awsEcsClient) DescribeCluster(
 	ctx context.Context,
 	clusterArn string,
 ) (*types.Cluster, error) {
@@ -97,7 +59,7 @@ func (c newClient) DescribeCluster(
 	return &output.Clusters[0], nil
 }
 
-func (c newClient) DescribeService(
+func (c awsEcsClient) DescribeService(
 	ctx context.Context,
 	clusterArn string,
 	serviceArn string,
@@ -115,7 +77,7 @@ func (c newClient) DescribeService(
 	return &output.Services[0], nil
 }
 
-func (c newClient) DescribeTask(
+func (c awsEcsClient) DescribeTask(
 	ctx context.Context,
 	clusterArn string,
 	taskArn string,
@@ -133,7 +95,7 @@ func (c newClient) DescribeTask(
 	return &output.Tasks[0], nil
 }
 
-func (c newClient) DescribeTaskDefinition(
+func (c awsEcsClient) DescribeTaskDefinition(
 	ctx context.Context,
 	taskDefinitionArn string,
 ) (*types.TaskDefinition, error) {
@@ -149,7 +111,7 @@ func (c newClient) DescribeTaskDefinition(
 	return output.TaskDefinition, nil
 }
 
-func (c newClient) ListClusters(ctx context.Context) ([]string, error) {
+func (c awsEcsClient) ListClusters(ctx context.Context) ([]string, error) {
 	output, err := c.client.ListClusters(ctx, &ecs.ListClustersInput{})
 	if err != nil {
 		return nil, err
@@ -160,7 +122,7 @@ func (c newClient) ListClusters(ctx context.Context) ([]string, error) {
 	return output.ClusterArns, nil
 }
 
-func (c newClient) ListServices(ctx context.Context, clusterArn string) ([]string, error) {
+func (c awsEcsClient) ListServices(ctx context.Context, clusterArn string) ([]string, error) {
 	output, err := c.client.ListServices(ctx, &ecs.ListServicesInput{
 		Cluster: &clusterArn,
 	})
@@ -173,7 +135,7 @@ func (c newClient) ListServices(ctx context.Context, clusterArn string) ([]strin
 	return output.ServiceArns, nil
 }
 
-func (c newClient) ListTasks(
+func (c awsEcsClient) ListTasks(
 	ctx context.Context,
 	clusterArn string,
 	serviceArn string,
@@ -195,7 +157,7 @@ func (c newClient) ListTasks(
 	return output.TaskArns, nil
 }
 
-func (c newClient) ExecuteCommand(
+func (c awsEcsClient) ExecuteCommand(
 	ctx context.Context,
 	clusterArn string,
 	taskArn string,
