@@ -11,9 +11,8 @@ import (
 	"syscall"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	"github.com/sestrella/iecs/client"
+	"github.com/sestrella/iecs/client/ecs"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
@@ -47,7 +46,7 @@ var execCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		client := client.NewEcsClient(ecs.NewFromConfig(cfg))
+		client := ecs.NewClient(cfg)
 		err = runExec(
 			context.TODO(),
 			smpPath,
@@ -66,7 +65,7 @@ var execCmd = &cobra.Command{
 func runExec(
 	ctx context.Context,
 	smpPath string,
-	client client.EcsClient,
+	client ecs.Client,
 	region string,
 	command string,
 	interactive bool,

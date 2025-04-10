@@ -1,14 +1,15 @@
-package client
+package ecs
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 )
 
-type EcsClient interface {
+type Client interface {
 	DescribeCluster(ctx context.Context, clusterArn string) (*types.Cluster, error)
 	DescribeService(
 		ctx context.Context,
@@ -37,7 +38,8 @@ type awsEcsClient struct {
 	client *ecs.Client
 }
 
-func NewEcsClient(client *ecs.Client) EcsClient {
+func NewClient(cfg aws.Config) Client {
+	client := ecs.NewFromConfig(cfg)
 	return awsEcsClient{
 		client: client,
 	}

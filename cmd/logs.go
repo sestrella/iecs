@@ -9,8 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	cwlogs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	cwlogsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/sestrella/iecs/client"
+	"github.com/sestrella/iecs/client/ecs"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
@@ -27,7 +26,7 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		ecsClient := client.NewEcsClient(ecs.NewFromConfig(cfg))
+		ecsClient := ecs.NewClient(cfg)
 		cwlogsClient := cwlogs.NewFromConfig(cfg)
 		err = runLogs(context.TODO(), ecsClient, cwlogsClient)
 		if err != nil {
@@ -39,7 +38,7 @@ var logsCmd = &cobra.Command{
 
 func runLogs(
 	ctx context.Context,
-	ecsClient client.EcsClient,
+	ecsClient ecs.Client,
 	cwlogsClient *cwlogs.Client,
 ) error {
 	selection, err := selector.RunContainerDefinitionSelector(ctx, ecsClient)
