@@ -61,19 +61,27 @@ type ClientV2 interface {
 	ListClusters(ctx context.Context) ([]string, error)
 	ListServices(ctx context.Context, clusterArn string) ([]string, error)
 	ListTasks(ctx context.Context, clusterArn string, serviceArn string) ([]string, error)
+	ExecuteCommand(
+		ctx context.Context,
+		clusterArn string,
+		taskArn string,
+		containerName string,
+		command string,
+		interactive bool,
+	) (*ecs.ExecuteCommandOutput, error)
 }
 
 type newClient struct {
-	client ecs.Client
+	client *ecs.Client
 }
 
-func NewClientV2(client ecs.Client) ClientV2 {
-	return &newClient{
+func NewClientV2(client *ecs.Client) ClientV2 {
+	return newClient{
 		client: client,
 	}
 }
 
-func (c *newClient) DescribeCluster(
+func (c newClient) DescribeCluster(
 	ctx context.Context,
 	clusterArn string,
 ) (*types.Cluster, error) {
@@ -89,7 +97,7 @@ func (c *newClient) DescribeCluster(
 	return &output.Clusters[0], nil
 }
 
-func (c *newClient) DescribeService(
+func (c newClient) DescribeService(
 	ctx context.Context,
 	clusterArn string,
 	serviceArn string,
@@ -107,7 +115,7 @@ func (c *newClient) DescribeService(
 	return &output.Services[0], nil
 }
 
-func (c *newClient) DescribeTask(
+func (c newClient) DescribeTask(
 	ctx context.Context,
 	clusterArn string,
 	taskArn string,
@@ -125,7 +133,7 @@ func (c *newClient) DescribeTask(
 	return &output.Tasks[0], nil
 }
 
-func (c *newClient) DescribeTaskDefinition(
+func (c newClient) DescribeTaskDefinition(
 	ctx context.Context,
 	taskDefinitionArn string,
 ) (*types.TaskDefinition, error) {
@@ -141,7 +149,7 @@ func (c *newClient) DescribeTaskDefinition(
 	return output.TaskDefinition, nil
 }
 
-func (c *newClient) ListClusters(ctx context.Context) ([]string, error) {
+func (c newClient) ListClusters(ctx context.Context) ([]string, error) {
 	output, err := c.client.ListClusters(ctx, &ecs.ListClustersInput{})
 	if err != nil {
 		return nil, err
@@ -152,7 +160,7 @@ func (c *newClient) ListClusters(ctx context.Context) ([]string, error) {
 	return output.ClusterArns, nil
 }
 
-func (c *newClient) ListServices(ctx context.Context, clusterArn string) ([]string, error) {
+func (c newClient) ListServices(ctx context.Context, clusterArn string) ([]string, error) {
 	output, err := c.client.ListServices(ctx, &ecs.ListServicesInput{
 		Cluster: &clusterArn,
 	})
@@ -165,7 +173,7 @@ func (c *newClient) ListServices(ctx context.Context, clusterArn string) ([]stri
 	return output.ServiceArns, nil
 }
 
-func (c *newClient) ListTasks(
+func (c newClient) ListTasks(
 	ctx context.Context,
 	clusterArn string,
 	serviceArn string,
@@ -185,4 +193,28 @@ func (c *newClient) ListTasks(
 		)
 	}
 	return output.TaskArns, nil
+}
+
+func (c newClient) ExecuteCommand(
+	ctx context.Context,
+	clusterArn string,
+	taskArn string,
+	containerName string,
+	command string,
+	interactive bool,
+) (*ecs.ExecuteCommandOutput, error) {
+	input := &ecs.ExecuteCommandInput{
+		Cluster:     &clusterArn,
+		Task:        &taskArn,
+		Container:   &containerName,
+		Command:     &command,
+		Interactive: interactive,
+	}
+
+	output, err := c.client.ExecuteCommand(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute command: %w", err)
+	}
+
+	return output, nil
 }

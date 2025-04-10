@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/huh"
 	"github.com/sestrella/iecs/client"
 )
 
-// SelectedContainer holds the selected cluster, service, task and container
+// SelectedContainerDefinition holds the selected cluster, service, task definition and container definition
 type SelectedContainerDefinition struct {
 	Cluster             *types.Cluster
 	Service             *types.Service
@@ -18,10 +17,10 @@ type SelectedContainerDefinition struct {
 	ContainerDefinition *types.ContainerDefinition
 }
 
-// RunContainerSelector runs an interactive form to select an ECS cluster, service, task and container
+// RunContainerDefinitionSelector runs an interactive form to select an ECS cluster, service and container definition
 func RunContainerDefinitionSelector(
 	ctx context.Context,
-	client client.Client,
+	client client.ClientV2,
 ) (*SelectedContainerDefinition, error) {
 	result := &SelectedContainerDefinition{}
 
@@ -31,12 +30,9 @@ func RunContainerDefinitionSelector(
 	var selectedContainerDefinitionName string
 
 	// Get clusters
-	listClusters, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
+	clusterArns, err := client.ListClusters(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list clusters: %w", err)
-	}
-	if len(listClusters.ClusterArns) == 0 {
-		return nil, fmt.Errorf("no clusters found")
 	}
 
 	// Create the form with all selections
@@ -45,7 +41,7 @@ func RunContainerDefinitionSelector(
 			huh.NewSelect[string]().
 				Title("Select Cluster").
 				Options(
-					huh.NewOptions(listClusters.ClusterArns...)...,
+					huh.NewOptions(clusterArns...)...,
 				).
 				Value(&selectedClusterArn).
 				WithHeight(5),
@@ -60,57 +56,54 @@ func RunContainerDefinitionSelector(
 					}
 
 					// Get services for selected cluster
-					listServices, err := client.ListServices(ctx, &ecs.ListServicesInput{
-						Cluster: &selectedClusterArn,
-					})
+					serviceArns, err := client.ListServices(ctx, selectedClusterArn)
 					if err != nil {
 						// Just return empty options on error, the final validation will catch it
 						return []huh.Option[string]{}
 					}
-					if len(listServices.ServiceArns) == 0 {
+					if len(serviceArns) == 0 {
 						return []huh.Option[string]{}
 					}
 
-					return huh.NewOptions(listServices.ServiceArns...)
+					return huh.NewOptions(serviceArns...)
 				}, &selectedClusterArn).
 				Value(&selectedServiceArn).
 				WithHeight(5),
 		),
 		huh.NewGroup(
-			// Container selection with dynamic options based on task selection
+			// Container selection with dynamic options based on service selection
 			huh.NewSelect[string]().
 				Title("Select Container Definition").
 				OptionsFunc(func() []huh.Option[string] {
-					// Return empty options if no task selected yet
+					// Return empty options if no service selected yet
 					if selectedClusterArn == "" || selectedServiceArn == "" {
 						return []huh.Option[string]{}
 					}
 
-					describeServices, err := client.DescribeServices(
+					service, err := client.DescribeService(
 						ctx,
-						&ecs.DescribeServicesInput{
-							Cluster:  &selectedClusterArn,
-							Services: []string{selectedServiceArn},
-						},
+						selectedClusterArn,
+						selectedServiceArn,
 					)
 					if err != nil {
 						return []huh.Option[string]{}
 					}
-					if len(describeServices.Services) == 0 {
+					if service == nil {
 						return []huh.Option[string]{}
 					}
-					result.Service = &describeServices.Services[0]
+					result.Service = service
 
-					describeTaskDefinition, err := client.DescribeTaskDefinition(
+					taskDefinition, err := client.DescribeTaskDefinition(
 						ctx,
-						&ecs.DescribeTaskDefinitionInput{
-							TaskDefinition: result.Service.TaskDefinition,
-						},
+						*service.TaskDefinition,
 					)
 					if err != nil {
 						return []huh.Option[string]{}
 					}
-					result.TaskDefinition = describeTaskDefinition.TaskDefinition
+					if taskDefinition == nil {
+						return []huh.Option[string]{}
+					}
+					result.TaskDefinition = taskDefinition
 
 					var containerNames []string
 					for _, containerDefinition := range result.TaskDefinition.ContainerDefinitions {
@@ -136,22 +129,25 @@ func RunContainerDefinitionSelector(
 	// After the form exits, explicitly describe each selected component to ensure we have complete data
 
 	// Describe selected cluster
-	describeClusters, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
-		Clusters: []string{selectedClusterArn},
-	})
+	cluster, err := client.DescribeCluster(ctx, selectedClusterArn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe cluster after selection: %w", err)
 	}
-	if len(describeClusters.Clusters) == 0 {
-		return nil, fmt.Errorf("cluster not found: %s", selectedClusterArn)
-	}
-	result.Cluster = &describeClusters.Clusters[0]
+	result.Cluster = cluster
 
+	// Find selected container definition
 	for _, containerDefinition := range result.TaskDefinition.ContainerDefinitions {
 		if *containerDefinition.Name == selectedContainerDefinitionName {
 			result.ContainerDefinition = &containerDefinition
 			break
 		}
+	}
+
+	if result.ContainerDefinition == nil {
+		return nil, fmt.Errorf(
+			"container definition not found: %s",
+			selectedContainerDefinitionName,
+		)
 	}
 
 	return result, nil
