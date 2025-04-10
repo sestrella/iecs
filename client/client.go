@@ -25,9 +25,9 @@ type EcsClient interface {
 	ListTasks(ctx context.Context, clusterArn string, serviceArn string) ([]string, error)
 	ExecuteCommand(
 		ctx context.Context,
-		clusterArn string,
-		taskArn string,
-		containerName string,
+		clusterArn *string,
+		taskArn *string,
+		containerName *string,
 		command string,
 		interactive bool,
 	) (*ecs.ExecuteCommandOutput, error)
@@ -159,16 +159,16 @@ func (c awsEcsClient) ListTasks(
 
 func (c awsEcsClient) ExecuteCommand(
 	ctx context.Context,
-	clusterArn string,
-	taskArn string,
-	containerName string,
+	clusterArn *string,
+	taskArn *string,
+	containerName *string,
 	command string,
 	interactive bool,
 ) (*ecs.ExecuteCommandOutput, error) {
 	input := &ecs.ExecuteCommandInput{
-		Cluster:     &clusterArn,
-		Task:        &taskArn,
-		Container:   &containerName,
+		Cluster:     clusterArn,
+		Task:        taskArn,
+		Container:   containerName,
 		Command:     &command,
 		Interactive: interactive,
 	}

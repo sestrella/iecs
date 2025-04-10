@@ -76,9 +76,9 @@ func runExec(
 		return err
 	}
 	executeCommand, err := client.ExecuteCommand(ctx,
-		*selection.Cluster.ClusterArn,
-		*selection.Task.TaskArn,
-		*selection.Container.Name,
+		selection.Cluster.ClusterArn,
+		selection.Task.TaskArn,
+		selection.Container.Name,
 		command,
 		interactive,
 	)
