@@ -3,6 +3,7 @@ package logs
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -97,29 +98,31 @@ func (c *awsClient) StartLiveTail(
 
 	// Get the stream
 	stream := startLiveTail.GetStream()
+	defer stream.Close()
+
 	eventsChannel := stream.Events()
 
 	// Process events
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case event := <-eventsChannel:
-				switch e := event.(type) {
-				case *types.StartLiveTailResponseStreamMemberSessionStart:
-					// Session started, nothing to do here
-				case *types.StartLiveTailResponseStreamMemberSessionUpdate:
-					for _, logEvent := range e.Value.SessionResults {
-						if logEvent.Timestamp != nil && logEvent.Message != nil {
-							date := time.UnixMilli(*logEvent.Timestamp)
-							handler(date, *logEvent.Message)
-						}
-					}
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("Context cancelled, stopping event handler.")
+			return nil
+		case event := <-eventsChannel:
+			switch e := event.(type) {
+			case *types.StartLiveTailResponseStreamMemberSessionStart:
+				log.Printf("Live Tail Session Started: RequestId: %s, SessionId: %s\n", *e.Value.RequestId, *e.Value.SessionId)
+			case *types.StartLiveTailResponseStreamMemberSessionUpdate:
+				for _, logEvent := range e.Value.SessionResults {
+					date := time.UnixMilli(*logEvent.Timestamp)
+					handler(date, *logEvent.Message)
+				}
+			default:
+				log.Printf("Received unknown event type: %T\n", e)
+				if err := stream.Err(); err != nil {
+					return err
 				}
 			}
 		}
-	}()
-
-	return nil
+	}
 }

@@ -61,8 +61,7 @@ func runLogs(
 		return err
 	}
 
-	// Wait indefinitely - the log handler will process logs in the background
-	select {}
+	return nil
 }
 
 func init() {
