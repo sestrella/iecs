@@ -34,18 +34,18 @@ type Client interface {
 	) (*ecs.ExecuteCommandOutput, error)
 }
 
-type awsEcsClient struct {
+type awsClient struct {
 	client *ecs.Client
 }
 
 func NewClient(cfg aws.Config) Client {
 	client := ecs.NewFromConfig(cfg)
-	return awsEcsClient{
+	return awsClient{
 		client: client,
 	}
 }
 
-func (c awsEcsClient) DescribeCluster(
+func (c awsClient) DescribeCluster(
 	ctx context.Context,
 	clusterArn string,
 ) (*types.Cluster, error) {
@@ -61,7 +61,7 @@ func (c awsEcsClient) DescribeCluster(
 	return &output.Clusters[0], nil
 }
 
-func (c awsEcsClient) DescribeService(
+func (c awsClient) DescribeService(
 	ctx context.Context,
 	clusterArn string,
 	serviceArn string,
@@ -79,7 +79,7 @@ func (c awsEcsClient) DescribeService(
 	return &output.Services[0], nil
 }
 
-func (c awsEcsClient) DescribeTask(
+func (c awsClient) DescribeTask(
 	ctx context.Context,
 	clusterArn string,
 	taskArn string,
@@ -97,7 +97,7 @@ func (c awsEcsClient) DescribeTask(
 	return &output.Tasks[0], nil
 }
 
-func (c awsEcsClient) DescribeTaskDefinition(
+func (c awsClient) DescribeTaskDefinition(
 	ctx context.Context,
 	taskDefinitionArn string,
 ) (*types.TaskDefinition, error) {
@@ -113,7 +113,7 @@ func (c awsEcsClient) DescribeTaskDefinition(
 	return output.TaskDefinition, nil
 }
 
-func (c awsEcsClient) ListClusters(ctx context.Context) ([]string, error) {
+func (c awsClient) ListClusters(ctx context.Context) ([]string, error) {
 	output, err := c.client.ListClusters(ctx, &ecs.ListClustersInput{})
 	if err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func (c awsEcsClient) ListClusters(ctx context.Context) ([]string, error) {
 	return output.ClusterArns, nil
 }
 
-func (c awsEcsClient) ListServices(ctx context.Context, clusterArn string) ([]string, error) {
+func (c awsClient) ListServices(ctx context.Context, clusterArn string) ([]string, error) {
 	output, err := c.client.ListServices(ctx, &ecs.ListServicesInput{
 		Cluster: &clusterArn,
 	})
@@ -137,7 +137,7 @@ func (c awsEcsClient) ListServices(ctx context.Context, clusterArn string) ([]st
 	return output.ServiceArns, nil
 }
 
-func (c awsEcsClient) ListTasks(
+func (c awsClient) ListTasks(
 	ctx context.Context,
 	clusterArn string,
 	serviceArn string,
@@ -159,7 +159,7 @@ func (c awsEcsClient) ListTasks(
 	return output.TaskArns, nil
 }
 
-func (c awsEcsClient) ExecuteCommand(
+func (c awsClient) ExecuteCommand(
 	ctx context.Context,
 	clusterArn *string,
 	taskArn *string,
