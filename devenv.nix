@@ -12,7 +12,7 @@
 
   languages.go.enable = true;
 
-  pre-commit.hooks = {
+  git-hooks.hooks = {
     gofmt.enable = true;
     golangci-lint.enable = true;
     gomod2nix = {
