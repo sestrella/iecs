@@ -98,7 +98,11 @@ func (c *awsClient) StartLiveTail(
 
 	// Get the stream
 	stream := startLiveTail.GetStream()
-	defer stream.Close()
+	defer func() {
+		if err = stream.Close(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	eventsChannel := stream.Events()
 
