@@ -90,7 +90,7 @@ func runExec(
 	}
 	taskArnSlices := strings.Split(*selection.Task.TaskArn, "/")
 	if len(taskArnSlices) < 2 {
-		return fmt.Errorf("Unable to extract task name from '%s'", *selection.Task.TaskArn)
+		return fmt.Errorf("unable to extract task name from '%s'", *selection.Task.TaskArn)
 	}
 	taskName := strings.Join(taskArnSlices[1:], "/")
 	target := fmt.Sprintf(
