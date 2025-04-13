@@ -3,13 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	cwlogs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
-	cwlogsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/sestrella/iecs/client/ecs"
+	"github.com/sestrella/iecs/client/logs"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
@@ -26,9 +24,9 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		ecsClient := ecs.NewFromConfig(cfg)
-		cwlogsClient := cwlogs.NewFromConfig(cfg)
-		err = runLogs(context.TODO(), ecsClient, cwlogsClient)
+		ecsClient := ecs.NewClient(cfg)
+		logsClient := logs.NewClient(cfg)
+		err = runLogs(context.TODO(), ecsClient, logsClient)
 		if err != nil {
 			panic(err)
 		}
@@ -38,8 +36,8 @@ var logsCmd = &cobra.Command{
 
 func runLogs(
 	ctx context.Context,
-	ecsClient *ecs.Client,
-	cwlogsClient *cwlogs.Client,
+	ecsClient ecs.Client,
+	logsClient logs.Client,
 ) error {
 	selection, err := selector.RunContainerDefinitionSelector(ctx, ecsClient)
 	if err != nil {
@@ -48,38 +46,22 @@ func runLogs(
 
 	logOptions := selection.ContainerDefinition.LogConfiguration.Options
 	awslogsGroup := logOptions["awslogs-group"]
-	describeLogGroups, err := cwlogsClient.DescribeLogGroups(
-		context.TODO(),
-		&cwlogs.DescribeLogGroupsInput{
-			LogGroupNamePrefix: &awslogsGroup,
+	streamPrefix := logOptions["awslogs-stream-prefix"]
+
+	// Use our logs client to start the live tail
+	err = logsClient.StartLiveTail(
+		ctx,
+		awslogsGroup,
+		streamPrefix,
+		func(timestamp time.Time, message string) {
+			fmt.Printf("%v %s\n", timestamp, message)
 		},
 	)
 	if err != nil {
 		return err
 	}
-	startLiveTail, err := cwlogsClient.StartLiveTail(context.TODO(), &cwlogs.StartLiveTailInput{
-		LogGroupIdentifiers:   []string{*describeLogGroups.LogGroups[0].LogGroupArn},
-		LogStreamNamePrefixes: []string{logOptions["awslogs-stream-prefix"]},
-	})
-	if err != nil {
-		return err
-	}
-	stream := startLiveTail.GetStream()
-	eventsChannel := stream.Events()
-	for {
-		event := <-eventsChannel
-		switch e := event.(type) {
-		case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionStart:
-			log.Println("Received SessionStart event")
-		case *cwlogsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
-			for _, logEvent := range e.Value.SessionResults {
-				date := time.UnixMilli(*logEvent.Timestamp)
-				fmt.Printf("%v %s\n", date, *logEvent.Message)
-			}
-		default:
-			panic(fmt.Sprintf("Unknown event type: %s", e))
-		}
-	}
+
+	return nil
 }
 
 func init() {

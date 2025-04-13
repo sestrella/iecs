@@ -11,8 +11,8 @@ import (
 	"syscall"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/sestrella/iecs/client/ecs"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
@@ -46,7 +46,7 @@ var execCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		client := ecs.NewFromConfig(cfg)
+		client := ecs.NewClient(cfg)
 		err = runExec(
 			context.TODO(),
 			smpPath,
@@ -65,7 +65,7 @@ var execCmd = &cobra.Command{
 func runExec(
 	ctx context.Context,
 	smpPath string,
-	client *ecs.Client,
+	client ecs.Client,
 	region string,
 	command string,
 	interactive bool,
@@ -74,13 +74,13 @@ func runExec(
 	if err != nil {
 		return err
 	}
-	executeCommand, err := client.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
-		Cluster:     selection.Cluster.ClusterArn,
-		Task:        selection.Task.TaskArn,
-		Container:   selection.Container.Name,
-		Command:     &command,
-		Interactive: interactive,
-	})
+	executeCommand, err := client.ExecuteCommand(ctx,
+		selection.Cluster.ClusterArn,
+		selection.Task.TaskArn,
+		selection.Container.Name,
+		command,
+		interactive,
+	)
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func runExec(
 	}
 	taskArnSlices := strings.Split(*selection.Task.TaskArn, "/")
 	if len(taskArnSlices) < 2 {
-		return fmt.Errorf("Unable to extract task name from '%s'", *selection.Task.TaskArn)
+		return fmt.Errorf("unable to extract task name from '%s'", *selection.Task.TaskArn)
 	}
 	taskName := strings.Join(taskArnSlices[1:], "/")
 	target := fmt.Sprintf(

@@ -4,6 +4,7 @@
   packages = [
     pkgs.aws-vault
     pkgs.awscli2
+    pkgs.claude-code
     pkgs.cobra-cli
     pkgs.gomod2nix
     pkgs.ssm-session-manager-plugin
@@ -11,7 +12,7 @@
 
   languages.go.enable = true;
 
-  pre-commit.hooks = {
+  git-hooks.hooks = {
     gofmt.enable = true;
     golangci-lint.enable = true;
     gomod2nix = {
