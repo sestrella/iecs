@@ -6,8 +6,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/sestrella/iecs/client/ecs"
-	"github.com/sestrella/iecs/client/logs"
+	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
@@ -24,9 +23,8 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		ecsClient := ecs.NewClient(cfg)
-		logsClient := logs.NewClient(cfg)
-		err = runLogs(context.TODO(), ecsClient, logsClient)
+		awsClient := client.NewClient(cfg)
+		err = runLogs(context.TODO(), awsClient)
 		if err != nil {
 			panic(err)
 		}
@@ -36,10 +34,9 @@ var logsCmd = &cobra.Command{
 
 func runLogs(
 	ctx context.Context,
-	ecsClient ecs.Client,
-	logsClient logs.Client,
+	client client.Client,
 ) error {
-	selection, err := selector.RunContainerDefinitionSelector(ctx, ecsClient)
+	selection, err := selector.RunContainerDefinitionSelector(ctx, client)
 	if err != nil {
 		return err
 	}
@@ -49,7 +46,7 @@ func runLogs(
 	streamPrefix := logOptions["awslogs-stream-prefix"]
 
 	// Use our logs client to start the live tail
-	err = logsClient.StartLiveTail(
+	err = client.StartLiveTail(
 		ctx,
 		awslogsGroup,
 		streamPrefix,
