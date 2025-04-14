@@ -23,8 +23,8 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		awsClient := client.NewClient(cfg)
-		err = runLogs(context.TODO(), awsClient)
+		client := client.NewClient(cfg)
+		err = runLogs(context.TODO(), client)
 		if err != nil {
 			panic(err)
 		}
