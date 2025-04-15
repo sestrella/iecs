@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -16,47 +16,47 @@ type MockClient struct {
 func (m *MockClient) DescribeCluster(
 	ctx context.Context,
 	clusterArn string,
-) (*ecsTypes.Cluster, error) {
+) (*types.Cluster, error) {
 	args := m.Called(ctx, clusterArn)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*ecsTypes.Cluster), args.Error(1)
+	return args.Get(0).(*types.Cluster), args.Error(1)
 }
 
 func (m *MockClient) DescribeService(
 	ctx context.Context,
 	clusterArn string,
 	serviceArn string,
-) (*ecsTypes.Service, error) {
+) (*types.Service, error) {
 	args := m.Called(ctx, clusterArn, serviceArn)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*ecsTypes.Service), args.Error(1)
+	return args.Get(0).(*types.Service), args.Error(1)
 }
 
 func (m *MockClient) DescribeTask(
 	ctx context.Context,
 	clusterArn string,
 	taskArn string,
-) (*ecsTypes.Task, error) {
+) (*types.Task, error) {
 	args := m.Called(ctx, clusterArn, taskArn)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*ecsTypes.Task), args.Error(1)
+	return args.Get(0).(*types.Task), args.Error(1)
 }
 
 func (m *MockClient) DescribeTaskDefinition(
 	ctx context.Context,
 	taskDefinitionArn string,
-) (*ecsTypes.TaskDefinition, error) {
+) (*types.TaskDefinition, error) {
 	args := m.Called(ctx, taskDefinitionArn)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*ecsTypes.TaskDefinition), args.Error(1)
+	return args.Get(0).(*types.TaskDefinition), args.Error(1)
 }
 
 func (m *MockClient) ListClusters(ctx context.Context) ([]string, error) {
