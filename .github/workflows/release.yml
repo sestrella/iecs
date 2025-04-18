@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
+    tags: ["v*"]
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Build static binaries
+        run: |
+          GOOS=darwin GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-darwin-amd64-bin
+          GOOS=darwin GOARCH=arm64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-darwin-arm64-bin
+          GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-linux-amd64-bin
+        env:
+          CGO_ENABLED: 0
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            LICENSE
+            iecs-${{ github.ref_name }}-darwin-amd64-bin
+            iecs-${{ github.ref_name }}-darwin-arm64-bin
+            iecs-${{ github.ref_name }}-linux-amd64-bin
+          generate_release_notes: true
+          draft: true
