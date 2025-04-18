@@ -1,6 +1,7 @@
 # iecs
 
-[![CI](https://github.com/sestrella/iecs/actions/workflows/main.yml/badge.svg)](https://github.com/sestrella/iecs/actions/workflows/main.yml)
+[![Build](https://github.com/sestrella/iecs/actions/workflows/build.yml/badge.svg)](https://github.com/sestrella/iecs/actions/workflows/build.yml)
+[![Release](https://github.com/sestrella/iecs/actions/workflows/release.yml/badge.svg)](https://github.com/sestrella/iecs/actions/workflows/release.yml)
 
 An interactive CLI for ECS to help with troubleshooting tasks like:
 
