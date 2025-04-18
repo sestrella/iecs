@@ -1,4 +1,4 @@
-name: Prerelease
+name: Release
 
 on: push
   # workflow_run:
@@ -36,5 +36,5 @@ jobs:
             iecs-darwin-amd64
             iecs-darwin-arm64
             iecs-linux-amd64
-          prerelease: true
           generate_release_notes: true
+          draft: true
