@@ -21,7 +21,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
-      # TODO: add version to binary name
       - name: Build static binaries
         run: |
           GOOS=darwin GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-darwin-amd64-bin
@@ -33,6 +32,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            LICENSE
             iecs-${{ github.ref_name }}-darwin-amd64-bin
             iecs-${{ github.ref_name }}-darwin-arm64-bin
             iecs-${{ github.ref_name }}-linux-amd64-bin
