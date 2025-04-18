@@ -24,17 +24,17 @@ jobs:
       # TODO: add version to binary name
       - name: Build static binaries
         run: |
-          GOOS=darwin GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o iecs-darwin-amd64
-          GOOS=darwin GOARCH=arm64 go build -a -ldflags '-extldflags "-static"' -o iecs-darwin-arm64
-          GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o iecs-linux-amd64
+          GOOS=darwin GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-darwin-amd64-bin
+          GOOS=darwin GOARCH=arm64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-darwin-arm64-bin
+          GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-linux-amd64-bin
         env:
           CGO_ENABLED: 0
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            iecs-darwin-amd64
-            iecs-darwin-arm64
-            iecs-linux-amd64
+            iecs-${{ github.ref_name }}-darwin-amd64-bin
+            iecs-${{ github.ref_name }}-darwin-arm64-bin
+            iecs-${{ github.ref_name }}-linux-amd64-bin
           generate_release_notes: true
           draft: true
