@@ -20,9 +20,16 @@ type EventHandler func(timestamp time.Time, message string)
 type Client interface {
 	// ECS operations
 	DescribeCluster(ctx context.Context, clusterArn string) (*ecsTypes.Cluster, error)
-	DescribeService(ctx context.Context, clusterArn string, serviceArn string) (*ecsTypes.Service, error)
+	DescribeService(
+		ctx context.Context,
+		clusterArn string,
+		serviceArn string,
+	) (*ecsTypes.Service, error)
 	DescribeTask(ctx context.Context, clusterArn string, taskArn string) (*ecsTypes.Task, error)
-	DescribeTaskDefinition(ctx context.Context, taskDefinitionArn string) (*ecsTypes.TaskDefinition, error)
+	DescribeTaskDefinition(
+		ctx context.Context,
+		taskDefinitionArn string,
+	) (*ecsTypes.TaskDefinition, error)
 	ListClusters(ctx context.Context) ([]string, error)
 	ListServices(ctx context.Context, clusterArn string) ([]string, error)
 	ListTasks(ctx context.Context, clusterArn string, serviceArn string) ([]string, error)
@@ -36,10 +43,6 @@ type Client interface {
 	) (*ecs.ExecuteCommandOutput, error)
 
 	// CloudWatch Logs operations
-	DescribeLogGroups(
-		ctx context.Context,
-		logGroupNamePrefix string,
-	) (*cloudwatchlogs.DescribeLogGroupsOutput, error)
 	StartLiveTail(
 		ctx context.Context,
 		logGroupName string,
@@ -206,27 +209,6 @@ func (c *awsClient) ExecuteCommand(
 
 // CloudWatch Logs implementation
 
-func (c *awsClient) DescribeLogGroups(
-	ctx context.Context,
-	logGroupNamePrefix string,
-) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
-	input := &cloudwatchlogs.DescribeLogGroupsInput{}
-	if logGroupNamePrefix != "" {
-		input.LogGroupNamePrefix = &logGroupNamePrefix
-	}
-
-	output, err := c.logsClient.DescribeLogGroups(ctx, input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to describe log groups: %w", err)
-	}
-
-	if len(output.LogGroups) == 0 {
-		return nil, fmt.Errorf("no log groups found with prefix: %s", logGroupNamePrefix)
-	}
-
-	return output, nil
-}
-
 func (c *awsClient) StartLiveTail(
 	ctx context.Context,
 	logGroupName string,
@@ -234,9 +216,17 @@ func (c *awsClient) StartLiveTail(
 	handler EventHandler,
 ) error {
 	// Describe log groups to get the ARN
-	describeOutput, err := c.DescribeLogGroups(ctx, logGroupName)
+	describeOutput, err := c.logsClient.DescribeLogGroups(
+		ctx,
+		&cloudwatchlogs.DescribeLogGroupsInput{
+			LogGroupNamePrefix: &logGroupName,
+		},
+	)
 	if err != nil {
 		return err
+	}
+	if len(describeOutput.LogGroups) == 0 {
+		return fmt.Errorf("no log groups found with prefix: %s", streamPrefix)
 	}
 
 	logGroupArn := describeOutput.LogGroups[0].LogGroupArn
