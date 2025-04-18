@@ -15,6 +15,14 @@ type SelectedContainer struct {
 	Container *types.Container
 }
 
+// SelectedContainerDefinition holds the selected cluster, service, task definition and container definition
+type SelectedContainerDefinition struct {
+	Cluster             *types.Cluster
+	Service             *types.Service
+	TaskDefinition      *types.TaskDefinition
+	ContainerDefinition *types.ContainerDefinition
+}
+
 func RunContainerSelector(
 	ctx context.Context,
 	client client.Client,
@@ -44,5 +52,32 @@ func RunContainerSelector(
 		Service:   service,
 		Task:      task,
 		Container: container,
+	}, nil
+}
+
+// RunContainerDefinitionSelector runs an interactive form to select an ECS cluster, service and container definition
+func RunContainerDefinitionSelector(
+	ctx context.Context,
+	client client.Client,
+) (*SelectedContainerDefinition, error) {
+	cluster, err := ClusterSelector(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+
+	service, err := ServiceSelector(ctx, client, *cluster.ClusterArn)
+	if err != nil {
+		return nil, err
+	}
+
+	containerDefinition, err := ContainerDefinitionSelector(ctx, client, *service.TaskDefinition)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SelectedContainerDefinition{
+		Cluster:             cluster,
+		Service:             service,
+		ContainerDefinition: containerDefinition,
 	}, nil
 }
