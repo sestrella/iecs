@@ -21,7 +21,6 @@
       pass_filenames = false;
       files = "go.mod";
     };
-    gotest.enable = true;
     nixpkgs-fmt.enable = true;
   };
 
