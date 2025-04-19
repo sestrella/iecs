@@ -35,4 +35,3 @@ jobs:
             iecs-${{ github.ref_name }}-darwin-arm64-bin
             iecs-${{ github.ref_name }}-linux-amd64-bin
           generate_release_notes: true
-          draft: true
