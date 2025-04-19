@@ -42,6 +42,7 @@
                 "client"
                 "cmd"
                 "selector"
+                "version.txt"
               ];
             };
             modules = ./gomod2nix.toml;
