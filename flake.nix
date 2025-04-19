@@ -32,7 +32,7 @@
         {
           default = pkgs.buildGoApplication {
             pname = "iecs";
-            version = nixpkgs.lib.trim (builtins.readFile ./cmd/version.txt);
+            version = nixpkgs.lib.trim (builtins.readFile ./version.txt);
             src = nix-filter.lib {
               root = ./.;
               include = [
