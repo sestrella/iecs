@@ -44,6 +44,6 @@ func TaskSelector(
 		return nil, err
 	}
 
-	fmt.Printf("Selected task: %s\n", *task.TaskArn)
+	fmt.Printf("Task: %s\n", *task.TaskArn)
 	return task, nil
 }

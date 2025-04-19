@@ -43,6 +43,6 @@ func ServiceSelector(
 		return nil, fmt.Errorf("failed to describe service after selection: %w", err)
 	}
 
-	fmt.Printf("Selected service: %s\n", *service.ServiceArn)
+	fmt.Printf("Service: %s\n", *service.ServiceArn)
 	return service, nil
 }
