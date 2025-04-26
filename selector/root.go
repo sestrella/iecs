@@ -4,8 +4,11 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/sestrella/iecs/client"
 )
+
+var style = lipgloss.NewStyle().Bold(true)
 
 // SelectedContainer holds the selected cluster, service, task and container
 type SelectedContainer struct {
