@@ -10,5 +10,8 @@ import (
 var version string
 
 func main() {
-	cmd.Execute(version)
+	err := cmd.Execute(version)
+	if err != nil {
+		panic(err)
+	}
 }

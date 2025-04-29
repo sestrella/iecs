@@ -2,10 +2,13 @@ package cmd
 
 import (
 	_ "embed"
-	"os"
+	"io"
+	"log"
 
 	"github.com/spf13/cobra"
 )
+
+var silent bool
 
 var rootCmd = &cobra.Command{
 	Use:   "iecs",
@@ -13,10 +16,20 @@ var rootCmd = &cobra.Command{
 	Long:  "Performs commons tasks on ECS, such as getting remote access or viewing logs",
 }
 
-func Execute(version string) {
+func init() {
+	rootCmd.PersistentFlags().BoolVar(&silent, "silent", false, "Do not print logs")
+}
+
+func Execute(version string) error {
 	rootCmd.Version = version
+
+	if silent {
+		log.SetOutput(io.Discard)
+	}
+
 	err := rootCmd.Execute()
 	if err != nil {
-		os.Exit(1)
+		return err
 	}
+	return nil
 }

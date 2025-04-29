@@ -3,6 +3,7 @@ package selector
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/huh"
@@ -22,6 +23,7 @@ func TaskSelector(
 
 	var selectedTaskArn string
 	if len(taskArns) == 1 {
+		log.Printf("Pre-selecting the only available task")
 		selectedTaskArn = taskArns[0]
 	} else {
 		form := huh.NewForm(
@@ -44,6 +46,6 @@ func TaskSelector(
 		return nil, err
 	}
 
-	fmt.Printf("%s %s\n", style.Render("Task:"), *task.TaskArn)
+	fmt.Printf("%s %s\n", selectionTitleStyle.Render("Task:"), *task.TaskArn)
 	return task, nil
 }
