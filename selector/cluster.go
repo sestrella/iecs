@@ -18,7 +18,7 @@ func ClusterSelector(ctx context.Context, client client.Client) (*types.Cluster,
 
 	var selectedClusterArn string
 	if len(clusterArns) == 1 {
-		log.Printf("Pre-selecting the only available cluster")
+		log.Printf("Pre-select the only available cluster")
 		selectedClusterArn = clusterArns[0]
 	} else {
 		form := huh.NewForm(

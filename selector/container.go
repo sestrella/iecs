@@ -18,7 +18,7 @@ func ContainerSelector(containers []types.Container) (*types.Container, error) {
 
 	var selectedContainerName string
 	if len(containerNames) == 1 {
-		log.Printf("Pre-selecting the only available container")
+		log.Printf("Pre-select the only available container")
 		selectedContainerName = containerNames[0]
 	} else {
 		form := huh.NewForm(
@@ -66,7 +66,7 @@ func ContainerDefinitionSelector(
 
 	var selectedContainerDefinitionName string
 	if len(containerDefinitionNames) == 1 {
-		log.Printf("Pre-selecting the only available container definition")
+		log.Printf("Pre-select the only available container definition")
 		selectedContainerDefinitionName = containerDefinitionNames[0]
 	} else {
 		form := huh.NewForm(

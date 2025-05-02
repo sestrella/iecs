@@ -23,7 +23,7 @@ func TaskSelector(
 
 	var selectedTaskArn string
 	if len(taskArns) == 1 {
-		log.Printf("Pre-selecting the only available task")
+		log.Printf("Pre-select the only available task")
 		selectedTaskArn = taskArns[0]
 	} else {
 		form := huh.NewForm(

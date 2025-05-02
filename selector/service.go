@@ -22,7 +22,7 @@ func ServiceSelector(
 
 	var selectedServiceArn string
 	if len(serviceArns) == 1 {
-		log.Printf("Pre-selecting the only available service")
+		log.Printf("Pre-select the only available service")
 		selectedServiceArn = serviceArns[0]
 	} else {
 		form := huh.NewForm(
