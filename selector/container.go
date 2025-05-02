@@ -38,7 +38,7 @@ func ContainerSelector(containers []types.Container) (*types.Container, error) {
 
 	for _, container := range containers {
 		if *container.Name == selectedContainerName {
-			fmt.Printf("%s %s\n", selectionTitleStyle.Render("Container:"), *container.Name)
+			fmt.Printf("%s %s\n", titleStyle.Render("Container:"), *container.Name)
 			return &container, nil
 		}
 	}
@@ -88,7 +88,7 @@ func ContainerDefinitionSelector(
 		if *containerDefinition.Name == selectedContainerDefinitionName {
 			fmt.Printf(
 				"%s %s\n",
-				selectionTitleStyle.Render("Container definition:"),
+				titleStyle.Render("Container definition:"),
 				*containerDefinition.Name,
 			)
 			return &containerDefinition, nil

@@ -8,7 +8,7 @@ import (
 	"github.com/sestrella/iecs/client"
 )
 
-var selectionTitleStyle = lipgloss.NewStyle().Bold(true)
+var titleStyle = lipgloss.NewStyle().Bold(true)
 
 // SelectedContainer holds the selected cluster, service, task and container
 type SelectedContainer struct {

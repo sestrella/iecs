@@ -43,6 +43,6 @@ func ClusterSelector(ctx context.Context, client client.Client) (*types.Cluster,
 		return nil, fmt.Errorf("failed to describe cluster after selection: %w", err)
 	}
 
-	fmt.Printf("%s %s\n", selectionTitleStyle.Render("Cluster:"), *cluster.ClusterArn)
+	fmt.Printf("%s %s\n", titleStyle.Render("Cluster:"), *cluster.ClusterArn)
 	return cluster, nil
 }
