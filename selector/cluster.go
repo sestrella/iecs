@@ -3,6 +3,7 @@ package selector
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/huh"
@@ -17,6 +18,7 @@ func ClusterSelector(ctx context.Context, client client.Client) (*types.Cluster,
 
 	var selectedClusterArn string
 	if len(clusterArns) == 1 {
+		log.Printf("Pre-select the only available cluster")
 		selectedClusterArn = clusterArns[0]
 	} else {
 		form := huh.NewForm(
@@ -41,6 +43,6 @@ func ClusterSelector(ctx context.Context, client client.Client) (*types.Cluster,
 		return nil, fmt.Errorf("failed to describe cluster after selection: %w", err)
 	}
 
-	fmt.Printf("%s %s\n", style.Render("Cluster:"), *cluster.ClusterArn)
+	fmt.Printf("%s %s\n", titleStyle.Render("Cluster:"), *cluster.ClusterArn)
 	return cluster, nil
 }

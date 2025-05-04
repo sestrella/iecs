@@ -2,7 +2,6 @@ package cmd
 
 import (
 	_ "embed"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -13,10 +12,11 @@ var rootCmd = &cobra.Command{
 	Long:  "Performs commons tasks on ECS, such as getting remote access or viewing logs",
 }
 
-func Execute(version string) {
+func Execute(version string) error {
 	rootCmd.Version = version
 	err := rootCmd.Execute()
 	if err != nil {
-		os.Exit(1)
+		return err
 	}
+	return nil
 }

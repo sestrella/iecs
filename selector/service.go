@@ -3,6 +3,7 @@ package selector
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/huh"
@@ -21,6 +22,7 @@ func ServiceSelector(
 
 	var selectedServiceArn string
 	if len(serviceArns) == 1 {
+		log.Printf("Pre-select the only available service")
 		selectedServiceArn = serviceArns[0]
 	} else {
 		form := huh.NewForm(
@@ -43,6 +45,6 @@ func ServiceSelector(
 		return nil, fmt.Errorf("failed to describe service after selection: %w", err)
 	}
 
-	fmt.Printf("%s %s\n", style.Render("Service:"), *service.ServiceArn)
+	fmt.Printf("%s %s\n", titleStyle.Render("Service:"), *service.ServiceArn)
 	return service, nil
 }

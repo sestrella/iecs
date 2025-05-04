@@ -3,6 +3,7 @@ package selector
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/huh"
@@ -17,6 +18,7 @@ func ContainerSelector(containers []types.Container) (*types.Container, error) {
 
 	var selectedContainerName string
 	if len(containerNames) == 1 {
+		log.Printf("Pre-select the only available container")
 		selectedContainerName = containerNames[0]
 	} else {
 		form := huh.NewForm(
@@ -36,7 +38,7 @@ func ContainerSelector(containers []types.Container) (*types.Container, error) {
 
 	for _, container := range containers {
 		if *container.Name == selectedContainerName {
-			fmt.Printf("%s %s\n", style.Render("Container:"), *container.Name)
+			fmt.Printf("%s %s\n", titleStyle.Render("Container:"), *container.Name)
 			return &container, nil
 		}
 	}
@@ -64,6 +66,7 @@ func ContainerDefinitionSelector(
 
 	var selectedContainerDefinitionName string
 	if len(containerDefinitionNames) == 1 {
+		log.Printf("Pre-select the only available container definition")
 		selectedContainerDefinitionName = containerDefinitionNames[0]
 	} else {
 		form := huh.NewForm(
@@ -83,7 +86,11 @@ func ContainerDefinitionSelector(
 
 	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
 		if *containerDefinition.Name == selectedContainerDefinitionName {
-			fmt.Printf("%s %s\n", style.Render("Container definition:"), *containerDefinition.Name)
+			fmt.Printf(
+				"%s %s\n",
+				titleStyle.Render("Container definition:"),
+				*containerDefinition.Name,
+			)
 			return &containerDefinition, nil
 		}
 	}
