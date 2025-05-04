@@ -13,6 +13,7 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute(version string) error {
+	rootCmd.Version = version
 	err := rootCmd.Execute()
 	if err != nil {
 		return err
