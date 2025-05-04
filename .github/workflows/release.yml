@@ -23,6 +23,7 @@ jobs:
           GOOS=darwin GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-darwin-amd64-bin
           GOOS=darwin GOARCH=arm64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-darwin-arm64-bin
           GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-linux-amd64-bin
+          GOOS=linux GOARCH=arm64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-linux-arm64-bin
         env:
           CGO_ENABLED: 0
       - name: Create release
@@ -33,4 +34,5 @@ jobs:
             iecs-${{ github.ref_name }}-darwin-amd64-bin
             iecs-${{ github.ref_name }}-darwin-arm64-bin
             iecs-${{ github.ref_name }}-linux-amd64-bin
+            iecs-${{ github.ref_name }}-linux-arm64-bin
           generate_release_notes: true
