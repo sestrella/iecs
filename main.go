@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"log"
 
 	"github.com/sestrella/iecs/cmd"
 )
@@ -12,6 +13,6 @@ var version string
 func main() {
 	err := cmd.Execute(version)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }

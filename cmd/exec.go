@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -29,22 +30,22 @@ var execCmd = &cobra.Command{
   aws-vault exec <profile> -- iecs exec [flags] (recommended)
   env AWS_PROFILE=<profile> iecs exec [flags]
   `,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		smpPath, err := exec.LookPath("session-manager-plugin")
 		if err != nil {
-			panic(err)
+			return err
 		}
 		command, err := cmd.Flags().GetString(execCommandFlag)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		interactive, err := cmd.Flags().GetBool(execInteractiveFlag)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
-			panic(err)
+			return err
 		}
 		client := client.NewClient(cfg)
 		err = runExec(
@@ -56,8 +57,9 @@ var execCmd = &cobra.Command{
 			interactive,
 		)
 		if err != nil {
-			panic(err)
+			return err
 		}
+		return nil
 	},
 	Aliases: []string{"ssh"},
 }
@@ -130,7 +132,7 @@ func runExec(
 		sig := <-sigs
 		err = cmd.Process.Signal(sig)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}()
 

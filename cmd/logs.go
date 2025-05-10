@@ -18,16 +18,17 @@ var logsCmd = &cobra.Command{
   aws-vault exec <profile> -- iecs logs [flags] (recommended)
   env AWS_PROFILE=<profile> iecs logs [flags]
   `,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
-			panic(err)
+			return err
 		}
 		client := client.NewClient(cfg)
 		err = runLogs(context.TODO(), client)
 		if err != nil {
-			panic(err)
+			return err
 		}
+		return nil
 	},
 	Aliases: []string{"tail"},
 }
