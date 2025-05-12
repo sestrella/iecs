@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	logs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 )
@@ -31,7 +31,7 @@ type Client interface {
 	DescribeLogGroups(
 		ctx context.Context,
 		logGroupNamePrefix string,
-	) (*cloudwatchlogs.DescribeLogGroupsOutput, error)
+	) (*logs.DescribeLogGroupsOutput, error)
 	StartLiveTail(
 		ctx context.Context,
 		logGroupName string,
@@ -43,13 +43,13 @@ type Client interface {
 // awsClient implements the combined Client interface
 type awsClient struct {
 	ecsClient  *ecs.Client
-	logsClient *cloudwatchlogs.Client
+	logsClient *logs.Client
 }
 
 // NewClient creates a new combined AWS client
 func NewClient(cfg aws.Config) Client {
 	ecsClient := ecs.NewFromConfig(cfg)
-	logsClient := cloudwatchlogs.NewFromConfig(cfg)
+	logsClient := logs.NewFromConfig(cfg)
 	return &awsClient{
 		ecsClient:  ecsClient,
 		logsClient: logsClient,
@@ -85,8 +85,8 @@ func (c *awsClient) ExecuteCommand(
 func (c *awsClient) DescribeLogGroups(
 	ctx context.Context,
 	logGroupNamePrefix string,
-) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
-	input := &cloudwatchlogs.DescribeLogGroupsInput{}
+) (*logs.DescribeLogGroupsOutput, error) {
+	input := &logs.DescribeLogGroupsInput{}
 	if logGroupNamePrefix != "" {
 		input.LogGroupNamePrefix = &logGroupNamePrefix
 	}
@@ -123,7 +123,7 @@ func (c *awsClient) StartLiveTail(
 	// Start the live tail
 	startLiveTail, err := c.logsClient.StartLiveTail(
 		ctx,
-		&cloudwatchlogs.StartLiveTailInput{
+		&logs.StartLiveTailInput{
 			LogGroupIdentifiers:   []string{*logGroupArn},
 			LogStreamNamePrefixes: []string{streamPrefix},
 		},
