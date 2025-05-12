@@ -2,9 +2,12 @@ package selector
 
 import (
 	"context"
+	"fmt"
+	"log"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/sestrella/iecs/client"
 )
@@ -50,24 +53,164 @@ func NewSelectors(client client.Client, ecsClient *ecs.Client) Selectors {
 }
 
 func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
-	return clusterSelector(ctx, cs.client)
+	clusterArns, err := cs.client.ListClusters(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list clusters: %w", err)
+	}
+
+	var selectedClusterArn string
+	if len(clusterArns) == 1 {
+		log.Printf("Pre-select the only available cluster")
+		selectedClusterArn = clusterArns[0]
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Select cluster").
+					Options(
+						huh.NewOptions(clusterArns...)...,
+					).
+					Value(&selectedClusterArn).
+					WithHeight(5),
+			),
+		)
+
+		if err = form.Run(); err != nil {
+			return nil, err
+		}
+	}
+
+	cluster, err := cs.client.DescribeCluster(ctx, selectedClusterArn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe cluster after selection: %w", err)
+	}
+
+	fmt.Printf("%s %s\n", titleStyle.Render("Cluster:"), *cluster.ClusterArn)
+	return cluster, nil
 }
 
 func (cs ClientSelectors) Container(
 	containers []types.Container,
 ) (*types.Container, error) {
-	return containerSelector(containers)
+	var containerNames []string
+	for _, container := range containers {
+		containerNames = append(containerNames, *container.Name)
+	}
+
+	var selectedContainerName string
+	if len(containerNames) == 1 {
+		log.Printf("Pre-select the only available container")
+		selectedContainerName = containerNames[0]
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Select container").
+					Options(huh.NewOptions(containerNames...)...).
+					Value(&selectedContainerName).
+					WithHeight(5),
+			),
+		)
+
+		if err := form.Run(); err != nil {
+			return nil, err
+		}
+	}
+
+	for _, container := range containers {
+		if *container.Name == selectedContainerName {
+			fmt.Printf("%s %s\n", titleStyle.Render("Container:"), *container.Name)
+			return &container, nil
+		}
+	}
+
+	return nil, fmt.Errorf("container not found: %s", selectedContainerName)
 }
 
 func (cs ClientSelectors) ContainerDefinition(
 	ctx context.Context,
-	taskDefinition string,
+	taskDefinitionArn string,
 ) (*types.ContainerDefinition, error) {
-	return containerDefinitionSelector(ctx, cs.client, taskDefinition)
+	taskDefinition, err := cs.client.DescribeTaskDefinition(
+		ctx,
+		taskDefinitionArn,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var containerDefinitionNames []string
+	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
+		containerDefinitionNames = append(containerDefinitionNames, *containerDefinition.Name)
+	}
+
+	var selectedContainerDefinitionName string
+	if len(containerDefinitionNames) == 1 {
+		log.Printf("Pre-select the only available container definition")
+		selectedContainerDefinitionName = containerDefinitionNames[0]
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Select container definition").
+					Options(huh.NewOptions(containerDefinitionNames...)...).
+					Value(&selectedContainerDefinitionName).
+					WithHeight(5),
+			),
+		)
+
+		if err = form.Run(); err != nil {
+			return nil, err
+		}
+	}
+
+	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
+		if *containerDefinition.Name == selectedContainerDefinitionName {
+			fmt.Printf(
+				"%s %s\n",
+				titleStyle.Render("Container definition:"),
+				*containerDefinition.Name,
+			)
+			return &containerDefinition, nil
+		}
+	}
+
+	return nil, fmt.Errorf("container definition not found: %s", selectedContainerDefinitionName)
 }
 
 func (cs ClientSelectors) Service(ctx context.Context, clusterArn string) (*types.Service, error) {
-	return serviceSelector(ctx, cs.client, clusterArn)
+	serviceArns, err := cs.client.ListServices(ctx, clusterArn)
+	if err != nil {
+		return nil, err
+	}
+
+	var selectedServiceArn string
+	if len(serviceArns) == 1 {
+		log.Printf("Pre-select the only available service")
+		selectedServiceArn = serviceArns[0]
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Select service").
+					Options(huh.NewOptions(serviceArns...)...).
+					Value(&selectedServiceArn).
+					WithHeight(5),
+			),
+		)
+
+		if err = form.Run(); err != nil {
+			return nil, err
+		}
+	}
+
+	service, err := cs.client.DescribeService(ctx, clusterArn, selectedServiceArn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe service after selection: %w", err)
+	}
+
+	fmt.Printf("%s %s\n", titleStyle.Render("Service:"), *service.ServiceArn)
+	return service, nil
 }
 
 func (cs ClientSelectors) Task(
@@ -75,7 +218,38 @@ func (cs ClientSelectors) Task(
 	clusterArn string,
 	serviceArn string,
 ) (*types.Task, error) {
-	return taskSelector(ctx, cs.client, clusterArn, serviceArn)
+	taskArns, err := cs.client.ListTasks(ctx, clusterArn, serviceArn)
+	if err != nil {
+		return nil, err
+	}
+
+	var selectedTaskArn string
+	if len(taskArns) == 1 {
+		log.Printf("Pre-select the only available task")
+		selectedTaskArn = taskArns[0]
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Select task").
+					Options(huh.NewOptions(taskArns...)...).
+					Value(&selectedTaskArn).
+					WithHeight(5),
+			),
+		)
+
+		if err = form.Run(); err != nil {
+			return nil, err
+		}
+	}
+
+	task, err := cs.client.DescribeTask(ctx, clusterArn, selectedTaskArn)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("%s %s\n", titleStyle.Render("Task:"), *task.TaskArn)
+	return task, nil
 }
 
 func RunContainerSelector(
