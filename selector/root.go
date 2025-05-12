@@ -26,6 +26,52 @@ type SelectedContainerDefinition struct {
 	ContainerDefinition *types.ContainerDefinition
 }
 
+type Selector interface {
+	Cluster(ctx context.Context) (*types.Cluster, error)
+	Container(containers []types.Container) (*types.Container, error)
+	ContainerDefinition(
+		ctx context.Context,
+		taskDefinition string,
+	) (*types.ContainerDefinition, error)
+	Service(ctx context.Context, clusterArn string) (*types.Service, error)
+	Task(ctx context.Context, clusterArn string, serviceArn string) (*types.Task, error)
+}
+
+var _ Selector = ClientSelector{}
+
+type ClientSelector struct {
+	client client.Client
+}
+
+func (cs ClientSelector) Cluster(ctx context.Context) (*types.Cluster, error) {
+	return ClusterSelector(ctx, cs.client)
+}
+
+func (cs ClientSelector) Container(
+	containers []types.Container,
+) (*types.Container, error) {
+	return ContainerSelector(containers)
+}
+
+func (cs ClientSelector) ContainerDefinition(
+	ctx context.Context,
+	taskDefinition string,
+) (*types.ContainerDefinition, error) {
+	return ContainerDefinitionSelector(ctx, cs.client, taskDefinition)
+}
+
+func (cs ClientSelector) Service(ctx context.Context, clusterArn string) (*types.Service, error) {
+	return ServiceSelector(ctx, cs.client, clusterArn)
+}
+
+func (cs ClientSelector) Task(
+	ctx context.Context,
+	clusterArn string,
+	serviceArn string,
+) (*types.Task, error) {
+	return TaskSelector(ctx, cs.client, clusterArn, serviceArn)
+}
+
 func RunContainerSelector(
 	ctx context.Context,
 	client client.Client,
