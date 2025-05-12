@@ -26,7 +26,7 @@ var logsCmd = &cobra.Command{
 		}
 		client := client.NewClient(cfg)
 		ecsClient := ecs.NewFromConfig(cfg)
-		err = runLogs(context.TODO(), client, selector.NewSelectors(client, ecsClient))
+		err = runLogs(context.TODO(), client, selector.NewSelectors(ecsClient))
 		if err != nil {
 			return err
 		}

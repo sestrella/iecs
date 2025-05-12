@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/sestrella/iecs/client"
 )
 
 var titleStyle = lipgloss.NewStyle().Bold(true)
@@ -36,12 +35,11 @@ type Selectors interface {
 var _ Selectors = ClientSelectors{}
 
 type ClientSelectors struct {
-	_client client.Client
-	client  *ecs.Client
+	client *ecs.Client
 }
 
-func NewSelectors(_client client.Client, client *ecs.Client) Selectors {
-	return ClientSelectors{_client: _client, client: client}
+func NewSelectors(client *ecs.Client) Selectors {
+	return ClientSelectors{client: client}
 }
 
 func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {

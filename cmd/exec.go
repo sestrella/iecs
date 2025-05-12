@@ -62,7 +62,7 @@ var execCmd = &cobra.Command{
 			context.TODO(),
 			smpPath,
 			client,
-			selector.NewSelectors(client, ecsClient),
+			selector.NewSelectors(ecsClient),
 			cfg.Region,
 			command,
 			interactive,
