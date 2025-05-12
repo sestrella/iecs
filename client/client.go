@@ -19,7 +19,6 @@ type EventHandler func(timestamp time.Time, message string)
 // Client interface combines ECS and CloudWatch Logs operations.
 type Client interface {
 	// ECS operations
-	DescribeCluster(ctx context.Context, clusterArn string) (*ecsTypes.Cluster, error)
 	DescribeService(
 		ctx context.Context,
 		clusterArn string,
@@ -30,7 +29,6 @@ type Client interface {
 		ctx context.Context,
 		taskDefinitionArn string,
 	) (*ecsTypes.TaskDefinition, error)
-	ListClusters(ctx context.Context) ([]string, error)
 	ListServices(ctx context.Context, clusterArn string) ([]string, error)
 	ListTasks(ctx context.Context, clusterArn string, serviceArn string) ([]string, error)
 	ExecuteCommand(
@@ -72,22 +70,6 @@ func NewClient(cfg aws.Config) Client {
 }
 
 // ECS implementation
-
-func (c *awsClient) DescribeCluster(
-	ctx context.Context,
-	clusterArn string,
-) (*ecsTypes.Cluster, error) {
-	output, err := c.ecsClient.DescribeClusters(ctx, &ecs.DescribeClustersInput{
-		Clusters: []string{clusterArn},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(output.Clusters) == 0 {
-		return nil, fmt.Errorf("cluster not found: %s", clusterArn)
-	}
-	return &output.Clusters[0], nil
-}
 
 func (c *awsClient) DescribeService(
 	ctx context.Context,
@@ -139,17 +121,6 @@ func (c *awsClient) DescribeTaskDefinition(
 		return nil, fmt.Errorf("task definition not found: %s", taskDefinitionArn)
 	}
 	return output.TaskDefinition, nil
-}
-
-func (c *awsClient) ListClusters(ctx context.Context) ([]string, error) {
-	output, err := c.ecsClient.ListClusters(ctx, &ecs.ListClustersInput{})
-	if err != nil {
-		return nil, err
-	}
-	if len(output.ClusterArns) == 0 {
-		return []string{}, fmt.Errorf("no clusters found")
-	}
-	return output.ClusterArns, nil
 }
 
 func (c *awsClient) ListServices(ctx context.Context, clusterArn string) ([]string, error) {
