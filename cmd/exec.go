@@ -159,18 +159,22 @@ func runContainerSelector(
 	if err != nil {
 		return nil, err
 	}
+
 	service, err := selectors.Service(ctx, *cluster.ClusterArn)
 	if err != nil {
 		return nil, err
 	}
+
 	task, err := selectors.Task(ctx, *cluster.ClusterArn, *service.ServiceArn)
 	if err != nil {
 		return nil, err
 	}
+
 	container, err := selectors.Container(task.Containers)
 	if err != nil {
 		return nil, err
 	}
+
 	return &selectedContainer{
 		cluster:   cluster,
 		service:   service,

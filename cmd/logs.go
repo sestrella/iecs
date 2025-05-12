@@ -82,14 +82,17 @@ func runContainerDefinitionSelector(
 	if err != nil {
 		return nil, err
 	}
+
 	service, err := selectors.Service(ctx, *cluster.ClusterArn)
 	if err != nil {
 		return nil, err
 	}
+
 	containerDefinition, err := selectors.ContainerDefinition(ctx, *service.TaskDefinition)
 	if err != nil {
 		return nil, err
 	}
+
 	return &selectedContainerDefinition{
 		Cluster:             cluster,
 		Service:             service,
