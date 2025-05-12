@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 )
 
 // EventHandler is a function that handles log events.
@@ -19,8 +18,6 @@ type EventHandler func(timestamp time.Time, message string)
 // Client interface combines ECS and CloudWatch Logs operations.
 type Client interface {
 	// ECS operations
-	DescribeTask(ctx context.Context, clusterArn string, taskArn string) (*ecsTypes.Task, error)
-	ListTasks(ctx context.Context, clusterArn string, serviceArn string) ([]string, error)
 	ExecuteCommand(
 		ctx context.Context,
 		clusterArn *string,
@@ -57,48 +54,6 @@ func NewClient(cfg aws.Config) Client {
 		ecsClient:  ecsClient,
 		logsClient: logsClient,
 	}
-}
-
-// ECS implementation
-
-func (c *awsClient) DescribeTask(
-	ctx context.Context,
-	clusterArn string,
-	taskArn string,
-) (*ecsTypes.Task, error) {
-	output, err := c.ecsClient.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: &clusterArn,
-		Tasks:   []string{taskArn},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(output.Tasks) == 0 {
-		return nil, fmt.Errorf("task not found: %s", taskArn)
-	}
-	return &output.Tasks[0], nil
-}
-
-func (c *awsClient) ListTasks(
-	ctx context.Context,
-	clusterArn string,
-	serviceArn string,
-) ([]string, error) {
-	output, err := c.ecsClient.ListTasks(ctx, &ecs.ListTasksInput{
-		Cluster:     &clusterArn,
-		ServiceName: &serviceArn,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(output.TaskArns) == 0 {
-		return []string{}, fmt.Errorf(
-			"no tasks found for service: %s in cluster: %s",
-			serviceArn,
-			clusterArn,
-		)
-	}
-	return output.TaskArns, nil
 }
 
 func (c *awsClient) ExecuteCommand(

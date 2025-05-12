@@ -222,36 +222,51 @@ func (cs ClientSelectors) Task(
 	clusterArn string,
 	serviceArn string,
 ) (*types.Task, error) {
-	taskArns, err := cs._client.ListTasks(ctx, clusterArn, serviceArn)
+	listTasksOutput, err := cs.client.ListTasks(ctx, &ecs.ListTasksInput{
+		Cluster:     &clusterArn,
+		ServiceName: &serviceArn,
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	var selectedTaskArn string
+	taskArns := listTasksOutput.TaskArns
+	if len(taskArns) == 0 {
+		return nil, fmt.Errorf(
+			"no tasks found for service: %s in cluster: %s",
+			serviceArn,
+			clusterArn,
+		)
+	}
+	var taskArn string
 	if len(taskArns) == 1 {
 		log.Printf("Pre-select the only available task")
-		selectedTaskArn = taskArns[0]
+		taskArn = taskArns[0]
 	} else {
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title("Select task").
 					Options(huh.NewOptions(taskArns...)...).
-					Value(&selectedTaskArn).
+					Value(&taskArn).
 					WithHeight(5),
 			),
 		)
-
 		if err = form.Run(); err != nil {
 			return nil, err
 		}
 	}
-
-	task, err := cs._client.DescribeTask(ctx, clusterArn, selectedTaskArn)
+	describeTasksOutput, err := cs.client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+		Cluster: &clusterArn,
+		Tasks:   []string{taskArn},
+	})
 	if err != nil {
 		return nil, err
 	}
-
+	tasks := describeTasksOutput.Tasks
+	if len(tasks) == 0 {
+		return nil, fmt.Errorf("task not found: %s", taskArn)
+	}
+	task := tasks[0]
 	fmt.Printf("%s %s\n", titleStyle.Render("Task:"), *task.TaskArn)
-	return task, nil
+	return &task, nil
 }
