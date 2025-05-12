@@ -36,16 +36,16 @@ type Selectors interface {
 var _ Selectors = ClientSelectors{}
 
 type ClientSelectors struct {
-	client    client.Client
-	ecsClient *ecs.Client
+	_client client.Client
+	client  *ecs.Client
 }
 
 func NewSelectors(client client.Client, ecsClient *ecs.Client) Selectors {
-	return ClientSelectors{client: client, ecsClient: ecsClient}
+	return ClientSelectors{_client: client, client: ecsClient}
 }
 
 func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
-	listClustersOuput, err := cs.ecsClient.ListClusters(ctx, &ecs.ListClustersInput{})
+	listClustersOuput, err := cs.client.ListClusters(ctx, &ecs.ListClustersInput{})
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
 			return nil, err
 		}
 	}
-	describeClustersOutput, err := cs.ecsClient.DescribeClusters(ctx, &ecs.DescribeClustersInput{
+	describeClustersOutput, err := cs.client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
 		Clusters: []string{clusterArn},
 	})
 	if err != nil {
@@ -130,7 +130,7 @@ func (cs ClientSelectors) ContainerDefinition(
 	ctx context.Context,
 	taskDefinitionArn string,
 ) (*types.ContainerDefinition, error) {
-	taskDefinition, err := cs.client.DescribeTaskDefinition(
+	taskDefinition, err := cs._client.DescribeTaskDefinition(
 		ctx,
 		taskDefinitionArn,
 	)
@@ -178,7 +178,7 @@ func (cs ClientSelectors) ContainerDefinition(
 }
 
 func (cs ClientSelectors) Service(ctx context.Context, clusterArn string) (*types.Service, error) {
-	listServicesOutput, err := cs.ecsClient.ListServices(ctx, &ecs.ListServicesInput{
+	listServicesOutput, err := cs.client.ListServices(ctx, &ecs.ListServicesInput{
 		Cluster: &clusterArn,
 	})
 	if err != nil {
@@ -207,7 +207,7 @@ func (cs ClientSelectors) Service(ctx context.Context, clusterArn string) (*type
 			return nil, err
 		}
 	}
-	output, err := cs.ecsClient.DescribeServices(ctx, &ecs.DescribeServicesInput{
+	output, err := cs.client.DescribeServices(ctx, &ecs.DescribeServicesInput{
 		Cluster:  &clusterArn,
 		Services: []string{serviceArn},
 	})
@@ -228,7 +228,7 @@ func (cs ClientSelectors) Task(
 	clusterArn string,
 	serviceArn string,
 ) (*types.Task, error) {
-	taskArns, err := cs.client.ListTasks(ctx, clusterArn, serviceArn)
+	taskArns, err := cs._client.ListTasks(ctx, clusterArn, serviceArn)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func (cs ClientSelectors) Task(
 		}
 	}
 
-	task, err := cs.client.DescribeTask(ctx, clusterArn, selectedTaskArn)
+	task, err := cs._client.DescribeTask(ctx, clusterArn, selectedTaskArn)
 	if err != nil {
 		return nil, err
 	}
