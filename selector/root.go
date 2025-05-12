@@ -53,15 +53,18 @@ func NewSelectors(client client.Client, ecsClient *ecs.Client) Selectors {
 }
 
 func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
-	clusterArns, err := cs.client.ListClusters(ctx)
+	listClustersOuput, err := cs.ecsClient.ListClusters(ctx, &ecs.ListClustersInput{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list clusters: %w", err)
+		return nil, err
 	}
-
-	var selectedClusterArn string
+	clusterArns := listClustersOuput.ClusterArns
+	if len(clusterArns) == 0 {
+		return nil, fmt.Errorf("no clusters found")
+	}
+	var clusterArn string
 	if len(clusterArns) == 1 {
 		log.Printf("Pre-select the only available cluster")
-		selectedClusterArn = clusterArns[0]
+		clusterArn = clusterArns[0]
 	} else {
 		form := huh.NewForm(
 			huh.NewGroup(
@@ -70,23 +73,27 @@ func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
 					Options(
 						huh.NewOptions(clusterArns...)...,
 					).
-					Value(&selectedClusterArn).
+					Value(&clusterArn).
 					WithHeight(5),
 			),
 		)
-
 		if err = form.Run(); err != nil {
 			return nil, err
 		}
 	}
-
-	cluster, err := cs.client.DescribeCluster(ctx, selectedClusterArn)
+	describeClustersOutput, err := cs.ecsClient.DescribeClusters(ctx, &ecs.DescribeClustersInput{
+		Clusters: []string{clusterArn},
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to describe cluster after selection: %w", err)
+		return nil, err
 	}
-
+	clusters := describeClustersOutput.Clusters
+	if len(clusters) == 0 {
+		return nil, fmt.Errorf("cluster not found: %s", clusterArn)
+	}
+	cluster := clusters[0]
 	fmt.Printf("%s %s\n", titleStyle.Render("Cluster:"), *cluster.ClusterArn)
-	return cluster, nil
+	return &cluster, nil
 }
 
 func (cs ClientSelectors) Container(
