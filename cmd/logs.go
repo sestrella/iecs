@@ -7,10 +7,18 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
+
+type selectedContainerDefinition struct {
+	Cluster             *types.Cluster
+	Service             *types.Service
+	TaskDefinition      *types.TaskDefinition
+	ContainerDefinition *types.ContainerDefinition
+}
 
 var logsCmd = &cobra.Command{
 	Use:   "logs",
@@ -69,23 +77,20 @@ func runLogs(
 func runContainerDefinitionSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
-) (*selector.SelectedContainerDefinition, error) {
+) (*selectedContainerDefinition, error) {
 	cluster, err := selectors.Cluster(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	service, err := selectors.Service(ctx, *cluster.ClusterArn)
 	if err != nil {
 		return nil, err
 	}
-
 	containerDefinition, err := selectors.ContainerDefinition(ctx, *service.TaskDefinition)
 	if err != nil {
 		return nil, err
 	}
-
-	return &selector.SelectedContainerDefinition{
+	return &selectedContainerDefinition{
 		Cluster:             cluster,
 		Service:             service,
 		ContainerDefinition: containerDefinition,

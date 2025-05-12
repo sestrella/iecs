@@ -11,15 +11,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var titleStyle = lipgloss.NewStyle().Bold(true)
-
-// SelectedContainerDefinition holds the selected cluster, service, task definition and container definition
-type SelectedContainerDefinition struct {
-	Cluster             *types.Cluster
-	Service             *types.Service
-	TaskDefinition      *types.TaskDefinition
-	ContainerDefinition *types.ContainerDefinition
-}
+var (
+	_          Selectors = ClientSelectors{}
+	titleStyle           = lipgloss.NewStyle().Bold(true)
+)
 
 type Selectors interface {
 	Cluster(ctx context.Context) (*types.Cluster, error)
@@ -31,8 +26,6 @@ type Selectors interface {
 	Service(ctx context.Context, clusterArn string) (*types.Service, error)
 	Task(ctx context.Context, clusterArn string, serviceArn string) (*types.Task, error)
 }
-
-var _ Selectors = ClientSelectors{}
 
 type ClientSelectors struct {
 	client *ecs.Client

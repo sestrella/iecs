@@ -25,7 +25,7 @@ const (
 	execInteractiveFlag = "interactive"
 )
 
-type selection struct {
+type selectedContainer struct {
 	cluster   *types.Cluster
 	service   *types.Service
 	task      *types.Task
@@ -154,28 +154,24 @@ func runExec(
 func runContainerSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
-) (*selection, error) {
+) (*selectedContainer, error) {
 	cluster, err := selectors.Cluster(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	service, err := selectors.Service(ctx, *cluster.ClusterArn)
 	if err != nil {
 		return nil, err
 	}
-
 	task, err := selectors.Task(ctx, *cluster.ClusterArn, *service.ServiceArn)
 	if err != nil {
 		return nil, err
 	}
-
 	container, err := selectors.Container(task.Containers)
 	if err != nil {
 		return nil, err
 	}
-
-	return &selection{
+	return &selectedContainer{
 		cluster:   cluster,
 		service:   service,
 		task:      task,
