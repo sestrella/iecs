@@ -3,6 +3,7 @@ package selector
 import (
 	"context"
 
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/sestrella/iecs/client"
@@ -40,11 +41,12 @@ type Selectors interface {
 var _ Selectors = ClientSelectors{}
 
 type ClientSelectors struct {
-	client client.Client
+	client    client.Client
+	ecsClient *ecs.Client
 }
 
-func NewSelectors(client client.Client) Selectors {
-	return ClientSelectors{client: client}
+func NewSelectors(client client.Client, ecsClient *ecs.Client) Selectors {
+	return ClientSelectors{client: client, ecsClient: ecsClient}
 }
 
 func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {

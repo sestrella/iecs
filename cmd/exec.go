@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
@@ -48,11 +49,12 @@ var execCmd = &cobra.Command{
 			return err
 		}
 		client := client.NewClient(cfg)
+		ecsClient := ecs.NewFromConfig(cfg)
 		err = runExec(
 			context.TODO(),
 			smpPath,
 			client,
-			selector.NewSelectors(client),
+			selector.NewSelectors(client, ecsClient),
 			cfg.Region,
 			command,
 			interactive,

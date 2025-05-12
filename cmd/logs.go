@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
@@ -24,7 +25,8 @@ var logsCmd = &cobra.Command{
 			return err
 		}
 		client := client.NewClient(cfg)
-		err = runLogs(context.TODO(), client, selector.NewSelectors(client))
+		ecsClient := ecs.NewFromConfig(cfg)
+		err = runLogs(context.TODO(), client, selector.NewSelectors(client, ecsClient))
 		if err != nil {
 			return err
 		}
