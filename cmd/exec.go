@@ -13,6 +13,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
@@ -23,6 +24,13 @@ const (
 	execCommandFlag     = "command"
 	execInteractiveFlag = "interactive"
 )
+
+type selection struct {
+	cluster   *types.Cluster
+	service   *types.Service
+	task      *types.Task
+	container *types.Container
+}
 
 var execCmd = &cobra.Command{
 	Use:   "exec",
@@ -76,14 +84,14 @@ func runExec(
 	command string,
 	interactive bool,
 ) error {
-	selection, err := selector.RunContainerSelector(context.TODO(), selectors)
+	selection, err := runContainerSelector(context.TODO(), selectors)
 	if err != nil {
 		return err
 	}
 	executeCommand, err := client.ExecuteCommand(ctx,
-		selection.Cluster.ClusterArn,
-		selection.Task.TaskArn,
-		selection.Container.Name,
+		selection.cluster.ClusterArn,
+		selection.task.TaskArn,
+		selection.container.Name,
 		command,
 		interactive,
 	)
@@ -94,16 +102,16 @@ func runExec(
 	if err != nil {
 		return err
 	}
-	taskArnSlices := strings.Split(*selection.Task.TaskArn, "/")
+	taskArnSlices := strings.Split(*selection.task.TaskArn, "/")
 	if len(taskArnSlices) < 2 {
-		return fmt.Errorf("unable to extract task name from '%s'", *selection.Task.TaskArn)
+		return fmt.Errorf("unable to extract task name from '%s'", *selection.task.TaskArn)
 	}
 	taskName := strings.Join(taskArnSlices[1:], "/")
 	target := fmt.Sprintf(
 		"ecs:%s_%s_%s",
-		*selection.Cluster.ClusterName,
+		*selection.cluster.ClusterName,
 		taskName,
-		*selection.Container.RuntimeId,
+		*selection.container.RuntimeId,
 	)
 	targetJSON, err := json.Marshal(ssm.StartSessionInput{
 		Target: &target,
@@ -141,6 +149,38 @@ func runExec(
 	}()
 
 	return cmd.Wait()
+}
+
+func runContainerSelector(
+	ctx context.Context,
+	selectors selector.Selectors,
+) (*selection, error) {
+	cluster, err := selectors.Cluster(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	service, err := selectors.Service(ctx, *cluster.ClusterArn)
+	if err != nil {
+		return nil, err
+	}
+
+	task, err := selectors.Task(ctx, *cluster.ClusterArn, *service.ServiceArn)
+	if err != nil {
+		return nil, err
+	}
+
+	container, err := selectors.Container(task.Containers)
+	if err != nil {
+		return nil, err
+	}
+
+	return &selection{
+		cluster:   cluster,
+		service:   service,
+		task:      task,
+		container: container,
+	}, nil
 }
 
 func init() {

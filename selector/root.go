@@ -14,14 +14,6 @@ import (
 
 var titleStyle = lipgloss.NewStyle().Bold(true)
 
-// SelectedContainer holds the selected cluster, service, task and container
-type SelectedContainer struct {
-	Cluster   *types.Cluster
-	Service   *types.Service
-	Task      *types.Task
-	Container *types.Container
-}
-
 // SelectedContainerDefinition holds the selected cluster, service, task definition and container definition
 type SelectedContainerDefinition struct {
 	Cluster             *types.Cluster
@@ -257,38 +249,6 @@ func (cs ClientSelectors) Task(
 
 	fmt.Printf("%s %s\n", titleStyle.Render("Task:"), *task.TaskArn)
 	return task, nil
-}
-
-func RunContainerSelector(
-	ctx context.Context,
-	selectors Selectors,
-) (*SelectedContainer, error) {
-	cluster, err := selectors.Cluster(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := selectors.Service(ctx, *cluster.ClusterArn)
-	if err != nil {
-		return nil, err
-	}
-
-	task, err := selectors.Task(ctx, *cluster.ClusterArn, *service.ServiceArn)
-	if err != nil {
-		return nil, err
-	}
-
-	container, err := selectors.Container(task.Containers)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SelectedContainer{
-		Cluster:   cluster,
-		Service:   service,
-		Task:      task,
-		Container: container,
-	}, nil
 }
 
 // RunContainerDefinitionSelector runs an interactive form to select an ECS cluster, service and container definition

@@ -20,9 +20,16 @@ type EventHandler func(timestamp time.Time, message string)
 type Client interface {
 	// ECS operations
 	DescribeCluster(ctx context.Context, clusterArn string) (*ecsTypes.Cluster, error)
-	DescribeService(ctx context.Context, clusterArn string, serviceArn string) (*ecsTypes.Service, error)
+	DescribeService(
+		ctx context.Context,
+		clusterArn string,
+		serviceArn string,
+	) (*ecsTypes.Service, error)
 	DescribeTask(ctx context.Context, clusterArn string, taskArn string) (*ecsTypes.Task, error)
-	DescribeTaskDefinition(ctx context.Context, taskDefinitionArn string) (*ecsTypes.TaskDefinition, error)
+	DescribeTaskDefinition(
+		ctx context.Context,
+		taskDefinitionArn string,
+	) (*ecsTypes.TaskDefinition, error)
 	ListClusters(ctx context.Context) ([]string, error)
 	ListServices(ctx context.Context, clusterArn string) ([]string, error)
 	ListTasks(ctx context.Context, clusterArn string, serviceArn string) ([]string, error)
