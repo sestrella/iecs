@@ -52,6 +52,7 @@ var execCmd = &cobra.Command{
 			context.TODO(),
 			smpPath,
 			client,
+			selector.NewSelectors(client),
 			cfg.Region,
 			command,
 			interactive,
@@ -68,11 +69,12 @@ func runExec(
 	ctx context.Context,
 	smpPath string,
 	client client.Client,
+	selectors selector.Selectors,
 	region string,
 	command string,
 	interactive bool,
 ) error {
-	selection, err := selector.RunContainerSelector(context.TODO(), client)
+	selection, err := selector.RunContainerSelector(context.TODO(), selectors)
 	if err != nil {
 		return err
 	}

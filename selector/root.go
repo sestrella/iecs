@@ -26,7 +26,7 @@ type SelectedContainerDefinition struct {
 	ContainerDefinition *types.ContainerDefinition
 }
 
-type Selector interface {
+type Selectors interface {
 	Cluster(ctx context.Context) (*types.Cluster, error)
 	Container(containers []types.Container) (*types.Container, error)
 	ContainerDefinition(
@@ -37,34 +37,38 @@ type Selector interface {
 	Task(ctx context.Context, clusterArn string, serviceArn string) (*types.Task, error)
 }
 
-var _ Selector = ClientSelector{}
+var _ Selectors = ClientSelectors{}
 
-type ClientSelector struct {
+type ClientSelectors struct {
 	client client.Client
 }
 
-func (cs ClientSelector) Cluster(ctx context.Context) (*types.Cluster, error) {
+func NewSelectors(client client.Client) Selectors {
+	return ClientSelectors{client: client}
+}
+
+func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
 	return ClusterSelector(ctx, cs.client)
 }
 
-func (cs ClientSelector) Container(
+func (cs ClientSelectors) Container(
 	containers []types.Container,
 ) (*types.Container, error) {
 	return ContainerSelector(containers)
 }
 
-func (cs ClientSelector) ContainerDefinition(
+func (cs ClientSelectors) ContainerDefinition(
 	ctx context.Context,
 	taskDefinition string,
 ) (*types.ContainerDefinition, error) {
 	return ContainerDefinitionSelector(ctx, cs.client, taskDefinition)
 }
 
-func (cs ClientSelector) Service(ctx context.Context, clusterArn string) (*types.Service, error) {
+func (cs ClientSelectors) Service(ctx context.Context, clusterArn string) (*types.Service, error) {
 	return ServiceSelector(ctx, cs.client, clusterArn)
 }
 
-func (cs ClientSelector) Task(
+func (cs ClientSelectors) Task(
 	ctx context.Context,
 	clusterArn string,
 	serviceArn string,
@@ -74,24 +78,24 @@ func (cs ClientSelector) Task(
 
 func RunContainerSelector(
 	ctx context.Context,
-	client client.Client,
+	selectors Selectors,
 ) (*SelectedContainer, error) {
-	cluster, err := ClusterSelector(ctx, client)
+	cluster, err := selectors.Cluster(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	service, err := ServiceSelector(ctx, client, *cluster.ClusterArn)
+	service, err := selectors.Service(ctx, *cluster.ClusterArn)
 	if err != nil {
 		return nil, err
 	}
 
-	task, err := TaskSelector(ctx, client, *cluster.ClusterArn, *service.ServiceArn)
+	task, err := selectors.Task(ctx, *cluster.ClusterArn, *service.ServiceArn)
 	if err != nil {
 		return nil, err
 	}
 
-	container, err := ContainerSelector(task.Containers)
+	container, err := selectors.Container(task.Containers)
 	if err != nil {
 		return nil, err
 	}
