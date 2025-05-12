@@ -10,7 +10,7 @@ import (
 	"github.com/sestrella/iecs/client"
 )
 
-func ServiceSelector(
+func serviceSelector(
 	ctx context.Context,
 	client client.Client,
 	clusterArn string,

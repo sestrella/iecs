@@ -10,7 +10,7 @@ import (
 	"github.com/sestrella/iecs/client"
 )
 
-func ClusterSelector(ctx context.Context, client client.Client) (*types.Cluster, error) {
+func clusterSelector(ctx context.Context, client client.Client) (*types.Cluster, error) {
 	clusterArns, err := client.ListClusters(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list clusters: %w", err)

@@ -48,24 +48,24 @@ func NewSelectors(client client.Client) Selectors {
 }
 
 func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
-	return ClusterSelector(ctx, cs.client)
+	return clusterSelector(ctx, cs.client)
 }
 
 func (cs ClientSelectors) Container(
 	containers []types.Container,
 ) (*types.Container, error) {
-	return ContainerSelector(containers)
+	return containerSelector(containers)
 }
 
 func (cs ClientSelectors) ContainerDefinition(
 	ctx context.Context,
 	taskDefinition string,
 ) (*types.ContainerDefinition, error) {
-	return ContainerDefinitionSelector(ctx, cs.client, taskDefinition)
+	return containerDefinitionSelector(ctx, cs.client, taskDefinition)
 }
 
 func (cs ClientSelectors) Service(ctx context.Context, clusterArn string) (*types.Service, error) {
-	return ServiceSelector(ctx, cs.client, clusterArn)
+	return serviceSelector(ctx, cs.client, clusterArn)
 }
 
 func (cs ClientSelectors) Task(
@@ -73,7 +73,7 @@ func (cs ClientSelectors) Task(
 	clusterArn string,
 	serviceArn string,
 ) (*types.Task, error) {
-	return TaskSelector(ctx, cs.client, clusterArn, serviceArn)
+	return taskSelector(ctx, cs.client, clusterArn, serviceArn)
 }
 
 func RunContainerSelector(

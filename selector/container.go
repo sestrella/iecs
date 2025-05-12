@@ -10,7 +10,7 @@ import (
 	"github.com/sestrella/iecs/client"
 )
 
-func ContainerSelector(containers []types.Container) (*types.Container, error) {
+func containerSelector(containers []types.Container) (*types.Container, error) {
 	var containerNames []string
 	for _, container := range containers {
 		containerNames = append(containerNames, *container.Name)
@@ -46,7 +46,7 @@ func ContainerSelector(containers []types.Container) (*types.Container, error) {
 	return nil, fmt.Errorf("container not found: %s", selectedContainerName)
 }
 
-func ContainerDefinitionSelector(
+func containerDefinitionSelector(
 	ctx context.Context,
 	client client.Client,
 	taskDefinitionArn string,

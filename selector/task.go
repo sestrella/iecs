@@ -10,7 +10,7 @@ import (
 	"github.com/sestrella/iecs/client"
 )
 
-func TaskSelector(
+func taskSelector(
 	ctx context.Context,
 	client client.Client,
 	clusterArn string,
