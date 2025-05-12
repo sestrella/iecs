@@ -17,16 +17,6 @@ type EventHandler func(timestamp time.Time, message string)
 
 // Client interface combines ECS and CloudWatch Logs operations.
 type Client interface {
-	// ECS operations
-	ExecuteCommand(
-		ctx context.Context,
-		clusterArn *string,
-		taskArn *string,
-		containerName *string,
-		command string,
-		interactive bool,
-	) (*ecs.ExecuteCommandOutput, error)
-
 	// CloudWatch Logs operations
 	DescribeLogGroups(
 		ctx context.Context,
@@ -54,30 +44,6 @@ func NewClient(cfg aws.Config) Client {
 		ecsClient:  ecsClient,
 		logsClient: logsClient,
 	}
-}
-
-func (c *awsClient) ExecuteCommand(
-	ctx context.Context,
-	clusterArn *string,
-	taskArn *string,
-	containerName *string,
-	command string,
-	interactive bool,
-) (*ecs.ExecuteCommandOutput, error) {
-	input := &ecs.ExecuteCommandInput{
-		Cluster:     clusterArn,
-		Task:        taskArn,
-		Container:   containerName,
-		Command:     &command,
-		Interactive: interactive,
-	}
-
-	output, err := c.ecsClient.ExecuteCommand(ctx, input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute command: %w", err)
-	}
-
-	return output, nil
 }
 
 // CloudWatch Logs implementation
