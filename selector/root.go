@@ -250,30 +250,3 @@ func (cs ClientSelectors) Task(
 	fmt.Printf("%s %s\n", titleStyle.Render("Task:"), *task.TaskArn)
 	return task, nil
 }
-
-// RunContainerDefinitionSelector runs an interactive form to select an ECS cluster, service and container definition
-func RunContainerDefinitionSelector(
-	ctx context.Context,
-	selectors Selectors,
-) (*SelectedContainerDefinition, error) {
-	cluster, err := selectors.Cluster(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := selectors.Service(ctx, *cluster.ClusterArn)
-	if err != nil {
-		return nil, err
-	}
-
-	containerDefinition, err := selectors.ContainerDefinition(ctx, *service.TaskDefinition)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SelectedContainerDefinition{
-		Cluster:             cluster,
-		Service:             service,
-		ContainerDefinition: containerDefinition,
-	}, nil
-}
