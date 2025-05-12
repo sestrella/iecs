@@ -24,7 +24,7 @@ var logsCmd = &cobra.Command{
 			return err
 		}
 		client := client.NewClient(cfg)
-		err = runLogs(context.TODO(), client)
+		err = runLogs(context.TODO(), client, selector.NewSelectors(client))
 		if err != nil {
 			return err
 		}
@@ -36,8 +36,9 @@ var logsCmd = &cobra.Command{
 func runLogs(
 	ctx context.Context,
 	client client.Client,
+	selectors selector.Selectors,
 ) error {
-	selection, err := selector.RunContainerDefinitionSelector(ctx, client)
+	selection, err := selector.RunContainerDefinitionSelector(ctx, selectors)
 	if err != nil {
 		return err
 	}
