@@ -40,8 +40,8 @@ type ClientSelectors struct {
 	client  *ecs.Client
 }
 
-func NewSelectors(client client.Client, ecsClient *ecs.Client) Selectors {
-	return ClientSelectors{_client: client, client: ecsClient}
+func NewSelectors(_client client.Client, client *ecs.Client) Selectors {
+	return ClientSelectors{_client: _client, client: client}
 }
 
 func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
@@ -95,35 +95,31 @@ func (cs ClientSelectors) Container(
 	for _, container := range containers {
 		containerNames = append(containerNames, *container.Name)
 	}
-
-	var selectedContainerName string
+	var containerName string
 	if len(containerNames) == 1 {
 		log.Printf("Pre-select the only available container")
-		selectedContainerName = containerNames[0]
+		containerName = containerNames[0]
 	} else {
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title("Select container").
 					Options(huh.NewOptions(containerNames...)...).
-					Value(&selectedContainerName).
+					Value(&containerName).
 					WithHeight(5),
 			),
 		)
-
 		if err := form.Run(); err != nil {
 			return nil, err
 		}
 	}
-
 	for _, container := range containers {
-		if *container.Name == selectedContainerName {
+		if *container.Name == containerName {
 			fmt.Printf("%s %s\n", titleStyle.Render("Container:"), *container.Name)
 			return &container, nil
 		}
 	}
-
-	return nil, fmt.Errorf("container not found: %s", selectedContainerName)
+	return nil, fmt.Errorf("container not found: %s", containerName)
 }
 
 func (cs ClientSelectors) ContainerDefinition(
