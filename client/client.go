@@ -20,10 +20,6 @@ type EventHandler func(timestamp time.Time, message string)
 type Client interface {
 	// ECS operations
 	DescribeTask(ctx context.Context, clusterArn string, taskArn string) (*ecsTypes.Task, error)
-	DescribeTaskDefinition(
-		ctx context.Context,
-		taskDefinitionArn string,
-	) (*ecsTypes.TaskDefinition, error)
 	ListTasks(ctx context.Context, clusterArn string, serviceArn string) ([]string, error)
 	ExecuteCommand(
 		ctx context.Context,
@@ -81,22 +77,6 @@ func (c *awsClient) DescribeTask(
 		return nil, fmt.Errorf("task not found: %s", taskArn)
 	}
 	return &output.Tasks[0], nil
-}
-
-func (c *awsClient) DescribeTaskDefinition(
-	ctx context.Context,
-	taskDefinitionArn string,
-) (*ecsTypes.TaskDefinition, error) {
-	output, err := c.ecsClient.DescribeTaskDefinition(ctx, &ecs.DescribeTaskDefinitionInput{
-		TaskDefinition: &taskDefinitionArn,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if output.TaskDefinition == nil {
-		return nil, fmt.Errorf("task definition not found: %s", taskDefinitionArn)
-	}
-	return output.TaskDefinition, nil
 }
 
 func (c *awsClient) ListTasks(

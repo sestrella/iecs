@@ -126,41 +126,40 @@ func (cs ClientSelectors) ContainerDefinition(
 	ctx context.Context,
 	taskDefinitionArn string,
 ) (*types.ContainerDefinition, error) {
-	taskDefinition, err := cs._client.DescribeTaskDefinition(
+	describeTaskDefinitionOutput, err := cs.client.DescribeTaskDefinition(
 		ctx,
-		taskDefinitionArn,
+		&ecs.DescribeTaskDefinitionInput{
+			TaskDefinition: &taskDefinitionArn,
+		},
 	)
 	if err != nil {
 		return nil, err
 	}
-
+	taskDefinition := describeTaskDefinitionOutput.TaskDefinition
 	var containerDefinitionNames []string
 	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
 		containerDefinitionNames = append(containerDefinitionNames, *containerDefinition.Name)
 	}
-
-	var selectedContainerDefinitionName string
+	var containerDefinitionName string
 	if len(containerDefinitionNames) == 1 {
 		log.Printf("Pre-select the only available container definition")
-		selectedContainerDefinitionName = containerDefinitionNames[0]
+		containerDefinitionName = containerDefinitionNames[0]
 	} else {
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title("Select container definition").
 					Options(huh.NewOptions(containerDefinitionNames...)...).
-					Value(&selectedContainerDefinitionName).
+					Value(&containerDefinitionName).
 					WithHeight(5),
 			),
 		)
-
 		if err = form.Run(); err != nil {
 			return nil, err
 		}
 	}
-
 	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
-		if *containerDefinition.Name == selectedContainerDefinitionName {
+		if *containerDefinition.Name == containerDefinitionName {
 			fmt.Printf(
 				"%s %s\n",
 				titleStyle.Render("Container definition:"),
@@ -169,8 +168,7 @@ func (cs ClientSelectors) ContainerDefinition(
 			return &containerDefinition, nil
 		}
 	}
-
-	return nil, fmt.Errorf("container definition not found: %s", selectedContainerDefinitionName)
+	return nil, fmt.Errorf("container definition not found: %s", containerDefinitionName)
 }
 
 func (cs ClientSelectors) Service(ctx context.Context, clusterArn string) (*types.Service, error) {
