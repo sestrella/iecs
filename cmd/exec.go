@@ -74,15 +74,11 @@ var execCmd = &cobra.Command{
 	Aliases: []string{"ssh"},
 }
 
-type EcsCommandExecutor func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error)
-
-type CommandExecutor func(name string, arg ...string) *exec.Cmd
-
 func runExec(
 	ctx context.Context,
 	smpPath string,
-	ecsCommandExecutor EcsCommandExecutor,
-	commandExecutor CommandExecutor,
+	ecsCommandExecutor func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error),
+	commandExecutor func(name string, arg ...string) *exec.Cmd,
 	selectors selector.Selectors,
 	region string,
 	command string,
