@@ -60,6 +60,7 @@ var execCmd = &cobra.Command{
 			context.TODO(),
 			smpPath,
 			ecsClient.ExecuteCommand,
+			exec.Command,
 			selector.NewSelectors(ecsClient),
 			cfg.Region,
 			command,
@@ -73,12 +74,15 @@ var execCmd = &cobra.Command{
 	Aliases: []string{"ssh"},
 }
 
-type ExecuteCommandFn func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error)
+type EcsCommandExecutor func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error)
+
+type CommandExecutor func(name string, arg ...string) *exec.Cmd
 
 func runExec(
 	ctx context.Context,
 	smpPath string,
-	executeCommandFn ExecuteCommandFn,
+	ecsCommandExecutor EcsCommandExecutor,
+	commandExecutor CommandExecutor,
 	selectors selector.Selectors,
 	region string,
 	command string,
@@ -88,7 +92,7 @@ func runExec(
 	if err != nil {
 		return err
 	}
-	executeCommandOutput, err := executeCommandFn(ctx, &ecs.ExecuteCommandInput{
+	executeCommandOutput, err := ecsCommandExecutor(ctx, &ecs.ExecuteCommandInput{
 		Cluster:     selection.cluster.ClusterArn,
 		Task:        selection.task.TaskArn,
 		Container:   selection.container.Name,
@@ -120,7 +124,7 @@ func runExec(
 		return err
 	}
 	// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
-	cmd := exec.Command(smpPath,
+	cmd := commandExecutor(smpPath,
 		string(session),
 		region,
 		"StartSession",
