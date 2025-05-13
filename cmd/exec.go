@@ -59,7 +59,7 @@ var execCmd = &cobra.Command{
 		err = runExec(
 			context.TODO(),
 			smpPath,
-			*ecsClient,
+			ecsClient.ExecuteCommand,
 			selector.NewSelectors(ecsClient),
 			cfg.Region,
 			command,
@@ -73,10 +73,12 @@ var execCmd = &cobra.Command{
 	Aliases: []string{"ssh"},
 }
 
+type ExecuteCommandFn func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error)
+
 func runExec(
 	ctx context.Context,
 	smpPath string,
-	client ecs.Client,
+	executeCommandFn ExecuteCommandFn,
 	selectors selector.Selectors,
 	region string,
 	command string,
@@ -86,7 +88,7 @@ func runExec(
 	if err != nil {
 		return err
 	}
-	executeCommand, err := client.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
+	executeCommandOutput, err := executeCommandFn(ctx, &ecs.ExecuteCommandInput{
 		Cluster:     selection.cluster.ClusterArn,
 		Task:        selection.task.TaskArn,
 		Container:   selection.container.Name,
@@ -96,7 +98,7 @@ func runExec(
 	if err != nil {
 		return err
 	}
-	session, err := json.Marshal(executeCommand.Session)
+	session, err := json.Marshal(executeCommandOutput.Session)
 	if err != nil {
 		return err
 	}
