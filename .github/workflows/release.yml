@@ -32,7 +32,7 @@ jobs:
             mkdir -p iecs-${{ github.ref_name }}-${platform}
             cp iecs-${{ github.ref_name }}-${platform}-bin iecs-${{ github.ref_name }}-${platform}/iecs
             cp LICENSE iecs-${{ github.ref_name }}-${platform}/
-            zip iecs-${{ github.ref_name }}-${platform}.zip iecs-${{ github.ref_name }}-${platform}/*
+            zip -j iecs-${{ github.ref_name }}-${platform}.zip iecs-${{ github.ref_name }}-${platform}/*
           done
       - name: Create release
         uses: softprops/action-gh-release@v2
