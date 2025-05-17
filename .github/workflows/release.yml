@@ -43,4 +43,3 @@ jobs:
             iecs-${{ github.ref_name }}-linux-amd64.zip
             iecs-${{ github.ref_name }}-linux-arm64.zip
           generate_release_notes: true
-          draft: true
