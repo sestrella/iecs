@@ -12,8 +12,8 @@ import (
 	"syscall"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
@@ -47,11 +47,13 @@ var execCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		client := client.NewClient(cfg)
+		ecsClient := ecs.NewFromConfig(cfg)
 		err = runExec(
 			context.TODO(),
 			smpPath,
-			client,
+			ecsClient.ExecuteCommand,
+			exec.Command,
+			selector.NewSelectors(ecsClient),
 			cfg.Region,
 			command,
 			interactive,
@@ -67,26 +69,28 @@ var execCmd = &cobra.Command{
 func runExec(
 	ctx context.Context,
 	smpPath string,
-	client client.Client,
+	ecsCommandExecutor func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error),
+	commandExecutor func(name string, arg ...string) *exec.Cmd,
+	selectors selector.Selectors,
 	region string,
 	command string,
 	interactive bool,
 ) error {
-	selection, err := selector.RunContainerSelector(context.TODO(), client)
+	selection, err := selectors.RunContainerSelector(ctx)
 	if err != nil {
 		return err
 	}
-	executeCommand, err := client.ExecuteCommand(ctx,
-		selection.Cluster.ClusterArn,
-		selection.Task.TaskArn,
-		selection.Container.Name,
-		command,
-		interactive,
-	)
+	executeCommandOutput, err := ecsCommandExecutor(ctx, &ecs.ExecuteCommandInput{
+		Cluster:     selection.Cluster.ClusterArn,
+		Task:        selection.Task.TaskArn,
+		Container:   selection.Container.Name,
+		Command:     &command,
+		Interactive: interactive,
+	})
 	if err != nil {
 		return err
 	}
-	session, err := json.Marshal(executeCommand.Session)
+	session, err := json.Marshal(executeCommandOutput.Session)
 	if err != nil {
 		return err
 	}
@@ -108,7 +112,7 @@ func runExec(
 		return err
 	}
 	// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
-	cmd := exec.Command(smpPath,
+	cmd := commandExecutor(smpPath,
 		string(session),
 		region,
 		"StartSession",

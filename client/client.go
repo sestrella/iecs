@@ -7,10 +7,9 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	logs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 )
 
 // EventHandler is a function that handles log events.
@@ -18,28 +17,11 @@ type EventHandler func(timestamp time.Time, message string)
 
 // Client interface combines ECS and CloudWatch Logs operations.
 type Client interface {
-	// ECS operations
-	DescribeCluster(ctx context.Context, clusterArn string) (*ecsTypes.Cluster, error)
-	DescribeService(ctx context.Context, clusterArn string, serviceArn string) (*ecsTypes.Service, error)
-	DescribeTask(ctx context.Context, clusterArn string, taskArn string) (*ecsTypes.Task, error)
-	DescribeTaskDefinition(ctx context.Context, taskDefinitionArn string) (*ecsTypes.TaskDefinition, error)
-	ListClusters(ctx context.Context) ([]string, error)
-	ListServices(ctx context.Context, clusterArn string) ([]string, error)
-	ListTasks(ctx context.Context, clusterArn string, serviceArn string) ([]string, error)
-	ExecuteCommand(
-		ctx context.Context,
-		clusterArn *string,
-		taskArn *string,
-		containerName *string,
-		command string,
-		interactive bool,
-	) (*ecs.ExecuteCommandOutput, error)
-
 	// CloudWatch Logs operations
 	DescribeLogGroups(
 		ctx context.Context,
 		logGroupNamePrefix string,
-	) (*cloudwatchlogs.DescribeLogGroupsOutput, error)
+	) (*logs.DescribeLogGroupsOutput, error)
 	StartLiveTail(
 		ctx context.Context,
 		logGroupName string,
@@ -51,157 +33,17 @@ type Client interface {
 // awsClient implements the combined Client interface
 type awsClient struct {
 	ecsClient  *ecs.Client
-	logsClient *cloudwatchlogs.Client
+	logsClient *logs.Client
 }
 
 // NewClient creates a new combined AWS client
 func NewClient(cfg aws.Config) Client {
 	ecsClient := ecs.NewFromConfig(cfg)
-	logsClient := cloudwatchlogs.NewFromConfig(cfg)
+	logsClient := logs.NewFromConfig(cfg)
 	return &awsClient{
 		ecsClient:  ecsClient,
 		logsClient: logsClient,
 	}
-}
-
-// ECS implementation
-
-func (c *awsClient) DescribeCluster(
-	ctx context.Context,
-	clusterArn string,
-) (*ecsTypes.Cluster, error) {
-	output, err := c.ecsClient.DescribeClusters(ctx, &ecs.DescribeClustersInput{
-		Clusters: []string{clusterArn},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(output.Clusters) == 0 {
-		return nil, fmt.Errorf("cluster not found: %s", clusterArn)
-	}
-	return &output.Clusters[0], nil
-}
-
-func (c *awsClient) DescribeService(
-	ctx context.Context,
-	clusterArn string,
-	serviceArn string,
-) (*ecsTypes.Service, error) {
-	output, err := c.ecsClient.DescribeServices(ctx, &ecs.DescribeServicesInput{
-		Cluster:  &clusterArn,
-		Services: []string{serviceArn},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(output.Services) == 0 {
-		return nil, fmt.Errorf("service not found: %s", serviceArn)
-	}
-	return &output.Services[0], nil
-}
-
-func (c *awsClient) DescribeTask(
-	ctx context.Context,
-	clusterArn string,
-	taskArn string,
-) (*ecsTypes.Task, error) {
-	output, err := c.ecsClient.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: &clusterArn,
-		Tasks:   []string{taskArn},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(output.Tasks) == 0 {
-		return nil, fmt.Errorf("task not found: %s", taskArn)
-	}
-	return &output.Tasks[0], nil
-}
-
-func (c *awsClient) DescribeTaskDefinition(
-	ctx context.Context,
-	taskDefinitionArn string,
-) (*ecsTypes.TaskDefinition, error) {
-	output, err := c.ecsClient.DescribeTaskDefinition(ctx, &ecs.DescribeTaskDefinitionInput{
-		TaskDefinition: &taskDefinitionArn,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if output.TaskDefinition == nil {
-		return nil, fmt.Errorf("task definition not found: %s", taskDefinitionArn)
-	}
-	return output.TaskDefinition, nil
-}
-
-func (c *awsClient) ListClusters(ctx context.Context) ([]string, error) {
-	output, err := c.ecsClient.ListClusters(ctx, &ecs.ListClustersInput{})
-	if err != nil {
-		return nil, err
-	}
-	if len(output.ClusterArns) == 0 {
-		return []string{}, fmt.Errorf("no clusters found")
-	}
-	return output.ClusterArns, nil
-}
-
-func (c *awsClient) ListServices(ctx context.Context, clusterArn string) ([]string, error) {
-	output, err := c.ecsClient.ListServices(ctx, &ecs.ListServicesInput{
-		Cluster: &clusterArn,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(output.ServiceArns) == 0 {
-		return []string{}, fmt.Errorf("no services found in cluster: %s", clusterArn)
-	}
-	return output.ServiceArns, nil
-}
-
-func (c *awsClient) ListTasks(
-	ctx context.Context,
-	clusterArn string,
-	serviceArn string,
-) ([]string, error) {
-	output, err := c.ecsClient.ListTasks(ctx, &ecs.ListTasksInput{
-		Cluster:     &clusterArn,
-		ServiceName: &serviceArn,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(output.TaskArns) == 0 {
-		return []string{}, fmt.Errorf(
-			"no tasks found for service: %s in cluster: %s",
-			serviceArn,
-			clusterArn,
-		)
-	}
-	return output.TaskArns, nil
-}
-
-func (c *awsClient) ExecuteCommand(
-	ctx context.Context,
-	clusterArn *string,
-	taskArn *string,
-	containerName *string,
-	command string,
-	interactive bool,
-) (*ecs.ExecuteCommandOutput, error) {
-	input := &ecs.ExecuteCommandInput{
-		Cluster:     clusterArn,
-		Task:        taskArn,
-		Container:   containerName,
-		Command:     &command,
-		Interactive: interactive,
-	}
-
-	output, err := c.ecsClient.ExecuteCommand(ctx, input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute command: %w", err)
-	}
-
-	return output, nil
 }
 
 // CloudWatch Logs implementation
@@ -209,8 +51,8 @@ func (c *awsClient) ExecuteCommand(
 func (c *awsClient) DescribeLogGroups(
 	ctx context.Context,
 	logGroupNamePrefix string,
-) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
-	input := &cloudwatchlogs.DescribeLogGroupsInput{}
+) (*logs.DescribeLogGroupsOutput, error) {
+	input := &logs.DescribeLogGroupsInput{}
 	if logGroupNamePrefix != "" {
 		input.LogGroupNamePrefix = &logGroupNamePrefix
 	}
@@ -247,7 +89,7 @@ func (c *awsClient) StartLiveTail(
 	// Start the live tail
 	startLiveTail, err := c.logsClient.StartLiveTail(
 		ctx,
-		&cloudwatchlogs.StartLiveTailInput{
+		&logs.StartLiveTailInput{
 			LogGroupIdentifiers:   []string{*logGroupArn},
 			LogStreamNamePrefixes: []string{streamPrefix},
 		},

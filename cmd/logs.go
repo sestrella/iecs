@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
@@ -24,7 +25,8 @@ var logsCmd = &cobra.Command{
 			return err
 		}
 		client := client.NewClient(cfg)
-		err = runLogs(context.TODO(), client)
+		ecsClient := ecs.NewFromConfig(cfg)
+		err = runLogs(context.TODO(), client, selector.NewSelectors(ecsClient))
 		if err != nil {
 			return err
 		}
@@ -36,8 +38,9 @@ var logsCmd = &cobra.Command{
 func runLogs(
 	ctx context.Context,
 	client client.Client,
+	selectors selector.Selectors,
 ) error {
-	selection, err := selector.RunContainerDefinitionSelector(ctx, client)
+	selection, err := selectors.RunContainerDefinitionSelector(ctx)
 	if err != nil {
 		return err
 	}
