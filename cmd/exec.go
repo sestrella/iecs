@@ -13,7 +13,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
@@ -23,13 +22,6 @@ const (
 	execCommandFlag     = "command"
 	execInteractiveFlag = "interactive"
 )
-
-type selectedContainer struct {
-	cluster   *types.Cluster
-	service   *types.Service
-	task      *types.Task
-	container *types.Container
-}
 
 var execCmd = &cobra.Command{
 	Use:   "exec",
@@ -149,23 +141,6 @@ func runExec(
 	}()
 
 	return cmd.Wait()
-}
-
-// Keep for backward compatibility, uses the new interface method
-func runContainerSelector(
-	ctx context.Context,
-	selectors selector.Selectors,
-) (*selectedContainer, error) {
-	selection, err := selectors.RunContainerSelector(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &selectedContainer{
-		cluster:   selection.Cluster,
-		service:   selection.Service,
-		task:      selection.Task,
-		container: selection.Container,
-	}, nil
 }
 
 func init() {
