@@ -26,13 +26,20 @@ jobs:
           GOOS=linux GOARCH=arm64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-linux-arm64-bin
         env:
           CGO_ENABLED: 0
+      - name: Package binaries with LICENSE
+        run: |
+          for platform in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64; do
+            mkdir -p iecs-${{ github.ref_name }}-${platform}
+            cp iecs-${{ github.ref_name }}-${platform}-bin iecs-${{ github.ref_name }}-${platform}/iecs
+            cp LICENSE iecs-${{ github.ref_name }}-${platform}/
+            zip -r iecs-${{ github.ref_name }}-${platform}.zip iecs-${{ github.ref_name }}-${platform}
+          done
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            LICENSE
-            iecs-${{ github.ref_name }}-darwin-amd64-bin
-            iecs-${{ github.ref_name }}-darwin-arm64-bin
-            iecs-${{ github.ref_name }}-linux-amd64-bin
-            iecs-${{ github.ref_name }}-linux-arm64-bin
+            iecs-${{ github.ref_name }}-darwin-amd64.zip
+            iecs-${{ github.ref_name }}-darwin-arm64.zip
+            iecs-${{ github.ref_name }}-linux-amd64.zip
+            iecs-${{ github.ref_name }}-linux-arm64.zip
           generate_release_notes: true
