@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/sestrella/iecs/selector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -64,6 +65,26 @@ func (m *MockSelectors) ContainerDefinition(
 	return args.Get(0).(*types.ContainerDefinition), args.Error(1)
 }
 
+func (m *MockSelectors) RunContainerSelector(
+	ctx context.Context,
+) (*selector.SelectedContainer, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*selector.SelectedContainer), args.Error(1)
+}
+
+func (m *MockSelectors) RunContainerDefinitionSelector(
+	ctx context.Context,
+) (*selector.SelectedContainerDefinition, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*selector.SelectedContainerDefinition), args.Error(1)
+}
+
 // Helper function to create string pointers
 func stringPtr(s string) *string {
 	return &s
@@ -86,26 +107,31 @@ func TestRunExec_Success(t *testing.T) {
 		ClusterArn:  &clusterArn,
 		ClusterName: &clusterName,
 	}
-	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
 
 	// Mock service
 	service := &types.Service{
 		ServiceArn: &serviceArn,
 	}
-	mockSel.On("Service", mock.Anything, clusterArn).Return(service, nil)
 
 	// Mock task
 	task := &types.Task{
 		TaskArn: &taskArn,
 	}
-	mockSel.On("Task", mock.Anything, clusterArn, serviceArn).Return(task, nil)
 
 	// Mock container
 	container := &types.Container{
 		Name:      &containerName,
 		RuntimeId: &containerRuntimeId,
 	}
-	mockSel.On("Container", mock.Anything).Return(container, nil)
+
+	// Mock selected container
+	selectedContainer := &selector.SelectedContainer{
+		Cluster:   cluster,
+		Service:   service,
+		Task:      task,
+		Container: container,
+	}
+	mockSel.On("RunContainerSelector", mock.Anything).Return(selectedContainer, nil)
 
 	// Mock ExecuteCommand function
 	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
@@ -151,8 +177,8 @@ func TestRunExec_ClusterSelectorError(t *testing.T) {
 	mockSel := new(MockSelectors)
 
 	// Setup mock responses with an error
-	expectedErr := errors.New("cluster selector error")
-	mockSel.On("Cluster", mock.Anything).Return(nil, expectedErr)
+	expectedErr := errors.New("container selector error")
+	mockSel.On("RunContainerSelector", mock.Anything).Return(nil, expectedErr)
 
 	// Mock ExecuteCommand function - should not be called
 	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
@@ -189,19 +215,9 @@ func TestRunExec_ServiceSelectorError(t *testing.T) {
 	mockSel := new(MockSelectors)
 
 	// Setup mock responses
-	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
-	clusterName := "my-cluster"
-
-	// Mock cluster success
-	cluster := &types.Cluster{
-		ClusterArn:  &clusterArn,
-		ClusterName: &clusterName,
-	}
-	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
-
-	// Mock service error
+	// Mock container selector error
 	expectedErr := errors.New("service selector error")
-	mockSel.On("Service", mock.Anything, clusterArn).Return(nil, expectedErr)
+	mockSel.On("RunContainerSelector", mock.Anything).Return(nil, expectedErr)
 
 	// Mock ExecuteCommand function - should not be called
 	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
@@ -237,27 +253,9 @@ func TestRunExec_TaskSelectorError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
 
-	// Setup mock responses
-	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
-	clusterName := "my-cluster"
-	serviceArn := "arn:aws:ecs:us-east-1:123456789012:service/my-cluster/my-service"
-
-	// Mock cluster success
-	cluster := &types.Cluster{
-		ClusterArn:  &clusterArn,
-		ClusterName: &clusterName,
-	}
-	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
-
-	// Mock service success
-	service := &types.Service{
-		ServiceArn: &serviceArn,
-	}
-	mockSel.On("Service", mock.Anything, clusterArn).Return(service, nil)
-
-	// Mock task error
+	// Setup mock responses with an error
 	expectedErr := errors.New("task selector error")
-	mockSel.On("Task", mock.Anything, clusterArn, serviceArn).Return(nil, expectedErr)
+	mockSel.On("RunContainerSelector", mock.Anything).Return(nil, expectedErr)
 
 	// Mock ExecuteCommand function - should not be called
 	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
@@ -293,34 +291,9 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
 
-	// Setup mock responses
-	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
-	clusterName := "my-cluster"
-	serviceArn := "arn:aws:ecs:us-east-1:123456789012:service/my-cluster/my-service"
-	taskArn := "arn:aws:ecs:us-east-1:123456789012:task/my-cluster/12345678-1234-1234-1234-123456789012"
-
-	// Mock cluster success
-	cluster := &types.Cluster{
-		ClusterArn:  &clusterArn,
-		ClusterName: &clusterName,
-	}
-	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
-
-	// Mock service success
-	service := &types.Service{
-		ServiceArn: &serviceArn,
-	}
-	mockSel.On("Service", mock.Anything, clusterArn).Return(service, nil)
-
-	// Mock task success
-	task := &types.Task{
-		TaskArn: &taskArn,
-	}
-	mockSel.On("Task", mock.Anything, clusterArn, serviceArn).Return(task, nil)
-
-	// Mock container error
+	// Setup mock responses with an error
 	expectedErr := errors.New("container selector error")
-	mockSel.On("Container", mock.Anything).Return(nil, expectedErr)
+	mockSel.On("RunContainerSelector", mock.Anything).Return(nil, expectedErr)
 
 	// Mock ExecuteCommand function - should not be called
 	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
@@ -364,31 +337,36 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 	containerName := "my-container"
 	containerRuntimeId := "12345678abcdef"
 
-	// Mock cluster success
+	// Mock cluster
 	cluster := &types.Cluster{
 		ClusterArn:  &clusterArn,
 		ClusterName: &clusterName,
 	}
-	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
 
-	// Mock service success
+	// Mock service
 	service := &types.Service{
 		ServiceArn: &serviceArn,
 	}
-	mockSel.On("Service", mock.Anything, clusterArn).Return(service, nil)
 
-	// Mock task success
+	// Mock task
 	task := &types.Task{
 		TaskArn: &taskArn,
 	}
-	mockSel.On("Task", mock.Anything, clusterArn, serviceArn).Return(task, nil)
 
-	// Mock container success
+	// Mock container
 	container := &types.Container{
 		Name:      &containerName,
 		RuntimeId: &containerRuntimeId,
 	}
-	mockSel.On("Container", mock.Anything).Return(container, nil)
+
+	// Mock selected container
+	selectedContainer := &selector.SelectedContainer{
+		Cluster:   cluster,
+		Service:   service,
+		Task:      task,
+		Container: container,
+	}
+	mockSel.On("RunContainerSelector", mock.Anything).Return(selectedContainer, nil)
 
 	// Mock ExecuteCommand error
 	expectedErr := errors.New("execute command error")

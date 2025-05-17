@@ -84,14 +84,14 @@ func runExec(
 	command string,
 	interactive bool,
 ) error {
-	selection, err := runContainerSelector(context.TODO(), selectors)
+	selection, err := selectors.RunContainerSelector(ctx)
 	if err != nil {
 		return err
 	}
 	executeCommandOutput, err := ecsCommandExecutor(ctx, &ecs.ExecuteCommandInput{
-		Cluster:     selection.cluster.ClusterArn,
-		Task:        selection.task.TaskArn,
-		Container:   selection.container.Name,
+		Cluster:     selection.Cluster.ClusterArn,
+		Task:        selection.Task.TaskArn,
+		Container:   selection.Container.Name,
 		Command:     &command,
 		Interactive: interactive,
 	})
@@ -102,16 +102,16 @@ func runExec(
 	if err != nil {
 		return err
 	}
-	taskArnSlices := strings.Split(*selection.task.TaskArn, "/")
+	taskArnSlices := strings.Split(*selection.Task.TaskArn, "/")
 	if len(taskArnSlices) < 2 {
-		return fmt.Errorf("unable to extract task name from '%s'", *selection.task.TaskArn)
+		return fmt.Errorf("unable to extract task name from '%s'", *selection.Task.TaskArn)
 	}
 	taskName := strings.Join(taskArnSlices[1:], "/")
 	target := fmt.Sprintf(
 		"ecs:%s_%s_%s",
-		*selection.cluster.ClusterName,
+		*selection.Cluster.ClusterName,
 		taskName,
-		*selection.container.RuntimeId,
+		*selection.Container.RuntimeId,
 	)
 	targetJSON, err := json.Marshal(ssm.StartSessionInput{
 		Target: &target,
@@ -151,35 +151,20 @@ func runExec(
 	return cmd.Wait()
 }
 
+// Keep for backward compatibility, uses the new interface method
 func runContainerSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
 ) (*selectedContainer, error) {
-	cluster, err := selectors.Cluster(ctx)
+	selection, err := selectors.RunContainerSelector(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	service, err := selectors.Service(ctx, *cluster.ClusterArn)
-	if err != nil {
-		return nil, err
-	}
-
-	task, err := selectors.Task(ctx, *cluster.ClusterArn, *service.ServiceArn)
-	if err != nil {
-		return nil, err
-	}
-
-	container, err := selectors.Container(task.Containers)
-	if err != nil {
-		return nil, err
-	}
-
 	return &selectedContainer{
-		cluster:   cluster,
-		service:   service,
-		task:      task,
-		container: container,
+		cluster:   selection.Cluster,
+		service:   selection.Service,
+		task:      selection.Task,
+		container: selection.Container,
 	}, nil
 }
 

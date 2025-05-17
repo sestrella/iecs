@@ -48,7 +48,7 @@ func runLogs(
 	client client.Client,
 	selectors selector.Selectors,
 ) error {
-	selection, err := runContainerDefinitionSelector(ctx, selectors)
+	selection, err := selectors.RunContainerDefinitionSelector(ctx)
 	if err != nil {
 		return err
 	}
@@ -74,29 +74,19 @@ func runLogs(
 }
 
 // runContainerDefinitionSelector runs an interactive form to select an ECS cluster, service and container definition
+// Keep for backward compatibility, uses the new interface method
 func runContainerDefinitionSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
 ) (*selectedContainerDefinition, error) {
-	cluster, err := selectors.Cluster(ctx)
+	selection, err := selectors.RunContainerDefinitionSelector(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	service, err := selectors.Service(ctx, *cluster.ClusterArn)
-	if err != nil {
-		return nil, err
-	}
-
-	containerDefinition, err := selectors.ContainerDefinition(ctx, *service.TaskDefinition)
-	if err != nil {
-		return nil, err
-	}
-
 	return &selectedContainerDefinition{
-		Cluster:             cluster,
-		Service:             service,
-		ContainerDefinition: containerDefinition,
+		Cluster:             selection.Cluster,
+		Service:             selection.Service,
+		ContainerDefinition: selection.ContainerDefinition,
 	}, nil
 }
 

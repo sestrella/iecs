@@ -16,6 +16,19 @@ var (
 	titleStyle           = lipgloss.NewStyle().Bold(true)
 )
 
+type SelectedContainer struct {
+	Cluster   *types.Cluster
+	Service   *types.Service
+	Task      *types.Task
+	Container *types.Container
+}
+
+type SelectedContainerDefinition struct {
+	Cluster             *types.Cluster
+	Service             *types.Service
+	ContainerDefinition *types.ContainerDefinition
+}
+
 type Selectors interface {
 	Cluster(ctx context.Context) (*types.Cluster, error)
 	Container(containers []types.Container) (*types.Container, error)
@@ -25,6 +38,8 @@ type Selectors interface {
 	) (*types.ContainerDefinition, error)
 	Service(ctx context.Context, clusterArn string) (*types.Service, error)
 	Task(ctx context.Context, clusterArn string, serviceArn string) (*types.Task, error)
+	RunContainerSelector(ctx context.Context) (*SelectedContainer, error)
+	RunContainerDefinitionSelector(ctx context.Context) (*SelectedContainerDefinition, error)
 }
 
 type ClientSelectors struct {
@@ -260,4 +275,60 @@ func (cs ClientSelectors) Task(
 	task := tasks[0]
 	fmt.Printf("%s %s\n", titleStyle.Render("Task:"), *task.TaskArn)
 	return &task, nil
+}
+
+func (cs ClientSelectors) RunContainerSelector(
+	ctx context.Context,
+) (*SelectedContainer, error) {
+	cluster, err := cs.Cluster(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	service, err := cs.Service(ctx, *cluster.ClusterArn)
+	if err != nil {
+		return nil, err
+	}
+
+	task, err := cs.Task(ctx, *cluster.ClusterArn, *service.ServiceArn)
+	if err != nil {
+		return nil, err
+	}
+
+	container, err := cs.Container(task.Containers)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SelectedContainer{
+		Cluster:   cluster,
+		Service:   service,
+		Task:      task,
+		Container: container,
+	}, nil
+}
+
+func (cs ClientSelectors) RunContainerDefinitionSelector(
+	ctx context.Context,
+) (*SelectedContainerDefinition, error) {
+	cluster, err := cs.Cluster(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	service, err := cs.Service(ctx, *cluster.ClusterArn)
+	if err != nil {
+		return nil, err
+	}
+
+	containerDefinition, err := cs.ContainerDefinition(ctx, *service.TaskDefinition)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SelectedContainerDefinition{
+		Cluster:             cluster,
+		Service:             service,
+		ContainerDefinition: containerDefinition,
+	}, nil
 }
