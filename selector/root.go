@@ -142,90 +142,6 @@ func cluster(ctx context.Context, client *ecs.Client) (*types.Cluster, error) {
 	return &cluster, nil
 }
 
-func container(
-	containers []types.Container,
-) (*types.Container, error) {
-	var containerNames []string
-	for _, container := range containers {
-		containerNames = append(containerNames, *container.Name)
-	}
-	var containerName string
-	if len(containerNames) == 1 {
-		log.Printf("Pre-select the only available container")
-		containerName = containerNames[0]
-	} else {
-		form := huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Title("Select container").
-					Options(huh.NewOptions(containerNames...)...).
-					Value(&containerName).
-					WithHeight(5),
-			),
-		)
-		if err := form.Run(); err != nil {
-			return nil, err
-		}
-	}
-	for _, container := range containers {
-		if *container.Name == containerName {
-			fmt.Printf("%s %s\n", titleStyle.Render("Container:"), *container.Name)
-			return &container, nil
-		}
-	}
-	return nil, fmt.Errorf("container not found: %s", containerName)
-}
-
-func containerDefinition(
-	ctx context.Context,
-	client *ecs.Client,
-	taskDefinitionArn string,
-) (*types.ContainerDefinition, error) {
-	describeTaskDefinitionOutput, err := client.DescribeTaskDefinition(
-		ctx,
-		&ecs.DescribeTaskDefinitionInput{
-			TaskDefinition: &taskDefinitionArn,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	taskDefinition := describeTaskDefinitionOutput.TaskDefinition
-	var containerDefinitionNames []string
-	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
-		containerDefinitionNames = append(containerDefinitionNames, *containerDefinition.Name)
-	}
-	var containerDefinitionName string
-	if len(containerDefinitionNames) == 1 {
-		log.Printf("Pre-select the only available container definition")
-		containerDefinitionName = containerDefinitionNames[0]
-	} else {
-		form := huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Title("Select container definition").
-					Options(huh.NewOptions(containerDefinitionNames...)...).
-					Value(&containerDefinitionName).
-					WithHeight(5),
-			),
-		)
-		if err = form.Run(); err != nil {
-			return nil, err
-		}
-	}
-	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
-		if *containerDefinition.Name == containerDefinitionName {
-			fmt.Printf(
-				"%s %s\n",
-				titleStyle.Render("Container definition:"),
-				*containerDefinition.Name,
-			)
-			return &containerDefinition, nil
-		}
-	}
-	return nil, fmt.Errorf("container definition not found: %s", containerDefinitionName)
-}
-
 func service(ctx context.Context, client *ecs.Client, clusterArn string) (*types.Service, error) {
 	listServicesOutput, err := client.ListServices(ctx, &ecs.ListServicesInput{
 		Cluster: &clusterArn,
@@ -325,4 +241,88 @@ func task(
 	task := tasks[0]
 	fmt.Printf("%s %s\n", titleStyle.Render("Task:"), *task.TaskArn)
 	return &task, nil
+}
+
+func container(
+	containers []types.Container,
+) (*types.Container, error) {
+	var containerNames []string
+	for _, container := range containers {
+		containerNames = append(containerNames, *container.Name)
+	}
+	var containerName string
+	if len(containerNames) == 1 {
+		log.Printf("Pre-select the only available container")
+		containerName = containerNames[0]
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Select container").
+					Options(huh.NewOptions(containerNames...)...).
+					Value(&containerName).
+					WithHeight(5),
+			),
+		)
+		if err := form.Run(); err != nil {
+			return nil, err
+		}
+	}
+	for _, container := range containers {
+		if *container.Name == containerName {
+			fmt.Printf("%s %s\n", titleStyle.Render("Container:"), *container.Name)
+			return &container, nil
+		}
+	}
+	return nil, fmt.Errorf("container not found: %s", containerName)
+}
+
+func containerDefinition(
+	ctx context.Context,
+	client *ecs.Client,
+	taskDefinitionArn string,
+) (*types.ContainerDefinition, error) {
+	describeTaskDefinitionOutput, err := client.DescribeTaskDefinition(
+		ctx,
+		&ecs.DescribeTaskDefinitionInput{
+			TaskDefinition: &taskDefinitionArn,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	taskDefinition := describeTaskDefinitionOutput.TaskDefinition
+	var containerDefinitionNames []string
+	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
+		containerDefinitionNames = append(containerDefinitionNames, *containerDefinition.Name)
+	}
+	var containerDefinitionName string
+	if len(containerDefinitionNames) == 1 {
+		log.Printf("Pre-select the only available container definition")
+		containerDefinitionName = containerDefinitionNames[0]
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Select container definition").
+					Options(huh.NewOptions(containerDefinitionNames...)...).
+					Value(&containerDefinitionName).
+					WithHeight(5),
+			),
+		)
+		if err = form.Run(); err != nil {
+			return nil, err
+		}
+	}
+	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
+		if *containerDefinition.Name == containerDefinitionName {
+			fmt.Printf(
+				"%s %s\n",
+				titleStyle.Render("Container definition:"),
+				*containerDefinition.Name,
+			)
+			return &containerDefinition, nil
+		}
+	}
+	return nil, fmt.Errorf("container definition not found: %s", containerDefinitionName)
 }
