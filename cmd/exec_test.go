@@ -14,77 +14,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockSelectors struct {
-	mock.Mock
-}
-
-func (m *MockSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*types.Cluster), args.Error(1)
-}
-
-func (m *MockSelectors) Service(ctx context.Context, clusterArn string) (*types.Service, error) {
-	args := m.Called(ctx, clusterArn)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*types.Service), args.Error(1)
-}
-
-func (m *MockSelectors) Task(
-	ctx context.Context,
-	clusterArn string,
-	serviceArn string,
-) (*types.Task, error) {
-	args := m.Called(ctx, clusterArn, serviceArn)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*types.Task), args.Error(1)
-}
-
-func (m *MockSelectors) Container(containers []types.Container) (*types.Container, error) {
-	args := m.Called(containers)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*types.Container), args.Error(1)
-}
-
-func (m *MockSelectors) ContainerDefinition(
-	ctx context.Context,
-	taskDefinition string,
-) (*types.ContainerDefinition, error) {
-	args := m.Called(ctx, taskDefinition)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*types.ContainerDefinition), args.Error(1)
-}
-
-func (m *MockSelectors) ContainerSelector(
-	ctx context.Context,
-) (*selector.SelectedContainer, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*selector.SelectedContainer), args.Error(1)
-}
-
-func (m *MockSelectors) ContainerDefinitionSelector(
-	ctx context.Context,
-) (*selector.SelectedContainerDefinition, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*selector.SelectedContainerDefinition), args.Error(1)
-}
-
 // Helper function to create string pointers
 func stringPtr(s string) *string {
 	return &s
@@ -93,6 +22,7 @@ func stringPtr(s string) *string {
 func TestRunExec_Success(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
+	mockClient := new(MockClient)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -133,22 +63,22 @@ func TestRunExec_Success(t *testing.T) {
 	}
 	mockSel.On("ContainerSelector", mock.Anything).Return(selectedContainer, nil)
 
-	// Mock ExecuteCommand function
-	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
-		assert.Equal(t, clusterArn, *params.Cluster)
-		assert.Equal(t, taskArn, *params.Task)
-		assert.Equal(t, containerName, *params.Container)
-		assert.Equal(t, "/bin/bash", *params.Command)
-		assert.True(t, params.Interactive)
-
-		return &ecs.ExecuteCommandOutput{
-			Session: &types.Session{
-				SessionId:  stringPtr("session-id"),
-				StreamUrl:  stringPtr("wss://session.example.com"),
-				TokenValue: stringPtr("token-value"),
-			},
-		}, nil
+	// Mock ExecuteCommand response
+	executeCommandOutput := &ecs.ExecuteCommandOutput{
+		Session: &types.Session{
+			SessionId:  stringPtr("session-id"),
+			StreamUrl:  stringPtr("wss://session.example.com"),
+			TokenValue: stringPtr("token-value"),
+		},
 	}
+	mockClient.On("ExecuteCommand",
+		mock.Anything,
+		clusterArn,
+		taskArn,
+		containerName,
+		"/bin/bash",
+		true,
+	).Return(executeCommandOutput, nil)
 
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
 		assert.Equal(t, "session-manager-plugin", name)
@@ -159,7 +89,7 @@ func TestRunExec_Success(t *testing.T) {
 	err := runExec(
 		context.Background(),
 		"session-manager-plugin",
-		mockEcsExecuteCommandFn,
+		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
 		"us-east-1",
@@ -170,21 +100,17 @@ func TestRunExec_Success(t *testing.T) {
 	// Check assertions
 	assert.NoError(t, err)
 	mockSel.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
 }
 
 func TestRunExec_ClusterSelectorError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
+	mockClient := new(MockClient)
 
 	// Setup mock responses with an error
 	expectedErr := errors.New("container selector error")
 	mockSel.On("ContainerSelector", mock.Anything).Return(nil, expectedErr)
-
-	// Mock ExecuteCommand function - should not be called
-	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
-		t.Fatal("ExecuteCommand should not be called")
-		return nil, nil
-	}
 
 	// Mock command executor function - should not be called
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
@@ -196,7 +122,7 @@ func TestRunExec_ClusterSelectorError(t *testing.T) {
 	err := runExec(
 		context.Background(),
 		"/usr/local/bin/session-manager-plugin",
-		mockEcsExecuteCommandFn,
+		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
 		"us-east-1",
@@ -208,23 +134,20 @@ func TestRunExec_ClusterSelectorError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)
 	mockSel.AssertExpectations(t)
+	// mockClient's ExecuteCommand should not be called
+	mockClient.AssertNotCalled(t, "ExecuteCommand")
 }
 
 func TestRunExec_ServiceSelectorError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
+	mockClient := new(MockClient)
 
 	// Setup mock responses
 	// Mock container selector error
 	expectedErr := errors.New("service selector error")
 	mockSel.On("ContainerSelector", mock.Anything).Return(nil, expectedErr)
 
-	// Mock ExecuteCommand function - should not be called
-	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
-		t.Fatal("ExecuteCommand should not be called")
-		return nil, nil
-	}
-
 	// Mock command executor function - should not be called
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
 		t.Fatal("Command should not be called")
@@ -235,7 +158,7 @@ func TestRunExec_ServiceSelectorError(t *testing.T) {
 	err := runExec(
 		context.Background(),
 		"/usr/local/bin/session-manager-plugin",
-		mockEcsExecuteCommandFn,
+		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
 		"us-east-1",
@@ -247,22 +170,19 @@ func TestRunExec_ServiceSelectorError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)
 	mockSel.AssertExpectations(t)
+	// mockClient's ExecuteCommand should not be called
+	mockClient.AssertNotCalled(t, "ExecuteCommand")
 }
 
 func TestRunExec_TaskSelectorError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
+	mockClient := new(MockClient)
 
 	// Setup mock responses with an error
 	expectedErr := errors.New("task selector error")
 	mockSel.On("ContainerSelector", mock.Anything).Return(nil, expectedErr)
 
-	// Mock ExecuteCommand function - should not be called
-	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
-		t.Fatal("ExecuteCommand should not be called")
-		return nil, nil
-	}
-
 	// Mock command executor function - should not be called
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
 		t.Fatal("Command should not be called")
@@ -273,7 +193,7 @@ func TestRunExec_TaskSelectorError(t *testing.T) {
 	err := runExec(
 		context.Background(),
 		"/usr/local/bin/session-manager-plugin",
-		mockEcsExecuteCommandFn,
+		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
 		"us-east-1",
@@ -285,21 +205,18 @@ func TestRunExec_TaskSelectorError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)
 	mockSel.AssertExpectations(t)
+	// mockClient's ExecuteCommand should not be called
+	mockClient.AssertNotCalled(t, "ExecuteCommand")
 }
 
 func TestRunExec_ContainerSelectorError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
+	mockClient := new(MockClient)
 
 	// Setup mock responses with an error
 	expectedErr := errors.New("container selector error")
 	mockSel.On("ContainerSelector", mock.Anything).Return(nil, expectedErr)
-
-	// Mock ExecuteCommand function - should not be called
-	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
-		t.Fatal("ExecuteCommand should not be called")
-		return nil, nil
-	}
 
 	// Mock command executor function - should not be called
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
@@ -311,7 +228,7 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 	err := runExec(
 		context.Background(),
 		"/usr/local/bin/session-manager-plugin",
-		mockEcsExecuteCommandFn,
+		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
 		"us-east-1",
@@ -323,11 +240,14 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)
 	mockSel.AssertExpectations(t)
+	// mockClient's ExecuteCommand should not be called
+	mockClient.AssertNotCalled(t, "ExecuteCommand")
 }
 
 func TestRunExec_ExecuteCommandError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
+	mockClient := new(MockClient)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -370,9 +290,14 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 
 	// Mock ExecuteCommand error
 	expectedErr := errors.New("execute command error")
-	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
-		return nil, expectedErr
-	}
+	mockClient.On("ExecuteCommand",
+		mock.Anything,
+		clusterArn,
+		taskArn,
+		containerName,
+		"/bin/bash",
+		true,
+	).Return(nil, expectedErr)
 
 	// Mock command executor function - should not be called
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
@@ -384,7 +309,7 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 	err := runExec(
 		context.Background(),
 		"/usr/local/bin/session-manager-plugin",
-		mockEcsExecuteCommandFn,
+		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
 		"us-east-1",
@@ -396,6 +321,7 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)
 	mockSel.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
 }
 
 // TestHelperProcess is used by the patchExecCommand function
