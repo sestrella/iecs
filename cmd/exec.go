@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
@@ -47,11 +48,13 @@ var execCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
+		awsClient := client.NewClient(cfg)
 		ecsClient := ecs.NewFromConfig(cfg)
 		err = runExec(
 			context.TODO(),
 			smpPath,
-			ecsClient.ExecuteCommand,
+			awsClient,
 			exec.Command,
 			selector.NewSelectors(ecsClient),
 			cfg.Region,
@@ -69,7 +72,7 @@ var execCmd = &cobra.Command{
 func runExec(
 	ctx context.Context,
 	smpPath string,
-	ecsCommandExecutor func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error),
+	client client.Client,
 	commandExecutor func(name string, arg ...string) *exec.Cmd,
 	selectors selector.Selectors,
 	region string,
@@ -80,13 +83,14 @@ func runExec(
 	if err != nil {
 		return err
 	}
-	executeCommandOutput, err := ecsCommandExecutor(ctx, &ecs.ExecuteCommandInput{
-		Cluster:     selection.Cluster.ClusterArn,
-		Task:        selection.Task.TaskArn,
-		Container:   selection.Container.Name,
-		Command:     &command,
-		Interactive: interactive,
-	})
+	executeCommandOutput, err := client.ExecuteCommand(
+		ctx,
+		*selection.Cluster.ClusterArn,
+		*selection.Task.TaskArn,
+		*selection.Container.Name,
+		command,
+		interactive,
+	)
 	if err != nil {
 		return err
 	}

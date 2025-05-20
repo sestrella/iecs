@@ -13,19 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockClient struct {
-	mock.Mock
-}
-
-func (m *MockClient) StartLiveTail(
-	ctx context.Context,
-	logGroupName string,
-	streamPrefix string,
-	handler client.EventHandler,
-) error {
-	args := m.Called(ctx, logGroupName, streamPrefix, handler)
-	return args.Error(0)
-}
+// The MockClient implementation is now in mocks_test.go
 
 func TestRunLogs_Success(t *testing.T) {
 	// Create mock objects

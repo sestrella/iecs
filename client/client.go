@@ -24,6 +24,16 @@ type Client interface {
 		streamPrefix string,
 		handler EventHandler,
 	) error
+
+	// ECS operations
+	ExecuteCommand(
+		ctx context.Context,
+		cluster string,
+		task string,
+		container string,
+		command string,
+		interactive bool,
+	) (*ecs.ExecuteCommandOutput, error)
 }
 
 // awsClient implements the combined Client interface
@@ -40,6 +50,25 @@ func NewClient(cfg aws.Config) Client {
 		ecsClient:  ecsClient,
 		logsClient: logsClient,
 	}
+}
+
+// ECS operations implementation
+
+func (c *awsClient) ExecuteCommand(
+	ctx context.Context,
+	cluster string,
+	task string,
+	container string,
+	command string,
+	interactive bool,
+) (*ecs.ExecuteCommandOutput, error) {
+	return c.ecsClient.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
+		Cluster:     &cluster,
+		Task:        &task,
+		Container:   &container,
+		Command:     &command,
+		Interactive: interactive,
+	})
 }
 
 // CloudWatch Logs implementation
