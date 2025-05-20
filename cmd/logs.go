@@ -45,9 +45,24 @@ func runLogs(
 		return err
 	}
 
+	if selection.ContainerDefinition.LogConfiguration == nil {
+		return fmt.Errorf("no log configuration found for container: %s", *selection.ContainerDefinition.Name)
+	}
+
 	logOptions := selection.ContainerDefinition.LogConfiguration.Options
-	awslogsGroup := logOptions["awslogs-group"]
-	streamPrefix := logOptions["awslogs-stream-prefix"]
+	if len(logOptions) == 0 {
+		return fmt.Errorf("missing log options for container: %s", *selection.ContainerDefinition.Name)
+	}
+
+	awslogsGroup, ok := logOptions["awslogs-group"]
+	if !ok {
+		return fmt.Errorf("missing awslogs-group option for container: %s", *selection.ContainerDefinition.Name)
+	}
+
+	streamPrefix, ok := logOptions["awslogs-stream-prefix"]
+	if !ok {
+		return fmt.Errorf("missing awslogs-stream-prefix option for container: %s", *selection.ContainerDefinition.Name)
+	}
 
 	// Use our logs client to start the live tail
 	err = client.StartLiveTail(
