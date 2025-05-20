@@ -76,7 +76,7 @@ func runExec(
 	command string,
 	interactive bool,
 ) error {
-	selection, err := selectors.RunContainerSelector(ctx)
+	selection, err := selectors.ContainerSelector(ctx)
 	if err != nil {
 		return err
 	}

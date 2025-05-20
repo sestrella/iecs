@@ -65,7 +65,7 @@ func (m *MockSelectors) ContainerDefinition(
 	return args.Get(0).(*types.ContainerDefinition), args.Error(1)
 }
 
-func (m *MockSelectors) RunContainerSelector(
+func (m *MockSelectors) ContainerSelector(
 	ctx context.Context,
 ) (*selector.SelectedContainer, error) {
 	args := m.Called(ctx)
@@ -75,7 +75,7 @@ func (m *MockSelectors) RunContainerSelector(
 	return args.Get(0).(*selector.SelectedContainer), args.Error(1)
 }
 
-func (m *MockSelectors) RunContainerDefinitionSelector(
+func (m *MockSelectors) ContainerDefinitionSelector(
 	ctx context.Context,
 ) (*selector.SelectedContainerDefinition, error) {
 	args := m.Called(ctx)

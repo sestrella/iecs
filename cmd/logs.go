@@ -40,7 +40,7 @@ func runLogs(
 	client client.Client,
 	selectors selector.Selectors,
 ) error {
-	selection, err := selectors.RunContainerDefinitionSelector(ctx)
+	selection, err := selectors.ContainerDefinitionSelector(ctx)
 	if err != nil {
 		return err
 	}
