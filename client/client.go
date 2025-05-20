@@ -18,10 +18,6 @@ type EventHandler func(timestamp time.Time, message string)
 // Client interface combines ECS and CloudWatch Logs operations.
 type Client interface {
 	// CloudWatch Logs operations
-	DescribeLogGroups(
-		ctx context.Context,
-		logGroupNamePrefix string,
-	) (*logs.DescribeLogGroupsOutput, error)
 	StartLiveTail(
 		ctx context.Context,
 		logGroupName string,
@@ -48,7 +44,7 @@ func NewClient(cfg aws.Config) Client {
 
 // CloudWatch Logs implementation
 
-func (c *awsClient) DescribeLogGroups(
+func (c *awsClient) describeLogGroups(
 	ctx context.Context,
 	logGroupNamePrefix string,
 ) (*logs.DescribeLogGroupsOutput, error) {
@@ -76,7 +72,7 @@ func (c *awsClient) StartLiveTail(
 	handler EventHandler,
 ) error {
 	// Describe log groups to get the ARN
-	describeOutput, err := c.DescribeLogGroups(ctx, logGroupName)
+	describeOutput, err := c.describeLogGroups(ctx, logGroupName)
 	if err != nil {
 		return err
 	}

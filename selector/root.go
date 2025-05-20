@@ -30,8 +30,8 @@ type SelectedContainerDefinition struct {
 }
 
 type Selectors interface {
-	RunContainerSelector(ctx context.Context) (*SelectedContainer, error)
-	RunContainerDefinitionSelector(ctx context.Context) (*SelectedContainerDefinition, error)
+	ContainerSelector(ctx context.Context) (*SelectedContainer, error)
+	ContainerDefinitionSelector(ctx context.Context) (*SelectedContainerDefinition, error)
 }
 
 type ClientSelectors struct {
@@ -42,7 +42,7 @@ func NewSelectors(client *ecs.Client) Selectors {
 	return ClientSelectors{client: client}
 }
 
-func (cs ClientSelectors) RunContainerSelector(
+func (cs ClientSelectors) ContainerSelector(
 	ctx context.Context,
 ) (*SelectedContainer, error) {
 	cluster, err := cluster(ctx, cs.client)
@@ -73,7 +73,7 @@ func (cs ClientSelectors) RunContainerSelector(
 	}, nil
 }
 
-func (cs ClientSelectors) RunContainerDefinitionSelector(
+func (cs ClientSelectors) ContainerDefinitionSelector(
 	ctx context.Context,
 ) (*SelectedContainerDefinition, error) {
 	cluster, err := cluster(ctx, cs.client)
