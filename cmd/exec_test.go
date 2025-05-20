@@ -131,7 +131,7 @@ func TestRunExec_Success(t *testing.T) {
 		Task:      task,
 		Container: container,
 	}
-	mockSel.On("RunContainerSelector", mock.Anything).Return(selectedContainer, nil)
+	mockSel.On("ContainerSelector", mock.Anything).Return(selectedContainer, nil)
 
 	// Mock ExecuteCommand function
 	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
@@ -178,7 +178,7 @@ func TestRunExec_ClusterSelectorError(t *testing.T) {
 
 	// Setup mock responses with an error
 	expectedErr := errors.New("container selector error")
-	mockSel.On("RunContainerSelector", mock.Anything).Return(nil, expectedErr)
+	mockSel.On("ContainerSelector", mock.Anything).Return(nil, expectedErr)
 
 	// Mock ExecuteCommand function - should not be called
 	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
@@ -217,7 +217,7 @@ func TestRunExec_ServiceSelectorError(t *testing.T) {
 	// Setup mock responses
 	// Mock container selector error
 	expectedErr := errors.New("service selector error")
-	mockSel.On("RunContainerSelector", mock.Anything).Return(nil, expectedErr)
+	mockSel.On("ContainerSelector", mock.Anything).Return(nil, expectedErr)
 
 	// Mock ExecuteCommand function - should not be called
 	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
@@ -255,7 +255,7 @@ func TestRunExec_TaskSelectorError(t *testing.T) {
 
 	// Setup mock responses with an error
 	expectedErr := errors.New("task selector error")
-	mockSel.On("RunContainerSelector", mock.Anything).Return(nil, expectedErr)
+	mockSel.On("ContainerSelector", mock.Anything).Return(nil, expectedErr)
 
 	// Mock ExecuteCommand function - should not be called
 	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
@@ -293,7 +293,7 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 
 	// Setup mock responses with an error
 	expectedErr := errors.New("container selector error")
-	mockSel.On("RunContainerSelector", mock.Anything).Return(nil, expectedErr)
+	mockSel.On("ContainerSelector", mock.Anything).Return(nil, expectedErr)
 
 	// Mock ExecuteCommand function - should not be called
 	mockEcsExecuteCommandFn := func(ctx context.Context, params *ecs.ExecuteCommandInput, optFns ...func(*ecs.Options)) (*ecs.ExecuteCommandOutput, error) {
@@ -366,7 +366,7 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 		Task:      task,
 		Container: container,
 	}
-	mockSel.On("RunContainerSelector", mock.Anything).Return(selectedContainer, nil)
+	mockSel.On("ContainerSelector", mock.Anything).Return(selectedContainer, nil)
 
 	// Mock ExecuteCommand error
 	expectedErr := errors.New("execute command error")
