@@ -1,6 +1,11 @@
 package cmd
 
 import (
+	"context"
+	"log"
+
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 )
@@ -9,24 +14,37 @@ import (
 var lazyCmd = &cobra.Command{
 	Use:   "lazy",
 	Short: "A brief description of your command",
-	Run: func(cmd *cobra.Command, args []string) {
-		cluster := tview.NewBox()
-		cluster.SetTitle("Cluster")
-		cluster.SetBorder(true)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			return err
+		}
 
-		service := tview.NewBox()
-		service.SetTitle("Service")
-		service.SetBorder(true)
+		ecsService := ecs.NewFromConfig(cfg)
 
-		task := tview.NewBox()
-		task.SetTitle("Task")
-		task.SetBorder(true)
+		clusters := tview.NewList()
+		clusters.SetTitle("Clusters")
+		clusters.SetBorder(true)
+
+		services := tview.NewList()
+		services.SetTitle("Service")
+		services.SetBorder(true)
+		services.AddItem("", "", 0, func() {})
+
+		tasks := tview.NewList()
+		tasks.SetTitle("Task")
+		tasks.SetBorder(true)
+
+		containers := tview.NewList()
+		containers.SetTitle("Containers")
+		containers.SetBorder(true)
 
 		right := tview.NewFlex()
 		right.SetDirection(tview.FlexRow)
-		right.AddItem(cluster, 0, 1, false)
-		right.AddItem(service, 0, 1, false)
-		right.AddItem(task, 0, 1, false)
+		right.AddItem(clusters, 0, 1, false)
+		right.AddItem(services, 0, 1, false)
+		right.AddItem(tasks, 0, 1, false)
+		right.AddItem(containers, 0, 1, false)
 
 		main := tview.NewBox()
 		main.SetTitle("main")
@@ -42,9 +60,104 @@ var lazyCmd = &cobra.Command{
 		root.AddItem(left, 0, 2, false)
 
 		app := tview.NewApplication()
+
+		go func() {
+			listedClusters, err := ecsService.ListClusters(context.TODO(), &ecs.ListClustersInput{})
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			describedClusters, err := ecsService.DescribeClusters(
+				context.TODO(),
+				&ecs.DescribeClustersInput{
+					Clusters: listedClusters.ClusterArns,
+				},
+			)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			clusters.Clear()
+			for _, cluster := range describedClusters.Clusters {
+				clusters.AddItem(*cluster.ClusterName, *cluster.ClusterArn, 0, func() {
+					listedServices, err := ecsService.ListServices(
+						context.TODO(),
+						&ecs.ListServicesInput{
+							Cluster: cluster.ClusterArn,
+						},
+					)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					describedServices, err := ecsService.DescribeServices(
+						context.TODO(),
+						&ecs.DescribeServicesInput{
+							Cluster:  cluster.ClusterArn,
+							Services: listedServices.ServiceArns,
+						},
+					)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					services.Clear()
+					for _, service := range describedServices.Services {
+						services.AddItem(*service.ServiceName, *service.ServiceArn, 0, func() {
+							listedTasks, err := ecsService.ListTasks(
+								context.TODO(),
+								&ecs.ListTasksInput{
+									Cluster:     cluster.ClusterArn,
+									ServiceName: service.ServiceName,
+								},
+							)
+							if err != nil {
+								log.Fatal(err)
+							}
+
+							describedTasks, err := ecsService.DescribeTasks(
+								context.TODO(),
+								&ecs.DescribeTasksInput{
+									Cluster: cluster.ClusterArn,
+									Tasks:   listedTasks.TaskArns,
+								},
+							)
+							if err != nil {
+								log.Fatal(err)
+							}
+
+							tasks.Clear()
+							for _, task := range describedTasks.Tasks {
+								// TODO: Change task title
+								tasks.AddItem(*task.TaskArn, *task.TaskArn, 0, func() {
+									containers.Clear()
+									for _, container := range task.Containers {
+										containers.AddItem(
+											*container.Name,
+											*container.ContainerArn,
+											0,
+											func() {
+
+											},
+										)
+									}
+									app.SetFocus(containers)
+								})
+							}
+							app.SetFocus(tasks)
+						})
+					}
+					app.SetFocus(services)
+				})
+				app.SetFocus(clusters)
+			}
+		}()
+
 		if err := app.SetRoot(root, true).Run(); err != nil {
-			panic(err)
+			return err
 		}
+
+		return nil
 	},
 }
 
