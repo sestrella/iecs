@@ -85,99 +85,105 @@ var lazyCmd = &cobra.Command{
 				log.Fatal(err)
 			}
 
-			clusters.Clear()
-			for _, cluster := range describedClusters.Clusters {
-				clusters.AddItem(*cluster.ClusterName, *cluster.ClusterArn, 0, func() {
-					_, err := fmt.Fprintf(logs, "Cluster %s selected\n", *cluster.ClusterName)
-					if err != nil {
-						log.Fatal(err)
-					}
+			app.QueueUpdateDraw(func() {
+				clusters.Clear()
+				for _, cluster := range describedClusters.Clusters {
+					clusters.AddItem(*cluster.ClusterName, *cluster.ClusterArn, 0, func() {
+						_, err := fmt.Fprintf(logs, "Cluster %s selected\n", *cluster.ClusterName)
+						if err != nil {
+							log.Fatal(err)
+						}
 
-					listedServices, err := ecsService.ListServices(
-						context.TODO(),
-						&ecs.ListServicesInput{
-							Cluster: cluster.ClusterArn,
-						},
-					)
-					if err != nil {
-						log.Fatal(err)
-					}
+						listedServices, err := ecsService.ListServices(
+							context.TODO(),
+							&ecs.ListServicesInput{
+								Cluster: cluster.ClusterArn,
+							},
+						)
+						if err != nil {
+							log.Fatal(err)
+						}
 
-					describedServices, err := ecsService.DescribeServices(
-						context.TODO(),
-						&ecs.DescribeServicesInput{
-							Cluster:  cluster.ClusterArn,
-							Services: listedServices.ServiceArns,
-						},
-					)
-					if err != nil {
-						log.Fatal(err)
-					}
+						describedServices, err := ecsService.DescribeServices(
+							context.TODO(),
+							&ecs.DescribeServicesInput{
+								Cluster:  cluster.ClusterArn,
+								Services: listedServices.ServiceArns,
+							},
+						)
+						if err != nil {
+							log.Fatal(err)
+						}
 
-					services.Clear()
-					for _, service := range describedServices.Services {
-						services.AddItem(*service.ServiceName, *service.ServiceArn, 0, func() {
-							_, err := fmt.Fprintf(
-								logs,
-								"Service %s selected\n",
-								*service.ServiceName,
-							)
-							if err != nil {
-								log.Fatal(err)
-							}
+						services.Clear()
+						for _, service := range describedServices.Services {
+							services.AddItem(*service.ServiceName, *service.ServiceArn, 0, func() {
+								_, err := fmt.Fprintf(
+									logs,
+									"Service %s selected\n",
+									*service.ServiceName,
+								)
+								if err != nil {
+									log.Fatal(err)
+								}
 
-							listedTasks, err := ecsService.ListTasks(
-								context.TODO(),
-								&ecs.ListTasksInput{
-									Cluster:     cluster.ClusterArn,
-									ServiceName: service.ServiceName,
-								},
-							)
-							if err != nil {
-								log.Fatal(err)
-							}
+								listedTasks, err := ecsService.ListTasks(
+									context.TODO(),
+									&ecs.ListTasksInput{
+										Cluster:     cluster.ClusterArn,
+										ServiceName: service.ServiceName,
+									},
+								)
+								if err != nil {
+									log.Fatal(err)
+								}
 
-							describedTasks, err := ecsService.DescribeTasks(
-								context.TODO(),
-								&ecs.DescribeTasksInput{
-									Cluster: cluster.ClusterArn,
-									Tasks:   listedTasks.TaskArns,
-								},
-							)
-							if err != nil {
-								log.Fatal(err)
-							}
+								describedTasks, err := ecsService.DescribeTasks(
+									context.TODO(),
+									&ecs.DescribeTasksInput{
+										Cluster: cluster.ClusterArn,
+										Tasks:   listedTasks.TaskArns,
+									},
+								)
+								if err != nil {
+									log.Fatal(err)
+								}
 
-							tasks.Clear()
-							for _, task := range describedTasks.Tasks {
-								// TODO: Change task title
-								tasks.AddItem(*task.TaskArn, *task.TaskArn, 0, func() {
-									_, err := fmt.Fprintf(logs, "Task %s selected\n", *task.TaskArn)
-									if err != nil {
-										log.Fatal(err)
-									}
-
-									containers.Clear()
-									for _, container := range task.Containers {
-										containers.AddItem(
-											*container.Name,
-											*container.ContainerArn,
-											0,
-											func() {
-
-											},
+								tasks.Clear()
+								for _, task := range describedTasks.Tasks {
+									// TODO: Change task title
+									tasks.AddItem(*task.TaskArn, *task.TaskArn, 0, func() {
+										_, err := fmt.Fprintf(
+											logs,
+											"Task %s selected\n",
+											*task.TaskArn,
 										)
-									}
-									app.SetFocus(containers)
-								})
-							}
-							app.SetFocus(tasks)
-						})
-					}
-					app.SetFocus(services)
-				})
-				app.SetFocus(clusters)
-			}
+										if err != nil {
+											log.Fatal(err)
+										}
+
+										containers.Clear()
+										for _, container := range task.Containers {
+											containers.AddItem(
+												*container.Name,
+												*container.ContainerArn,
+												0,
+												func() {
+
+												},
+											)
+										}
+										app.SetFocus(containers)
+									})
+								}
+								app.SetFocus(tasks)
+							})
+						}
+						app.SetFocus(services)
+					})
+					app.SetFocus(clusters)
+				}
+			})
 		}()
 
 		if err := app.SetRoot(root, true).Run(); err != nil {
