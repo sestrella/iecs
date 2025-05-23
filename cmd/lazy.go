@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -47,11 +48,18 @@ var lazyCmd = &cobra.Command{
 		right.AddItem(containers, 0, 1, false)
 
 		main := tview.NewBox()
-		main.SetTitle("main")
+		main.SetTitle("Main")
 		main.SetBorder(true)
 
+		logs := tview.NewTextView()
+		logs.SetTitle("Logs")
+		logs.SetBorder(true)
+		logs.SetDisabled(true)
+
 		left := tview.NewFlex()
-		left.AddItem(main, 0, 1, false)
+		left.SetDirection(tview.FlexRow)
+		left.AddItem(main, 0, 4, false)
+		left.AddItem(logs, 0, 1, false)
 
 		root := tview.NewFlex()
 		root.SetTitle("iecs")
@@ -80,6 +88,11 @@ var lazyCmd = &cobra.Command{
 			clusters.Clear()
 			for _, cluster := range describedClusters.Clusters {
 				clusters.AddItem(*cluster.ClusterName, *cluster.ClusterArn, 0, func() {
+					_, err := fmt.Fprintf(logs, "Cluster %s selected\n", *cluster.ClusterName)
+					if err != nil {
+						log.Fatal(err)
+					}
+
 					listedServices, err := ecsService.ListServices(
 						context.TODO(),
 						&ecs.ListServicesInput{
@@ -104,6 +117,15 @@ var lazyCmd = &cobra.Command{
 					services.Clear()
 					for _, service := range describedServices.Services {
 						services.AddItem(*service.ServiceName, *service.ServiceArn, 0, func() {
+							_, err := fmt.Fprintf(
+								logs,
+								"Service %s selected\n",
+								*service.ServiceName,
+							)
+							if err != nil {
+								log.Fatal(err)
+							}
+
 							listedTasks, err := ecsService.ListTasks(
 								context.TODO(),
 								&ecs.ListTasksInput{
@@ -130,6 +152,11 @@ var lazyCmd = &cobra.Command{
 							for _, task := range describedTasks.Tasks {
 								// TODO: Change task title
 								tasks.AddItem(*task.TaskArn, *task.TaskArn, 0, func() {
+									_, err := fmt.Fprintf(logs, "Task %s selected\n", *task.TaskArn)
+									if err != nil {
+										log.Fatal(err)
+									}
+
 									containers.Clear()
 									for _, container := range task.Containers {
 										containers.AddItem(
