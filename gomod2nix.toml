@@ -97,6 +97,12 @@ schema = 3
   [mod."github.com/erikgeiser/coninput"]
     version = "v0.0.0-20211004153227-1c3628e74d0f"
     hash = "sha256-OWSqN1+IoL73rWXWdbbcahZu8n2al90Y3eT5Z0vgHvU="
+  [mod."github.com/gdamore/encoding"]
+    version = "v1.0.0"
+    hash = "sha256-aV6wbQTwdOBHXMqWbhIxQ6YLun+gY6lIdSKKROkvte4="
+  [mod."github.com/gdamore/tcell/v2"]
+    version = "v2.7.1"
+    hash = "sha256-yAG8F030R/aOxfXMyAdrdgZxPxqeuHP+bKEBxjvT65M="
   [mod."github.com/inconshreveable/mousetrap"]
     version = "v1.1.0"
     hash = "sha256-XWlYH0c8IcxAwQTnIi6WYqq44nOKUylSWxWO/vi+8pE="
@@ -130,6 +136,9 @@ schema = 3
   [mod."github.com/pmezard/go-difflib"]
     version = "v1.0.0"
     hash = "sha256-/FtmHnaGjdvEIKAJtrUfEhV7EVo5A/eYrtdnUkuxLDA="
+  [mod."github.com/rivo/tview"]
+    version = "v0.0.0-20250501113434-0c592cd31026"
+    hash = "sha256-h51JLUI6+Z7oyxiNLatuv5TIyKThzrp7OMh/9Bm40oo="
   [mod."github.com/rivo/uniseg"]
     version = "v0.4.7"
     hash = "sha256-rDcdNYH6ZD8KouyyiZCUEy8JrjOQoAkxHBhugrfHjFo="
@@ -154,6 +163,9 @@ schema = 3
   [mod."golang.org/x/sys"]
     version = "v0.30.0"
     hash = "sha256-BuhWtwDkciVioc03rxty6G2vcZVnPX85lI7tgQOFVP8="
+  [mod."golang.org/x/term"]
+    version = "v0.17.0"
+    hash = "sha256-lCo7WPHe8Q9q76f0D8FrfoX90MTvwa21O+Dwr1mOAcA="
   [mod."golang.org/x/text"]
     version = "v0.18.0"
     hash = "sha256-aNvJW4gQs+MTfdz6DZqyyHQS2GJ9W8L8qKPVODPn4+k="
