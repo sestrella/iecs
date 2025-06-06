@@ -156,7 +156,15 @@ func handleClusterSelection(
 	for _, service := range describedServices.Services {
 		currentService := service // Create a local copy to avoid closure issues
 		services.AddItem(*currentService.ServiceName, *currentService.ServiceArn, 0, func() {
-			handleServiceSelection(app, logs, ecsService, cluster, currentService, tasks, containers)
+			handleServiceSelection(
+				app,
+				logs,
+				ecsService,
+				cluster,
+				currentService,
+				tasks,
+				containers,
+			)
 		})
 	}
 	app.SetFocus(services)
