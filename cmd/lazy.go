@@ -213,29 +213,39 @@ func handleServiceSelection(
 	tasks.Clear()
 	for _, task := range describedTasks.Tasks {
 		// TODO: Change task title
-		tasks.AddItem(*task.TaskArn, *task.TaskArn, 0, func() {
-			_, err := fmt.Fprintf(
-				logs,
-				"Task %s selected\n",
-				*task.TaskArn,
-			)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			containers.Clear()
-			for _, container := range task.Containers {
-				containers.AddItem(
-					*container.Name,
-					*container.ContainerArn,
-					0,
-					func() {
-
-					},
-				)
-			}
-			app.SetFocus(containers)
+		currentTask := task // Create a local copy to avoid closure issues
+		tasks.AddItem(*currentTask.TaskArn, *currentTask.TaskArn, 0, func() {
+			handleTaskSelection(app, logs, currentTask, containers)
 		})
 	}
 	app.SetFocus(tasks)
+}
+
+func handleTaskSelection(
+	app *tview.Application,
+	logs *tview.TextView,
+	task types.Task,
+	containers *tview.List,
+) {
+	_, err := fmt.Fprintf(
+		logs,
+		"Task %s selected\n",
+		*task.TaskArn,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	containers.Clear()
+	for _, container := range task.Containers {
+		containers.AddItem(
+			*container.Name,
+			*container.ContainerArn,
+			0,
+			func() {
+
+			},
+		)
+	}
+	app.SetFocus(containers)
 }
