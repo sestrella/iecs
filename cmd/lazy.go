@@ -12,6 +12,120 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type Lazy struct {
+	app        *tview.Application
+	logs       *tview.TextView
+	ecsService *ecs.Client
+	clusters   *tview.List
+	services   *tview.List
+	tasks      *tview.List
+	containers *tview.List
+}
+
+func (lazy *Lazy) handleClusterSelection(cluster types.Cluster) {
+	_, err := fmt.Fprintf(lazy.logs, "Cluster %s selected\n", *cluster.ClusterName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	listedServices, err := lazy.ecsService.ListServices(
+		context.TODO(),
+		&ecs.ListServicesInput{
+			Cluster: cluster.ClusterArn,
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	describedServices, err := lazy.ecsService.DescribeServices(
+		context.TODO(),
+		&ecs.DescribeServicesInput{
+			Cluster:  cluster.ClusterArn,
+			Services: listedServices.ServiceArns,
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	lazy.services.Clear()
+	for _, service := range describedServices.Services {
+		currentService := service // Create a local copy to avoid closure issues
+		lazy.services.AddItem(*currentService.ServiceName, *currentService.ServiceArn, 0, func() {
+			lazy.handleServiceSelection(cluster, currentService)
+		})
+	}
+	lazy.app.SetFocus(lazy.services)
+}
+
+func (lazy *Lazy) handleServiceSelection(cluster types.Cluster, service types.Service) {
+	_, err := fmt.Fprintf(
+		lazy.logs,
+		"Service %s selected\n",
+		*service.ServiceName,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	listedTasks, err := lazy.ecsService.ListTasks(
+		context.TODO(),
+		&ecs.ListTasksInput{
+			Cluster:     cluster.ClusterArn,
+			ServiceName: service.ServiceName,
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	describedTasks, err := lazy.ecsService.DescribeTasks(
+		context.TODO(),
+		&ecs.DescribeTasksInput{
+			Cluster: cluster.ClusterArn,
+			Tasks:   listedTasks.TaskArns,
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	lazy.tasks.Clear()
+	for _, task := range describedTasks.Tasks {
+		// TODO: Change task title
+		currentTask := task // Create a local copy to avoid closure issues
+		lazy.tasks.AddItem(*currentTask.TaskArn, *currentTask.TaskArn, 0, func() {
+			lazy.handleTaskSelection(currentTask)
+		})
+	}
+	lazy.app.SetFocus(lazy.tasks)
+}
+
+func (lazy *Lazy) handleTaskSelection(task types.Task) {
+	_, err := fmt.Fprintf(
+		lazy.logs,
+		"Task %s selected\n",
+		*task.TaskArn,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	lazy.containers.Clear()
+	for _, container := range task.Containers {
+		lazy.containers.AddItem(
+			*container.Name,
+			*container.ContainerArn,
+			0,
+			func() {
+
+			},
+		)
+	}
+	lazy.app.SetFocus(lazy.containers)
+}
+
 // lazyCmd represents the lazy command
 var lazyCmd = &cobra.Command{
 	Use:   "lazy",
@@ -31,7 +145,6 @@ var lazyCmd = &cobra.Command{
 		services := tview.NewList()
 		services.SetTitle("Service")
 		services.SetBorder(true)
-		services.AddItem("", "", 0, func() {})
 
 		tasks := tview.NewList()
 		tasks.SetTitle("Task")
@@ -70,6 +183,16 @@ var lazyCmd = &cobra.Command{
 
 		app := tview.NewApplication()
 
+		lazy := &Lazy{
+			app:        app,
+			logs:       logs,
+			ecsService: ecsService,
+			clusters:   clusters,
+			services:   services,
+			tasks:      tasks,
+			containers: containers,
+		}
+
 		go func() {
 			listedClusters, err := ecsService.ListClusters(context.TODO(), &ecs.ListClustersInput{})
 			if err != nil {
@@ -89,17 +212,15 @@ var lazyCmd = &cobra.Command{
 			app.QueueUpdateDraw(func() {
 				clusters.Clear()
 				for _, cluster := range describedClusters.Clusters {
-					clusters.AddItem(*cluster.ClusterName, *cluster.ClusterArn, 0, func() {
-						handleClusterSelection(
-							app,
-							logs,
-							ecsService,
-							cluster,
-							services,
-							tasks,
-							containers,
-						)
-					})
+					currentCluster := cluster // Create a local copy to avoid closure issues
+					clusters.AddItem(
+						*currentCluster.ClusterName,
+						*currentCluster.ClusterArn,
+						0,
+						func() {
+							lazy.handleClusterSelection(currentCluster)
+						},
+					)
 					app.SetFocus(clusters)
 				}
 			})
@@ -115,137 +236,4 @@ var lazyCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(lazyCmd)
-}
-
-func handleClusterSelection(
-	app *tview.Application,
-	logs *tview.TextView,
-	ecsService *ecs.Client,
-	cluster types.Cluster,
-	services *tview.List,
-	tasks *tview.List,
-	containers *tview.List,
-) {
-	_, err := fmt.Fprintf(logs, "Cluster %s selected\n", *cluster.ClusterName)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	listedServices, err := ecsService.ListServices(
-		context.TODO(),
-		&ecs.ListServicesInput{
-			Cluster: cluster.ClusterArn,
-		},
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	describedServices, err := ecsService.DescribeServices(
-		context.TODO(),
-		&ecs.DescribeServicesInput{
-			Cluster:  cluster.ClusterArn,
-			Services: listedServices.ServiceArns,
-		},
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	services.Clear()
-	for _, service := range describedServices.Services {
-		currentService := service // Create a local copy to avoid closure issues
-		services.AddItem(*currentService.ServiceName, *currentService.ServiceArn, 0, func() {
-			handleServiceSelection(
-				app,
-				logs,
-				ecsService,
-				cluster,
-				currentService,
-				tasks,
-				containers,
-			)
-		})
-	}
-	app.SetFocus(services)
-}
-
-func handleServiceSelection(
-	app *tview.Application,
-	logs *tview.TextView,
-	ecsService *ecs.Client,
-	cluster types.Cluster,
-	service types.Service,
-	tasks *tview.List,
-	containers *tview.List,
-) {
-	_, err := fmt.Fprintf(
-		logs,
-		"Service %s selected\n",
-		*service.ServiceName,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	listedTasks, err := ecsService.ListTasks(
-		context.TODO(),
-		&ecs.ListTasksInput{
-			Cluster:     cluster.ClusterArn,
-			ServiceName: service.ServiceName,
-		},
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	describedTasks, err := ecsService.DescribeTasks(
-		context.TODO(),
-		&ecs.DescribeTasksInput{
-			Cluster: cluster.ClusterArn,
-			Tasks:   listedTasks.TaskArns,
-		},
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	tasks.Clear()
-	for _, task := range describedTasks.Tasks {
-		// TODO: Change task title
-		currentTask := task // Create a local copy to avoid closure issues
-		tasks.AddItem(*currentTask.TaskArn, *currentTask.TaskArn, 0, func() {
-			handleTaskSelection(app, logs, currentTask, containers)
-		})
-	}
-	app.SetFocus(tasks)
-}
-
-func handleTaskSelection(
-	app *tview.Application,
-	logs *tview.TextView,
-	task types.Task,
-	containers *tview.List,
-) {
-	_, err := fmt.Fprintf(
-		logs,
-		"Task %s selected\n",
-		*task.TaskArn,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	containers.Clear()
-	for _, container := range task.Containers {
-		containers.AddItem(
-			*container.Name,
-			*container.ContainerArn,
-			0,
-			func() {
-
-			},
-		)
-	}
-	app.SetFocus(containers)
 }
