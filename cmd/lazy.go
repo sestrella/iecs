@@ -154,67 +154,80 @@ func handleClusterSelection(
 
 	services.Clear()
 	for _, service := range describedServices.Services {
-		services.AddItem(*service.ServiceName, *service.ServiceArn, 0, func() {
-			_, err := fmt.Fprintf(
-				logs,
-				"Service %s selected\n",
-				*service.ServiceName,
-			)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			listedTasks, err := ecsService.ListTasks(
-				context.TODO(),
-				&ecs.ListTasksInput{
-					Cluster:     cluster.ClusterArn,
-					ServiceName: service.ServiceName,
-				},
-			)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			describedTasks, err := ecsService.DescribeTasks(
-				context.TODO(),
-				&ecs.DescribeTasksInput{
-					Cluster: cluster.ClusterArn,
-					Tasks:   listedTasks.TaskArns,
-				},
-			)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			tasks.Clear()
-			for _, task := range describedTasks.Tasks {
-				// TODO: Change task title
-				tasks.AddItem(*task.TaskArn, *task.TaskArn, 0, func() {
-					_, err := fmt.Fprintf(
-						logs,
-						"Task %s selected\n",
-						*task.TaskArn,
-					)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					containers.Clear()
-					for _, container := range task.Containers {
-						containers.AddItem(
-							*container.Name,
-							*container.ContainerArn,
-							0,
-							func() {
-
-							},
-						)
-					}
-					app.SetFocus(containers)
-				})
-			}
-			app.SetFocus(tasks)
+		currentService := service // Create a local copy to avoid closure issues
+		services.AddItem(*currentService.ServiceName, *currentService.ServiceArn, 0, func() {
+			handleServiceSelection(app, logs, ecsService, cluster, currentService, tasks, containers)
 		})
 	}
 	app.SetFocus(services)
+}
+
+func handleServiceSelection(
+	app *tview.Application,
+	logs *tview.TextView,
+	ecsService *ecs.Client,
+	cluster types.Cluster,
+	service types.Service,
+	tasks *tview.List,
+	containers *tview.List,
+) {
+	_, err := fmt.Fprintf(
+		logs,
+		"Service %s selected\n",
+		*service.ServiceName,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	listedTasks, err := ecsService.ListTasks(
+		context.TODO(),
+		&ecs.ListTasksInput{
+			Cluster:     cluster.ClusterArn,
+			ServiceName: service.ServiceName,
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	describedTasks, err := ecsService.DescribeTasks(
+		context.TODO(),
+		&ecs.DescribeTasksInput{
+			Cluster: cluster.ClusterArn,
+			Tasks:   listedTasks.TaskArns,
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tasks.Clear()
+	for _, task := range describedTasks.Tasks {
+		// TODO: Change task title
+		tasks.AddItem(*task.TaskArn, *task.TaskArn, 0, func() {
+			_, err := fmt.Fprintf(
+				logs,
+				"Task %s selected\n",
+				*task.TaskArn,
+			)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			containers.Clear()
+			for _, container := range task.Containers {
+				containers.AddItem(
+					*container.Name,
+					*container.ContainerArn,
+					0,
+					func() {
+
+					},
+				)
+			}
+			app.SetFocus(containers)
+		})
+	}
+	app.SetFocus(tasks)
 }
