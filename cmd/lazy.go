@@ -90,7 +90,15 @@ var lazyCmd = &cobra.Command{
 				clusters.Clear()
 				for _, cluster := range describedClusters.Clusters {
 					clusters.AddItem(*cluster.ClusterName, *cluster.ClusterArn, 0, func() {
-						handleClusterSelection(app, logs, ecsService, cluster, services, tasks, containers)
+						handleClusterSelection(
+							app,
+							logs,
+							ecsService,
+							cluster,
+							services,
+							tasks,
+							containers,
+						)
 					})
 					app.SetFocus(clusters)
 				}
@@ -109,7 +117,15 @@ func init() {
 	rootCmd.AddCommand(lazyCmd)
 }
 
-func handleClusterSelection(app *tview.Application, logs *tview.TextView, ecsService *ecs.Client, cluster types.Cluster, services *tview.List, tasks *tview.List, containers *tview.List) {
+func handleClusterSelection(
+	app *tview.Application,
+	logs *tview.TextView,
+	ecsService *ecs.Client,
+	cluster types.Cluster,
+	services *tview.List,
+	tasks *tview.List,
+	containers *tview.List,
+) {
 	_, err := fmt.Fprintf(logs, "Cluster %s selected\n", *cluster.ClusterName)
 	if err != nil {
 		log.Fatal(err)
