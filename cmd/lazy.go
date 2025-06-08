@@ -49,21 +49,14 @@ func (lazy *Lazy) handleClusterSelection(cluster types.Cluster) {
 		log.Fatal(err)
 	}
 
-	lazy.app.QueueUpdateDraw(func() {
-		lazy.services.Clear()
-		for _, service := range describedServices.Services {
-			currentService := service // Create a local copy to avoid closure issues
-			lazy.services.AddItem(
-				*currentService.ServiceName,
-				*currentService.ServiceArn,
-				0,
-				func() {
-					lazy.handleServiceSelection(cluster, currentService)
-				},
-			)
-		}
-		lazy.app.SetFocus(lazy.services)
-	})
+	lazy.services.Clear()
+	for _, service := range describedServices.Services {
+		currentService := service // Create a local copy to avoid closure issues
+		lazy.services.AddItem(*currentService.ServiceName, *currentService.ServiceArn, 0, func() {
+			lazy.handleServiceSelection(cluster, currentService)
+		})
+	}
+	lazy.app.SetFocus(lazy.services)
 }
 
 func (lazy *Lazy) handleServiceSelection(cluster types.Cluster, service types.Service) {
@@ -98,17 +91,15 @@ func (lazy *Lazy) handleServiceSelection(cluster types.Cluster, service types.Se
 		log.Fatal(err)
 	}
 
-	lazy.app.QueueUpdateDraw(func() {
-		lazy.tasks.Clear()
-		for _, task := range describedTasks.Tasks {
-			// TODO: Change task title
-			currentTask := task // Create a local copy to avoid closure issues
-			lazy.tasks.AddItem(*currentTask.TaskArn, *currentTask.TaskArn, 0, func() {
-				lazy.handleTaskSelection(currentTask)
-			})
-		}
-		lazy.app.SetFocus(lazy.tasks)
-	})
+	lazy.tasks.Clear()
+	for _, task := range describedTasks.Tasks {
+		// TODO: Change task title
+		currentTask := task // Create a local copy to avoid closure issues
+		lazy.tasks.AddItem(*currentTask.TaskArn, *currentTask.TaskArn, 0, func() {
+			lazy.handleTaskSelection(currentTask)
+		})
+	}
+	lazy.app.SetFocus(lazy.tasks)
 }
 
 func (lazy *Lazy) handleTaskSelection(task types.Task) {
@@ -121,20 +112,18 @@ func (lazy *Lazy) handleTaskSelection(task types.Task) {
 		log.Fatal(err)
 	}
 
-	lazy.app.QueueUpdateDraw(func() {
-		lazy.containers.Clear()
-		for _, container := range task.Containers {
-			lazy.containers.AddItem(
-				*container.Name,
-				*container.ContainerArn,
-				0,
-				func() {
+	lazy.containers.Clear()
+	for _, container := range task.Containers {
+		lazy.containers.AddItem(
+			*container.Name,
+			*container.ContainerArn,
+			0,
+			func() {
 
-				},
-			)
-		}
-		lazy.app.SetFocus(lazy.containers)
-	})
+			},
+		)
+	}
+	lazy.app.SetFocus(lazy.containers)
 }
 
 // lazyCmd represents the lazy command
