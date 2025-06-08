@@ -13,13 +13,13 @@ import (
 )
 
 type Lazy struct {
+	ecs        *ecs.Client
 	app        *tview.Application
-	logs       *tview.TextView
-	ecsService *ecs.Client
 	clusters   *tview.List
 	services   *tview.List
 	tasks      *tview.List
 	containers *tview.List
+	logs       *tview.TextView
 }
 
 func (lazy *Lazy) handleClusterSelection(cluster types.Cluster) {
@@ -28,7 +28,7 @@ func (lazy *Lazy) handleClusterSelection(cluster types.Cluster) {
 		log.Fatal(err)
 	}
 
-	listedServices, err := lazy.ecsService.ListServices(
+	listedServices, err := lazy.ecs.ListServices(
 		context.TODO(),
 		&ecs.ListServicesInput{
 			Cluster: cluster.ClusterArn,
@@ -38,7 +38,7 @@ func (lazy *Lazy) handleClusterSelection(cluster types.Cluster) {
 		log.Fatal(err)
 	}
 
-	describedServices, err := lazy.ecsService.DescribeServices(
+	describedServices, err := lazy.ecs.DescribeServices(
 		context.TODO(),
 		&ecs.DescribeServicesInput{
 			Cluster:  cluster.ClusterArn,
@@ -69,7 +69,7 @@ func (lazy *Lazy) handleServiceSelection(cluster types.Cluster, service types.Se
 		log.Fatal(err)
 	}
 
-	listedTasks, err := lazy.ecsService.ListTasks(
+	listedTasks, err := lazy.ecs.ListTasks(
 		context.TODO(),
 		&ecs.ListTasksInput{
 			Cluster:     cluster.ClusterArn,
@@ -80,7 +80,7 @@ func (lazy *Lazy) handleServiceSelection(cluster types.Cluster, service types.Se
 		log.Fatal(err)
 	}
 
-	describedTasks, err := lazy.ecsService.DescribeTasks(
+	describedTasks, err := lazy.ecs.DescribeTasks(
 		context.TODO(),
 		&ecs.DescribeTasksInput{
 			Cluster: cluster.ClusterArn,
@@ -136,8 +136,6 @@ var lazyCmd = &cobra.Command{
 			return err
 		}
 
-		ecsService := ecs.NewFromConfig(cfg)
-
 		clusters := tview.NewList()
 		clusters.SetTitle("Clusters")
 		clusters.SetBorder(true)
@@ -184,22 +182,22 @@ var lazyCmd = &cobra.Command{
 		app := tview.NewApplication()
 
 		lazy := &Lazy{
+			ecs:        ecs.NewFromConfig(cfg),
 			app:        app,
-			logs:       logs,
-			ecsService: ecsService,
 			clusters:   clusters,
 			services:   services,
 			tasks:      tasks,
 			containers: containers,
+			logs:       logs,
 		}
 
 		go func() {
-			listedClusters, err := ecsService.ListClusters(context.TODO(), &ecs.ListClustersInput{})
+			listedClusters, err := lazy.ecs.ListClusters(context.TODO(), &ecs.ListClustersInput{})
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			describedClusters, err := ecsService.DescribeClusters(
+			describedClusters, err := lazy.ecs.DescribeClusters(
 				context.TODO(),
 				&ecs.DescribeClustersInput{
 					Clusters: listedClusters.ClusterArns,
