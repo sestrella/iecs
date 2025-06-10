@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 )
@@ -140,19 +141,19 @@ var lazyCmd = &cobra.Command{
 		}
 
 		clustersWidget := tview.NewList()
-		clustersWidget.SetTitle("Clusters")
+		clustersWidget.SetTitle("Clusters (1)")
 		clustersWidget.SetBorder(true)
 
 		servicesWidget := tview.NewList()
-		servicesWidget.SetTitle("Service")
+		servicesWidget.SetTitle("Service (2)")
 		servicesWidget.SetBorder(true)
 
 		tasksWidget := tview.NewList()
-		tasksWidget.SetTitle("Task")
+		tasksWidget.SetTitle("Task (3)")
 		tasksWidget.SetBorder(true)
 
 		containersWidget := tview.NewList()
-		containersWidget.SetTitle("Containers")
+		containersWidget.SetTitle("Containers (4)")
 		containersWidget.SetBorder(true)
 
 		right := tview.NewFlex()
@@ -183,6 +184,25 @@ var lazyCmd = &cobra.Command{
 		root.AddItem(left, 0, 2, false)
 
 		app := tview.NewApplication()
+		app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Rune() == '1' {
+				app.SetFocus(clustersWidget)
+				return nil
+			}
+			if event.Rune() == '2' {
+				app.SetFocus(servicesWidget)
+				return nil
+			}
+			if event.Rune() == '3' {
+				app.SetFocus(tasksWidget)
+				return nil
+			}
+			if event.Rune() == '4' {
+				app.SetFocus(containersWidget)
+				return nil
+			}
+			return event
+		})
 
 		lazy := &Lazy{
 			ecs:              ecs.NewFromConfig(cfg),
