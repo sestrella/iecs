@@ -182,11 +182,11 @@ var lazyCmd = &cobra.Command{
 		right.AddItem(containersWidget, 0, 1, false)
 
 		main := tview.NewTextView()
-		main.SetTitle("Main")
+		main.SetTitle("Main (5)")
 		main.SetBorder(true)
 
 		logs := tview.NewTextView()
-		logs.SetTitle("Logs")
+		logs.SetTitle("Logs (6)")
 		logs.SetBorder(true)
 		logs.SetDisabled(true)
 
@@ -217,6 +217,14 @@ var lazyCmd = &cobra.Command{
 			}
 			if event.Rune() == '4' {
 				app.SetFocus(containersWidget)
+				return nil
+			}
+			if event.Rune() == '5' {
+				app.SetFocus(main)
+				return nil
+			}
+			if event.Rune() == '6' {
+				app.SetFocus(logs)
 				return nil
 			}
 			return event
