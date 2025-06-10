@@ -139,28 +139,28 @@ var lazyCmd = &cobra.Command{
 			return err
 		}
 
-		clusters := tview.NewList()
-		clusters.SetTitle("Clusters")
-		clusters.SetBorder(true)
+		clustersWidget := tview.NewList()
+		clustersWidget.SetTitle("Clusters")
+		clustersWidget.SetBorder(true)
 
-		services := tview.NewList()
-		services.SetTitle("Service")
-		services.SetBorder(true)
+		servicesWidget := tview.NewList()
+		servicesWidget.SetTitle("Service")
+		servicesWidget.SetBorder(true)
 
-		tasks := tview.NewList()
-		tasks.SetTitle("Task")
-		tasks.SetBorder(true)
+		tasksWidget := tview.NewList()
+		tasksWidget.SetTitle("Task")
+		tasksWidget.SetBorder(true)
 
-		containers := tview.NewList()
-		containers.SetTitle("Containers")
-		containers.SetBorder(true)
+		containersWidget := tview.NewList()
+		containersWidget.SetTitle("Containers")
+		containersWidget.SetBorder(true)
 
 		right := tview.NewFlex()
 		right.SetDirection(tview.FlexRow)
-		right.AddItem(clusters, 0, 1, false)
-		right.AddItem(services, 0, 1, false)
-		right.AddItem(tasks, 0, 1, false)
-		right.AddItem(containers, 0, 1, false)
+		right.AddItem(clustersWidget, 0, 1, false)
+		right.AddItem(servicesWidget, 0, 1, false)
+		right.AddItem(tasksWidget, 0, 1, false)
+		right.AddItem(containersWidget, 0, 1, false)
 
 		main := tview.NewBox()
 		main.SetTitle("Main")
@@ -187,10 +187,10 @@ var lazyCmd = &cobra.Command{
 		lazy := &Lazy{
 			ecs:              ecs.NewFromConfig(cfg),
 			app:              app,
-			clustersWidget:   clusters,
-			servicesWidget:   services,
-			tasksWidget:      tasks,
-			containersWidget: containers,
+			clustersWidget:   clustersWidget,
+			servicesWidget:   servicesWidget,
+			tasksWidget:      tasksWidget,
+			containersWidget: containersWidget,
 			logsWidget:       logs,
 		}
 
@@ -241,16 +241,16 @@ var lazyCmd = &cobra.Command{
 			lazy.clusters = describedClusters.Clusters
 
 			app.QueueUpdateDraw(func() {
-				clusters.Clear()
+				clustersWidget.Clear()
 				for _, cluster := range lazy.clusters {
-					clusters.AddItem(
+					clustersWidget.AddItem(
 						*cluster.ClusterName,
 						*cluster.ClusterArn,
 						0,
 						func() {},
 					)
 				}
-				app.SetFocus(clusters)
+				app.SetFocus(clustersWidget)
 			})
 		}()
 
