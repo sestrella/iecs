@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	cwl "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
@@ -15,6 +17,7 @@ import (
 
 type Lazy struct {
 	ecs *ecs.Client
+	cwl *cwl.Client
 
 	app              *tview.Application
 	clustersWidget   *tview.List
@@ -22,15 +25,16 @@ type Lazy struct {
 	tasksWidget      *tview.List
 	containersWidget *tview.List
 	logsWidget       *tview.TextView
+	main             *tview.TextView
 
-	cluster    *types.Cluster
-	clusters   []types.Cluster
-	service    *types.Service
-	services   []types.Service
-	task       *types.Task
-	tasks      []types.Task
-	container  *types.Container
-	containers []types.Container
+	cluster    *ecsTypes.Cluster
+	clusters   []ecsTypes.Cluster
+	service    *ecsTypes.Service
+	services   []ecsTypes.Service
+	task       *ecsTypes.Task
+	tasks      []ecsTypes.Task
+	container  *ecsTypes.Container
+	containers []ecsTypes.Container
 }
 
 func (lazy *Lazy) handleClusterSelection() {
@@ -145,11 +149,11 @@ var lazyCmd = &cobra.Command{
 		clustersWidget.SetBorder(true)
 
 		servicesWidget := tview.NewList()
-		servicesWidget.SetTitle("Service (2)")
+		servicesWidget.SetTitle("Services (2)")
 		servicesWidget.SetBorder(true)
 
 		tasksWidget := tview.NewList()
-		tasksWidget.SetTitle("Task (3)")
+		tasksWidget.SetTitle("Tasks (3)")
 		tasksWidget.SetBorder(true)
 
 		containersWidget := tview.NewList()
@@ -163,7 +167,7 @@ var lazyCmd = &cobra.Command{
 		right.AddItem(tasksWidget, 0, 1, false)
 		right.AddItem(containersWidget, 0, 1, false)
 
-		main := tview.NewBox()
+		main := tview.NewTextView()
 		main.SetTitle("Main")
 		main.SetBorder(true)
 
@@ -206,17 +210,29 @@ var lazyCmd = &cobra.Command{
 
 		lazy := &Lazy{
 			ecs:              ecs.NewFromConfig(cfg),
+			cwl:              cwl.NewFromConfig(cfg),
 			app:              app,
 			clustersWidget:   clustersWidget,
 			servicesWidget:   servicesWidget,
 			tasksWidget:      tasksWidget,
 			containersWidget: containersWidget,
 			logsWidget:       logs,
+			main:             main,
 		}
 
 		lazy.clustersWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.cluster = &lazy.clusters[index]
+
+				if lazy.app.GetFocus() == lazy.clustersWidget {
+					content, err := json.MarshalIndent(lazy.container, "", "  ")
+					if err != nil {
+						// TODO: Do something
+						log.Fatal(err)
+					}
+					lazy.main.SetText(string(content))
+				}
+
 				lazy.handleClusterSelection()
 			},
 		)
@@ -224,6 +240,16 @@ var lazyCmd = &cobra.Command{
 		lazy.servicesWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.service = &lazy.services[index]
+
+				if lazy.app.GetFocus() == lazy.servicesWidget {
+					content, err := json.MarshalIndent(lazy.service, "", "  ")
+					if err != nil {
+						// TODO: Do something
+						log.Fatal(err)
+					}
+					lazy.main.SetText(string(content))
+				}
+
 				lazy.handleServiceSelection()
 			},
 		)
@@ -232,6 +258,16 @@ var lazyCmd = &cobra.Command{
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.task = &lazy.tasks[index]
 				lazy.containers = lazy.task.Containers
+
+				if lazy.app.GetFocus() == lazy.tasksWidget {
+					content, err := json.MarshalIndent(lazy.task, "", "  ")
+					if err != nil {
+						// TODO: Do something
+						log.Fatal(err)
+					}
+					lazy.main.SetText(string(content))
+				}
+
 				lazy.handleTaskSelection()
 			},
 		)
@@ -239,6 +275,15 @@ var lazyCmd = &cobra.Command{
 		lazy.containersWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.container = &lazy.containers[index]
+
+				if lazy.app.GetFocus() == lazy.containersWidget {
+					content, err := json.MarshalIndent(lazy.container, "", "  ")
+					if err != nil {
+						// TODO: Do something
+						log.Fatal(err)
+					}
+					lazy.main.SetText(string(content))
+				}
 			},
 		)
 
