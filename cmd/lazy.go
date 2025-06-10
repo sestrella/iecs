@@ -219,6 +219,7 @@ var lazyCmd = &cobra.Command{
 		lazy.tasksWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.task = &lazy.tasks[index]
+				lazy.containers = lazy.task.Containers
 				lazy.handleTaskSelection()
 			},
 		)
