@@ -33,10 +33,7 @@ type Lazy struct {
 }
 
 func (lazy *Lazy) handleClusterSelection() {
-	_, err := fmt.Fprintf(lazy.logsWidget, "Cluster %s selected\n", *lazy.cluster.ClusterName)
-	if err != nil {
-		log.Fatal(err)
-	}
+	lazy.log("Cluster %s selected\n", *lazy.cluster.ClusterName)
 
 	listedServices, err := lazy.ecs.ListServices(
 		context.TODO(),
@@ -74,14 +71,7 @@ func (lazy *Lazy) handleClusterSelection() {
 }
 
 func (lazy *Lazy) handleServiceSelection() {
-	_, err := fmt.Fprintf(
-		lazy.logsWidget,
-		"Service %s selected\n",
-		*lazy.service.ServiceName,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
+	lazy.log("Service %s selected\n", *lazy.service.ServiceName)
 
 	listedTasks, err := lazy.ecs.ListTasks(
 		context.TODO(),
@@ -116,14 +106,7 @@ func (lazy *Lazy) handleServiceSelection() {
 }
 
 func (lazy *Lazy) handleTaskSelection() {
-	_, err := fmt.Fprintf(
-		lazy.logsWidget,
-		"Task %s selected\n",
-		*lazy.task.TaskArn,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
+	lazy.log("Task %s selected\n", *lazy.task.TaskArn)
 
 	lazy.containersWidget.Clear()
 	for _, container := range lazy.containers {
@@ -135,6 +118,15 @@ func (lazy *Lazy) handleTaskSelection() {
 		)
 	}
 	// lazy.app.SetFocus(lazy.containersWidget)
+}
+
+func (lazy *Lazy) log(format string, a ...any) {
+	_, err := fmt.Fprintf(lazy.logsWidget, format, a...)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	lazy.logsWidget.ScrollToEnd()
 }
 
 // lazyCmd represents the lazy command
