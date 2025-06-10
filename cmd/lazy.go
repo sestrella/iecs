@@ -247,16 +247,6 @@ var lazyCmd = &cobra.Command{
 		lazy.clustersWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.cluster = &lazy.clusters[index]
-
-				if lazy.app.GetFocus() == lazy.clustersWidget {
-					content, err := json.MarshalIndent(lazy.container, "", "  ")
-					if err != nil {
-						// TODO: Do something
-						log.Fatal(err)
-					}
-					lazy.main.SetText(string(content))
-				}
-
 				lazy.handleClusterSelection()
 			},
 		)
@@ -264,16 +254,6 @@ var lazyCmd = &cobra.Command{
 		lazy.servicesWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.service = &lazy.servicesByTask[*lazy.cluster.ClusterArn][index]
-
-				if lazy.app.GetFocus() == lazy.servicesWidget {
-					content, err := json.MarshalIndent(lazy.service, "", "  ")
-					if err != nil {
-						// TODO: Do something
-						log.Fatal(err)
-					}
-					lazy.main.SetText(string(content))
-				}
-
 				lazy.handleServiceSelection()
 			},
 		)
@@ -298,15 +278,6 @@ var lazyCmd = &cobra.Command{
 		lazy.containersWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.container = &lazy.task.Containers[index]
-
-				if lazy.app.GetFocus() == lazy.containersWidget {
-					content, err := json.MarshalIndent(lazy.container, "", "  ")
-					if err != nil {
-						// TODO: Do something
-						log.Fatal(err)
-					}
-					lazy.main.SetText(string(content))
-				}
 			},
 		)
 
