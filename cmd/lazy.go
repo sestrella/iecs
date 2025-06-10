@@ -33,14 +33,14 @@ type Lazy struct {
 	task      *ecsTypes.Task
 	container *ecsTypes.Container
 
-	servicesCache map[string][]ecsTypes.Service
-	tasksCache    map[string][]ecsTypes.Task
+	servicesByTask map[string][]ecsTypes.Service
+	tasksByService map[string][]ecsTypes.Task
 }
 
 func (lazy *Lazy) handleClusterSelection() {
 	lazy.log("Cluster %s selected\n", *lazy.cluster.ClusterName)
 
-	services, ok := lazy.servicesCache[*lazy.cluster.ClusterArn]
+	services, ok := lazy.servicesByTask[*lazy.cluster.ClusterArn]
 
 	if !ok {
 		lazy.log("Fetching services for cluster %s", *lazy.cluster.ClusterName)
@@ -67,7 +67,7 @@ func (lazy *Lazy) handleClusterSelection() {
 		}
 
 		services = describedServices.Services
-		lazy.servicesCache[*lazy.cluster.ClusterArn] = services
+		lazy.servicesByTask[*lazy.cluster.ClusterArn] = services
 	}
 
 	lazy.servicesWidget.Clear()
@@ -85,7 +85,7 @@ func (lazy *Lazy) handleClusterSelection() {
 func (lazy *Lazy) handleServiceSelection() {
 	lazy.log("Service %s selected\n", *lazy.service.ServiceName)
 
-	tasks, ok := lazy.tasksCache[*lazy.service.ServiceArn]
+	tasks, ok := lazy.tasksByService[*lazy.service.ServiceArn]
 
 	if !ok {
 		lazy.log("Fetching tasks for service %s", *lazy.service.ServiceArn)
@@ -113,7 +113,7 @@ func (lazy *Lazy) handleServiceSelection() {
 		}
 
 		tasks = describedTasks.Tasks
-		lazy.tasksCache[*lazy.service.ServiceArn] = tasks
+		lazy.tasksByService[*lazy.service.ServiceArn] = tasks
 	}
 
 	lazy.tasksWidget.Clear()
@@ -232,8 +232,8 @@ var lazyCmd = &cobra.Command{
 			containersWidget: containersWidget,
 			logsWidget:       logs,
 			main:             main,
-			servicesCache:    make(map[string][]ecsTypes.Service),
-			tasksCache:       make(map[string][]ecsTypes.Task),
+			servicesByTask:   make(map[string][]ecsTypes.Service),
+			tasksByService:   make(map[string][]ecsTypes.Task),
 		}
 
 		lazy.clustersWidget.SetChangedFunc(
@@ -255,7 +255,7 @@ var lazyCmd = &cobra.Command{
 
 		lazy.servicesWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
-				lazy.service = &lazy.servicesCache[*lazy.cluster.ClusterArn][index]
+				lazy.service = &lazy.servicesByTask[*lazy.cluster.ClusterArn][index]
 
 				if lazy.app.GetFocus() == lazy.servicesWidget {
 					content, err := json.MarshalIndent(lazy.service, "", "  ")
@@ -272,7 +272,7 @@ var lazyCmd = &cobra.Command{
 
 		lazy.tasksWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
-				lazy.task = &lazy.tasksCache[*lazy.service.ServiceArn][index]
+				lazy.task = &lazy.tasksByService[*lazy.service.ServiceArn][index]
 
 				if lazy.app.GetFocus() == lazy.tasksWidget {
 					content, err := json.MarshalIndent(lazy.task, "", "  ")
