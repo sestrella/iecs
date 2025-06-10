@@ -44,6 +44,8 @@ func (lazy *Lazy) handleClusterSelection() {
 	services, ok := lazy.servicesCache[*lazy.cluster.ClusterArn]
 
 	if !ok {
+		lazy.log("Fetching services for cluster %s", *lazy.cluster.ClusterName)
+
 		listedServices, err := lazy.ecs.ListServices(
 			context.TODO(),
 			&ecs.ListServicesInput{
@@ -85,7 +87,10 @@ func (lazy *Lazy) handleServiceSelection() {
 	lazy.log("Service %s selected\n", *lazy.service.ServiceName)
 
 	tasks, ok := lazy.tasksCache[*lazy.service.ServiceArn]
+
 	if !ok {
+		lazy.log("Fetching tasks for service %s", *lazy.service.ServiceArn)
+
 		listedTasks, err := lazy.ecs.ListTasks(
 			context.TODO(),
 			&ecs.ListTasksInput{
