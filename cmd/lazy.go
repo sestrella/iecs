@@ -13,17 +13,20 @@ import (
 )
 
 type Lazy struct {
-	ecs        *ecs.Client
-	app        *tview.Application
-	clusters   *tview.List
-	services   *tview.List
-	tasks      *tview.List
-	containers *tview.List
-	logs       *tview.TextView
+	ecs              *ecs.Client
+	app              *tview.Application
+	clustersWidget   *tview.List
+	servicesWidget   *tview.List
+	tasksWidget      *tview.List
+	containersWidget *tview.List
+	logsWidget       *tview.TextView
+	clusters         []types.Cluster
+	services         []types.Service
+	tasks            []types.Task
 }
 
 func (lazy *Lazy) handleClusterSelection(cluster types.Cluster) {
-	_, err := fmt.Fprintf(lazy.logs, "Cluster %s selected\n", *cluster.ClusterName)
+	_, err := fmt.Fprintf(lazy.logsWidget, "Cluster %s selected\n", *cluster.ClusterName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,19 +52,30 @@ func (lazy *Lazy) handleClusterSelection(cluster types.Cluster) {
 		log.Fatal(err)
 	}
 
-	lazy.services.Clear()
-	for _, service := range describedServices.Services {
-		currentService := service // Create a local copy to avoid closure issues
-		lazy.services.AddItem(*currentService.ServiceName, *currentService.ServiceArn, 0, func() {
-			lazy.handleServiceSelection(cluster, currentService)
-		})
+	lazy.services = describedServices.Services
+
+	lazy.servicesWidget.SetChangedFunc(
+		func(index int, mainText, secondaryText string, shortcut rune) {
+			service := lazy.services[index]
+			lazy.handleServiceSelection(cluster, service)
+		},
+	)
+
+	lazy.servicesWidget.Clear()
+	for _, service := range lazy.services {
+		lazy.servicesWidget.AddItem(
+			*service.ServiceName,
+			*service.ServiceArn,
+			0,
+			func() {},
+		)
 	}
-	lazy.app.SetFocus(lazy.services)
+	// lazy.app.SetFocus(lazy.servicesWidget)
 }
 
 func (lazy *Lazy) handleServiceSelection(cluster types.Cluster, service types.Service) {
 	_, err := fmt.Fprintf(
-		lazy.logs,
+		lazy.logsWidget,
 		"Service %s selected\n",
 		*service.ServiceName,
 	)
@@ -91,20 +105,24 @@ func (lazy *Lazy) handleServiceSelection(cluster types.Cluster, service types.Se
 		log.Fatal(err)
 	}
 
-	lazy.tasks.Clear()
-	for _, task := range describedTasks.Tasks {
+	lazy.tasks = describedTasks.Tasks
+
+	lazy.tasksWidget.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
+		task := lazy.tasks[index]
+		lazy.handleTaskSelection(task)
+	})
+
+	lazy.tasksWidget.Clear()
+	for _, task := range lazy.tasks {
 		// TODO: Change task title
-		currentTask := task // Create a local copy to avoid closure issues
-		lazy.tasks.AddItem(*currentTask.TaskArn, *currentTask.TaskArn, 0, func() {
-			lazy.handleTaskSelection(currentTask)
-		})
+		lazy.tasksWidget.AddItem(*task.TaskArn, *task.TaskArn, 0, func() {})
 	}
-	lazy.app.SetFocus(lazy.tasks)
+	// lazy.app.SetFocus(lazy.tasksWidget)
 }
 
 func (lazy *Lazy) handleTaskSelection(task types.Task) {
 	_, err := fmt.Fprintf(
-		lazy.logs,
+		lazy.logsWidget,
 		"Task %s selected\n",
 		*task.TaskArn,
 	)
@@ -112,9 +130,9 @@ func (lazy *Lazy) handleTaskSelection(task types.Task) {
 		log.Fatal(err)
 	}
 
-	lazy.containers.Clear()
+	lazy.containersWidget.Clear()
 	for _, container := range task.Containers {
-		lazy.containers.AddItem(
+		lazy.containersWidget.AddItem(
 			*container.Name,
 			*container.ContainerArn,
 			0,
@@ -123,7 +141,7 @@ func (lazy *Lazy) handleTaskSelection(task types.Task) {
 			},
 		)
 	}
-	lazy.app.SetFocus(lazy.containers)
+	// lazy.app.SetFocus(lazy.containersWidget)
 }
 
 // lazyCmd represents the lazy command
@@ -182,13 +200,13 @@ var lazyCmd = &cobra.Command{
 		app := tview.NewApplication()
 
 		lazy := &Lazy{
-			ecs:        ecs.NewFromConfig(cfg),
-			app:        app,
-			clusters:   clusters,
-			services:   services,
-			tasks:      tasks,
-			containers: containers,
-			logs:       logs,
+			ecs:              ecs.NewFromConfig(cfg),
+			app:              app,
+			clustersWidget:   clusters,
+			servicesWidget:   services,
+			tasksWidget:      tasks,
+			containersWidget: containers,
+			logsWidget:       logs,
 		}
 
 		go func() {
@@ -207,17 +225,22 @@ var lazyCmd = &cobra.Command{
 				log.Fatal(err)
 			}
 
+			lazy.clusters = describedClusters.Clusters
+
+			clusters.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
+				cluster := lazy.clusters[index]
+				lazy.handleClusterSelection(cluster)
+			})
+
 			app.QueueUpdateDraw(func() {
 				clusters.Clear()
-				for _, cluster := range describedClusters.Clusters {
+				for _, cluster := range lazy.clusters {
 					currentCluster := cluster // Create a local copy to avoid closure issues
 					clusters.AddItem(
 						*currentCluster.ClusterName,
 						*currentCluster.ClusterArn,
 						0,
-						func() {
-							lazy.handleClusterSelection(currentCluster)
-						},
+						func() {},
 					)
 					app.SetFocus(clusters)
 				}
