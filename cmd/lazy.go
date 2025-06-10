@@ -35,33 +35,42 @@ type Lazy struct {
 	tasks      []ecsTypes.Task
 	container  *ecsTypes.Container
 	containers []ecsTypes.Container
+
+	servicesCache   map[string][]ecsTypes.Service
+	tasksCache      map[string][]ecsTypes.Task
+	containersCache map[string][]ecsTypes.Container
 }
 
 func (lazy *Lazy) handleClusterSelection() {
 	lazy.log("Cluster %s selected\n", *lazy.cluster.ClusterName)
 
-	listedServices, err := lazy.ecs.ListServices(
-		context.TODO(),
-		&ecs.ListServicesInput{
-			Cluster: lazy.cluster.ClusterArn,
-		},
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
+	if services, ok := lazy.servicesCache[*lazy.cluster.ClusterArn]; ok {
+		lazy.services = services
+	} else {
+		listedServices, err := lazy.ecs.ListServices(
+			context.TODO(),
+			&ecs.ListServicesInput{
+				Cluster: lazy.cluster.ClusterArn,
+			},
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	describedServices, err := lazy.ecs.DescribeServices(
-		context.TODO(),
-		&ecs.DescribeServicesInput{
-			Cluster:  lazy.cluster.ClusterArn,
-			Services: listedServices.ServiceArns,
-		},
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
+		describedServices, err := lazy.ecs.DescribeServices(
+			context.TODO(),
+			&ecs.DescribeServicesInput{
+				Cluster:  lazy.cluster.ClusterArn,
+				Services: listedServices.ServiceArns,
+			},
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	lazy.services = describedServices.Services
+		lazy.services = describedServices.Services
+		lazy.servicesCache[*lazy.cluster.ClusterArn] = lazy.services
+	}
 
 	lazy.servicesWidget.Clear()
 	for _, service := range lazy.services {
@@ -78,29 +87,34 @@ func (lazy *Lazy) handleClusterSelection() {
 func (lazy *Lazy) handleServiceSelection() {
 	lazy.log("Service %s selected\n", *lazy.service.ServiceName)
 
-	listedTasks, err := lazy.ecs.ListTasks(
-		context.TODO(),
-		&ecs.ListTasksInput{
-			Cluster:     lazy.cluster.ClusterArn,
-			ServiceName: lazy.service.ServiceName,
-		},
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
+	if tasks, ok := lazy.tasksCache[*lazy.service.ServiceArn]; ok {
+		lazy.tasks = tasks
+	} else {
+		listedTasks, err := lazy.ecs.ListTasks(
+			context.TODO(),
+			&ecs.ListTasksInput{
+				Cluster:     lazy.cluster.ClusterArn,
+				ServiceName: lazy.service.ServiceName,
+			},
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	describedTasks, err := lazy.ecs.DescribeTasks(
-		context.TODO(),
-		&ecs.DescribeTasksInput{
-			Cluster: lazy.cluster.ClusterArn,
-			Tasks:   listedTasks.TaskArns,
-		},
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
+		describedTasks, err := lazy.ecs.DescribeTasks(
+			context.TODO(),
+			&ecs.DescribeTasksInput{
+				Cluster: lazy.cluster.ClusterArn,
+				Tasks:   listedTasks.TaskArns,
+			},
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	lazy.tasks = describedTasks.Tasks
+		lazy.tasks = describedTasks.Tasks
+		lazy.tasksCache[*lazy.service.ServiceArn] = lazy.tasks
+	}
 
 	lazy.tasksWidget.Clear()
 	for _, task := range lazy.tasks {
@@ -218,6 +232,9 @@ var lazyCmd = &cobra.Command{
 			containersWidget: containersWidget,
 			logsWidget:       logs,
 			main:             main,
+			servicesCache:    make(map[string][]ecsTypes.Service),
+			tasksCache:       make(map[string][]ecsTypes.Task),
+			containersCache:  make(map[string][]ecsTypes.Container),
 		}
 
 		lazy.clustersWidget.SetChangedFunc(
