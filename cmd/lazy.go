@@ -30,23 +30,20 @@ type Lazy struct {
 	cluster    *ecsTypes.Cluster
 	clusters   []ecsTypes.Cluster
 	service    *ecsTypes.Service
-	services   []ecsTypes.Service
 	task       *ecsTypes.Task
-	tasks      []ecsTypes.Task
 	container  *ecsTypes.Container
 	containers []ecsTypes.Container
 
-	servicesCache   map[string][]ecsTypes.Service
-	tasksCache      map[string][]ecsTypes.Task
-	containersCache map[string][]ecsTypes.Container
+	servicesCache map[string][]ecsTypes.Service
+	tasksCache    map[string][]ecsTypes.Task
 }
 
 func (lazy *Lazy) handleClusterSelection() {
 	lazy.log("Cluster %s selected\n", *lazy.cluster.ClusterName)
 
-	if services, ok := lazy.servicesCache[*lazy.cluster.ClusterArn]; ok {
-		lazy.services = services
-	} else {
+	services, ok := lazy.servicesCache[*lazy.cluster.ClusterArn]
+
+	if !ok {
 		listedServices, err := lazy.ecs.ListServices(
 			context.TODO(),
 			&ecs.ListServicesInput{
@@ -68,12 +65,12 @@ func (lazy *Lazy) handleClusterSelection() {
 			log.Fatal(err)
 		}
 
-		lazy.services = describedServices.Services
-		lazy.servicesCache[*lazy.cluster.ClusterArn] = lazy.services
+		services = describedServices.Services
+		lazy.servicesCache[*lazy.cluster.ClusterArn] = services
 	}
 
 	lazy.servicesWidget.Clear()
-	for _, service := range lazy.services {
+	for _, service := range services {
 		lazy.servicesWidget.AddItem(
 			*service.ServiceName,
 			*service.ServiceArn,
@@ -87,9 +84,8 @@ func (lazy *Lazy) handleClusterSelection() {
 func (lazy *Lazy) handleServiceSelection() {
 	lazy.log("Service %s selected\n", *lazy.service.ServiceName)
 
-	if tasks, ok := lazy.tasksCache[*lazy.service.ServiceArn]; ok {
-		lazy.tasks = tasks
-	} else {
+	tasks, ok := lazy.tasksCache[*lazy.service.ServiceArn]
+	if !ok {
 		listedTasks, err := lazy.ecs.ListTasks(
 			context.TODO(),
 			&ecs.ListTasksInput{
@@ -112,12 +108,12 @@ func (lazy *Lazy) handleServiceSelection() {
 			log.Fatal(err)
 		}
 
-		lazy.tasks = describedTasks.Tasks
-		lazy.tasksCache[*lazy.service.ServiceArn] = lazy.tasks
+		tasks = describedTasks.Tasks
+		lazy.tasksCache[*lazy.service.ServiceArn] = tasks
 	}
 
 	lazy.tasksWidget.Clear()
-	for _, task := range lazy.tasks {
+	for _, task := range tasks {
 		// TODO: Change task title
 		lazy.tasksWidget.AddItem(*task.TaskArn, *task.TaskArn, 0, func() {})
 	}
@@ -234,7 +230,6 @@ var lazyCmd = &cobra.Command{
 			main:             main,
 			servicesCache:    make(map[string][]ecsTypes.Service),
 			tasksCache:       make(map[string][]ecsTypes.Task),
-			containersCache:  make(map[string][]ecsTypes.Container),
 		}
 
 		lazy.clustersWidget.SetChangedFunc(
@@ -256,7 +251,7 @@ var lazyCmd = &cobra.Command{
 
 		lazy.servicesWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
-				lazy.service = &lazy.services[index]
+				lazy.service = &lazy.servicesCache[*lazy.cluster.ClusterArn][index]
 
 				if lazy.app.GetFocus() == lazy.servicesWidget {
 					content, err := json.MarshalIndent(lazy.service, "", "  ")
@@ -273,7 +268,7 @@ var lazyCmd = &cobra.Command{
 
 		lazy.tasksWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
-				lazy.task = &lazy.tasks[index]
+				lazy.task = &lazy.tasksCache[*lazy.service.ServiceArn][index]
 				lazy.containers = lazy.task.Containers
 
 				if lazy.app.GetFocus() == lazy.tasksWidget {
