@@ -27,12 +27,11 @@ type Lazy struct {
 	logsWidget       *tview.TextView
 	main             *tview.TextView
 
-	cluster    *ecsTypes.Cluster
-	clusters   []ecsTypes.Cluster
-	service    *ecsTypes.Service
-	task       *ecsTypes.Task
-	container  *ecsTypes.Container
-	containers []ecsTypes.Container
+	cluster   *ecsTypes.Cluster
+	clusters  []ecsTypes.Cluster
+	service   *ecsTypes.Service
+	task      *ecsTypes.Task
+	container *ecsTypes.Container
 
 	servicesCache map[string][]ecsTypes.Service
 	tasksCache    map[string][]ecsTypes.Task
@@ -129,7 +128,7 @@ func (lazy *Lazy) handleTaskSelection() {
 	lazy.log("Task %s selected\n", *lazy.task.TaskArn)
 
 	lazy.containersWidget.Clear()
-	for _, container := range lazy.containers {
+	for _, container := range lazy.task.Containers {
 		lazy.containersWidget.AddItem(
 			*container.Name,
 			*container.ContainerArn,
@@ -274,7 +273,6 @@ var lazyCmd = &cobra.Command{
 		lazy.tasksWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.task = &lazy.tasksCache[*lazy.service.ServiceArn][index]
-				lazy.containers = lazy.task.Containers
 
 				if lazy.app.GetFocus() == lazy.tasksWidget {
 					content, err := json.MarshalIndent(lazy.task, "", "  ")
@@ -291,7 +289,7 @@ var lazyCmd = &cobra.Command{
 
 		lazy.containersWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
-				lazy.container = &lazy.containers[index]
+				lazy.container = &lazy.task.Containers[index]
 
 				if lazy.app.GetFocus() == lazy.containersWidget {
 					content, err := json.MarshalIndent(lazy.container, "", "  ")
