@@ -79,7 +79,6 @@ func (lazy *Lazy) handleClusterSelection() {
 			func() {},
 		)
 	}
-	// lazy.app.SetFocus(lazy.servicesWidget)
 }
 
 func (lazy *Lazy) handleServiceSelection() {
@@ -118,10 +117,8 @@ func (lazy *Lazy) handleServiceSelection() {
 
 	lazy.tasksWidget.Clear()
 	for _, task := range tasks {
-		// TODO: Change task title
 		lazy.tasksWidget.AddItem(*task.TaskArn, *task.TaskArn, 0, func() {})
 	}
-	// lazy.app.SetFocus(lazy.tasksWidget)
 }
 
 func (lazy *Lazy) handleTaskSelection() {
@@ -136,7 +133,6 @@ func (lazy *Lazy) handleTaskSelection() {
 			func() {},
 		)
 	}
-	// lazy.app.SetFocus(lazy.containersWidget)
 }
 
 func (lazy *Lazy) log(format string, a ...any) {
