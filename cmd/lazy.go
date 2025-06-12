@@ -253,6 +253,78 @@ var lazyCmd = &cobra.Command{
 				lazy.handleServiceSelection()
 			},
 		)
+		lazy.servicesWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Rune() == 'l' {
+				lazy.log("Tailing logs for service %s\n", *lazy.service.ServiceName)
+
+				describedTaskDefinition, err := lazy.ecs.DescribeTaskDefinition(
+					context.TODO(),
+					&ecs.DescribeTaskDefinitionInput{
+						TaskDefinition: lazy.service.TaskDefinition,
+					},
+				)
+				if err != nil {
+					panic(err)
+				}
+
+				for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
+					logOptions := containerDefinition.LogConfiguration.Options
+					logGroupName := logOptions["awslogs-group"]
+					describedLogGroups, err := lazy.cwl.DescribeLogGroups(
+						context.TODO(),
+						&cwl.DescribeLogGroupsInput{
+							LogGroupNamePrefix: &logGroupName,
+						},
+					)
+					if err != nil {
+						panic(err)
+					}
+					startedLiveTail, err := lazy.cwl.StartLiveTail(
+						context.TODO(),
+						&cwl.StartLiveTailInput{
+							LogGroupIdentifiers: []string{
+								*describedLogGroups.LogGroups[0].LogGroupArn,
+							},
+							LogStreamNamePrefixes: []string{logOptions["awslogs-stream-prefix"]},
+						},
+					)
+					if err != nil {
+						panic(err)
+					}
+
+					stream := startedLiveTail.GetStream()
+					defer stream.Close()
+
+					// 	events := stream.Events()
+					// 	go func() {
+					// 		for {
+					// 			event, ok := <-events
+					// 			if !ok {
+					// 				return
+					// 			}
+					// 			switch e := event.(type) {
+					// 			case *cwlTypes.StartLiveTailResponseStreamMemberSessionStart:
+					// 				_, err := fmt.Fprintf(lazy.main, "Live tail session started %s\n", *e.Value.RequestId)
+					// 				if err != nil {
+					// 					panic(err)
+					// 				}
+					// 			case *cwlTypes.StartLiveTailResponseStreamMemberSessionUpdate:
+					// 				for _, logEvent := range e.Value.SessionResults {
+					// 					_, err := fmt.Fprintf(lazy.main, "%s %s\n", *logEvent.Message, *containerDefinition.Name)
+					// 					if err != nil {
+					// 						panic(err)
+					// 					}
+					// 				}
+					// 			}
+					// 		}
+					// 	}()
+
+					lazy.log("Streaming logs for container %s\n", *containerDefinition.Name)
+				}
+				return nil
+			}
+			return event
+		})
 
 		lazy.tasksWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {

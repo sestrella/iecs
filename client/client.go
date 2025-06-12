@@ -103,57 +103,57 @@ func (c *awsClient) StartLiveTail(
 	// Describe log groups to get the ARN
 	describeOutput, err := c.describeLogGroups(ctx, logGroupName)
 	if err != nil {
-		return err
-	}
 
-	logGroupArn := describeOutput.LogGroups[0].LogGroupArn
-	if logGroupArn == nil {
-		return fmt.Errorf("log group ARN is nil for group: %s", logGroupName)
-	}
-
-	// Start the live tail
-	startLiveTail, err := c.logsClient.StartLiveTail(
-		ctx,
-		&logs.StartLiveTailInput{
-			LogGroupIdentifiers:   []string{*logGroupArn},
-			LogStreamNamePrefixes: []string{streamPrefix},
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to start live tail: %w", err)
-	}
-
-	// Get the stream
-	stream := startLiveTail.GetStream()
-	defer func() {
-		if err = stream.Close(); err != nil {
-			log.Fatal(err)
+		logGroupArn := describeOutput.LogGroups[0].LogGroupArn
+		if logGroupArn == nil {
+			return fmt.Errorf("log group ARN is nil for group: %s", logGroupName)
 		}
-	}()
 
-	eventsChannel := stream.Events()
+		// Start the live tail
+		startLiveTail, err := c.logsClient.StartLiveTail(
+			ctx,
+			&logs.StartLiveTailInput{
+				LogGroupIdentifiers:   []string{*logGroupArn},
+				LogStreamNamePrefixes: []string{streamPrefix},
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("failed to start live tail: %w", err)
+		}
 
-	// Process events
-	for {
-		select {
-		case <-ctx.Done():
-			log.Println("Context cancelled, stopping event handler.")
-			return nil
-		case event := <-eventsChannel:
-			switch e := event.(type) {
-			case *logsTypes.StartLiveTailResponseStreamMemberSessionStart:
-				log.Printf("Live Tail Session Started: RequestId: %s, SessionId: %s\n", *e.Value.RequestId, *e.Value.SessionId)
-			case *logsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
-				for _, logEvent := range e.Value.SessionResults {
-					date := time.UnixMilli(*logEvent.Timestamp)
-					handler(date, *logEvent.Message)
-				}
-			default:
-				log.Printf("Received unknown event type: %T\n", e)
-				if err := stream.Err(); err != nil {
-					return err
+		// Get the stream
+		stream := startLiveTail.GetStream()
+		defer func() {
+			if err = stream.Close(); err != nil {
+				log.Fatal(err)
+			}
+		}()
+
+		eventsChannel := stream.Events()
+
+		// Process events
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("Context cancelled, stopping event handler.")
+				return nil
+			case event := <-eventsChannel:
+				switch e := event.(type) {
+				case *logsTypes.StartLiveTailResponseStreamMemberSessionStart:
+					log.Printf("Live Tail Session Started: RequestId: %s, SessionId: %s\n", *e.Value.RequestId, *e.Value.SessionId)
+				case *logsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
+					for _, logEvent := range e.Value.SessionResults {
+						date := time.UnixMilli(*logEvent.Timestamp)
+						handler(date, *logEvent.Message)
+					}
+				default:
+					log.Printf("Received unknown event type: %T\n", e)
+					if err := stream.Err(); err != nil {
+						return err
+					}
 				}
 			}
 		}
 	}
+	return nil
 }
