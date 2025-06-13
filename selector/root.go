@@ -30,6 +30,11 @@ type SelectedContainerDefinition struct {
 }
 
 type Selectors interface {
+	Cluster(ctx context.Context) (*types.Cluster, error)
+	Service(ctx context.Context, cluster *types.Cluster) (*types.Service, error)
+	Task(ctx context.Context, service *types.Service) (*types.Task, error)
+	Container(ctx context.Context, task *types.Task) (*types.Container, error)
+
 	ContainerSelector(ctx context.Context) (*SelectedContainer, error)
 	ContainerDefinitionSelector(ctx context.Context) (*SelectedContainerDefinition, error)
 }
@@ -45,22 +50,22 @@ func NewSelectors(client *ecs.Client) Selectors {
 func (cs ClientSelectors) ContainerSelector(
 	ctx context.Context,
 ) (*SelectedContainer, error) {
-	cluster, err := cluster(ctx, cs.client)
+	cluster, err := cs.Cluster(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	service, err := service(ctx, cs.client, *cluster.ClusterArn)
+	service, err := cs.Service(ctx, cluster)
 	if err != nil {
 		return nil, err
 	}
 
-	task, err := task(ctx, cs.client, *cluster.ClusterArn, *service.ServiceArn)
+	task, err := cs.Task(ctx, service)
 	if err != nil {
 		return nil, err
 	}
 
-	container, err := container(task.Containers)
+	container, err := cs.Container(ctx, task)
 	if err != nil {
 		return nil, err
 	}
@@ -76,12 +81,12 @@ func (cs ClientSelectors) ContainerSelector(
 func (cs ClientSelectors) ContainerDefinitionSelector(
 	ctx context.Context,
 ) (*SelectedContainerDefinition, error) {
-	cluster, err := cluster(ctx, cs.client)
+	cluster, err := cs.Cluster(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	service, err := service(ctx, cs.client, *cluster.ClusterArn)
+	service, err := cs.Service(ctx, cluster)
 	if err != nil {
 		return nil, err
 	}
@@ -98,8 +103,8 @@ func (cs ClientSelectors) ContainerDefinitionSelector(
 	}, nil
 }
 
-func cluster(ctx context.Context, client *ecs.Client) (*types.Cluster, error) {
-	listClustersOuput, err := client.ListClusters(ctx, &ecs.ListClustersInput{})
+func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
+	listClustersOuput, err := cs.client.ListClusters(ctx, &ecs.ListClustersInput{})
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +132,7 @@ func cluster(ctx context.Context, client *ecs.Client) (*types.Cluster, error) {
 			return nil, err
 		}
 	}
-	describeClustersOutput, err := client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
+	describeClustersOutput, err := cs.client.DescribeClusters(ctx, &ecs.DescribeClustersInput{
 		Clusters: []string{clusterArn},
 	})
 	if err != nil {
@@ -142,16 +147,19 @@ func cluster(ctx context.Context, client *ecs.Client) (*types.Cluster, error) {
 	return &cluster, nil
 }
 
-func service(ctx context.Context, client *ecs.Client, clusterArn string) (*types.Service, error) {
-	listServicesOutput, err := client.ListServices(ctx, &ecs.ListServicesInput{
-		Cluster: &clusterArn,
+func (cs ClientSelectors) Service(
+	ctx context.Context,
+	cluster *types.Cluster,
+) (*types.Service, error) {
+	listServicesOutput, err := cs.client.ListServices(ctx, &ecs.ListServicesInput{
+		Cluster: cluster.ClusterArn,
 	})
 	if err != nil {
 		return nil, err
 	}
 	serviceArns := listServicesOutput.ServiceArns
 	if len(serviceArns) == 0 {
-		return nil, fmt.Errorf("no services found in cluster: %s", clusterArn)
+		return nil, fmt.Errorf("no services found in cluster: %s", *cluster.ClusterArn)
 	}
 	var serviceArn string
 	if len(serviceArns) == 1 {
@@ -172,8 +180,8 @@ func service(ctx context.Context, client *ecs.Client, clusterArn string) (*types
 			return nil, err
 		}
 	}
-	output, err := client.DescribeServices(ctx, &ecs.DescribeServicesInput{
-		Cluster:  &clusterArn,
+	output, err := cs.client.DescribeServices(ctx, &ecs.DescribeServicesInput{
+		Cluster:  cluster.ClusterArn,
 		Services: []string{serviceArn},
 	})
 	if err != nil {
@@ -188,15 +196,13 @@ func service(ctx context.Context, client *ecs.Client, clusterArn string) (*types
 	return &service, nil
 }
 
-func task(
+func (cs ClientSelectors) Task(
 	ctx context.Context,
-	client *ecs.Client,
-	clusterArn string,
-	serviceArn string,
+	service *types.Service,
 ) (*types.Task, error) {
-	listTasksOutput, err := client.ListTasks(ctx, &ecs.ListTasksInput{
-		Cluster:     &clusterArn,
-		ServiceName: &serviceArn,
+	listTasksOutput, err := cs.client.ListTasks(ctx, &ecs.ListTasksInput{
+		Cluster:     service.ClusterArn,
+		ServiceName: service.ServiceArn,
 	})
 	if err != nil {
 		return nil, err
@@ -205,8 +211,8 @@ func task(
 	if len(taskArns) == 0 {
 		return nil, fmt.Errorf(
 			"no tasks found for service: %s in cluster: %s",
-			serviceArn,
-			clusterArn,
+			*service.ServiceArn,
+			*service.ClusterArn,
 		)
 	}
 	var taskArn string
@@ -227,8 +233,8 @@ func task(
 			return nil, err
 		}
 	}
-	describeTasksOutput, err := client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: &clusterArn,
+	describeTasksOutput, err := cs.client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+		Cluster: service.ClusterArn,
 		Tasks:   []string{taskArn},
 	})
 	if err != nil {
@@ -243,11 +249,12 @@ func task(
 	return &task, nil
 }
 
-func container(
-	containers []types.Container,
+func (cs ClientSelectors) Container(
+	ctx context.Context,
+	task *types.Task,
 ) (*types.Container, error) {
 	var containerNames []string
-	for _, container := range containers {
+	for _, container := range task.Containers {
 		containerNames = append(containerNames, *container.Name)
 	}
 	var containerName string
@@ -268,7 +275,7 @@ func container(
 			return nil, err
 		}
 	}
-	for _, container := range containers {
+	for _, container := range task.Containers {
 		if *container.Name == containerName {
 			fmt.Printf("%s %s\n", titleStyle.Render("Container:"), *container.Name)
 			return &container, nil
