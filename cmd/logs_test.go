@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	logs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
 	"github.com/stretchr/testify/assert"
@@ -18,6 +20,8 @@ func TestRunLogs_Success(t *testing.T) {
 	// Create mock objects
 	mockClient := new(MockClient)
 	mockSel := new(MockSelectors)
+	mockEcsClient := &ecs.Client{}
+	mockLogsClient := &logs.Client{}
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -57,7 +61,7 @@ func TestRunLogs_Success(t *testing.T) {
 	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs", mock.AnythingOfType("client.EventHandler")).Return(nil)
 
 	// Test the function
-	err := runLogs(context.Background(), mockClient, mockSel)
+	err := runLogs(context.Background(), mockClient, mockSel, mockEcsClient, mockLogsClient, true)
 
 	// Check assertions
 	assert.NoError(t, err)
@@ -69,13 +73,15 @@ func TestRunLogs_SelectorError(t *testing.T) {
 	// Create mock objects
 	mockClient := new(MockClient)
 	mockSel := new(MockSelectors)
+	mockEcsClient := &ecs.Client{}
+	mockLogsClient := &logs.Client{}
 
 	// Setup mock responses with an error for cluster selector
 	expectedErr := errors.New("cluster selector error")
 	mockSel.On("Cluster", mock.Anything).Return(nil, expectedErr)
 
 	// Test the function
-	err := runLogs(context.Background(), mockClient, mockSel)
+	err := runLogs(context.Background(), mockClient, mockSel, mockEcsClient, mockLogsClient, true)
 
 	// Check assertions
 	assert.Error(t, err)
@@ -89,6 +95,8 @@ func TestRunLogs_MissingLogConfiguration(t *testing.T) {
 	// Create mock objects
 	mockClient := new(MockClient)
 	mockSel := new(MockSelectors)
+	mockEcsClient := &ecs.Client{}
+	mockLogsClient := &logs.Client{}
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -119,7 +127,7 @@ func TestRunLogs_MissingLogConfiguration(t *testing.T) {
 	mockSel.On("ContainerDefinition", mock.Anything, service).Return(containerDefinition, nil)
 
 	// Test the function
-	err := runLogs(context.Background(), mockClient, mockSel)
+	err := runLogs(context.Background(), mockClient, mockSel, mockEcsClient, mockLogsClient, true)
 
 	// Check assertions
 	assert.Error(t, err)
@@ -133,6 +141,8 @@ func TestRunLogs_MissingLogOptions(t *testing.T) {
 	// Create mock objects
 	mockClient := new(MockClient)
 	mockSel := new(MockSelectors)
+	mockEcsClient := &ecs.Client{}
+	mockLogsClient := &logs.Client{}
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -168,7 +178,7 @@ func TestRunLogs_MissingLogOptions(t *testing.T) {
 	mockSel.On("ContainerDefinition", mock.Anything, service).Return(containerDefinition, nil)
 
 	// Test the function
-	err := runLogs(context.Background(), mockClient, mockSel)
+	err := runLogs(context.Background(), mockClient, mockSel, mockEcsClient, mockLogsClient, true)
 
 	// Check assertions
 	assert.Error(t, err)
@@ -182,6 +192,8 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 	// Create mock objects
 	mockClient := new(MockClient)
 	mockSel := new(MockSelectors)
+	mockEcsClient := &ecs.Client{}
+	mockLogsClient := &logs.Client{}
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -224,7 +236,7 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs", mock.AnythingOfType("client.EventHandler")).Return(expectedErr)
 
 	// Test the function
-	err := runLogs(context.Background(), mockClient, mockSel)
+	err := runLogs(context.Background(), mockClient, mockSel, mockEcsClient, mockLogsClient, true)
 
 	// Check assertions
 	assert.Error(t, err)
@@ -238,6 +250,8 @@ func TestRunLogs_HandlerBehavior(t *testing.T) {
 	// Create mock objects
 	mockClient := new(MockClient)
 	mockSel := new(MockSelectors)
+	mockEcsClient := &ecs.Client{}
+	mockLogsClient := &logs.Client{}
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -282,7 +296,7 @@ func TestRunLogs_HandlerBehavior(t *testing.T) {
 	}).Return(nil)
 
 	// Start the logs function
-	err := runLogs(context.Background(), mockClient, mockSel)
+	err := runLogs(context.Background(), mockClient, mockSel, mockEcsClient, mockLogsClient, true)
 	assert.NoError(t, err)
 
 	// Test that the function was called
