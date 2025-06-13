@@ -166,9 +166,8 @@ func runLogs(
 
 	stream := startedLiveTail.GetStream()
 	defer func() {
-		err := stream.Close()
-		if err != nil {
-			log.Fatal(err)
+		if err := stream.Close(); err != nil {
+			log.Fatalf("Error closing stream: %v", err)
 		}
 	}()
 
