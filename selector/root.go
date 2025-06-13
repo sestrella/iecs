@@ -34,6 +34,10 @@ type Selectors interface {
 	Service(ctx context.Context, cluster *types.Cluster) (*types.Service, error)
 	Task(ctx context.Context, service *types.Service) (*types.Task, error)
 	Container(ctx context.Context, task *types.Task) (*types.Container, error)
+	ContainerDefinition(
+		ctx context.Context,
+		service *types.Service,
+	) (*types.ContainerDefinition, error)
 
 	ContainerSelector(ctx context.Context) (*SelectedContainer, error)
 	ContainerDefinitionSelector(ctx context.Context) (*SelectedContainerDefinition, error)
@@ -91,7 +95,7 @@ func (cs ClientSelectors) ContainerDefinitionSelector(
 		return nil, err
 	}
 
-	containerDefinition, err := containerDefinition(ctx, cs.client, *service.TaskDefinition)
+	containerDefinition, err := cs.ContainerDefinition(ctx, service)
 	if err != nil {
 		return nil, err
 	}
@@ -284,15 +288,14 @@ func (cs ClientSelectors) Container(
 	return nil, fmt.Errorf("container not found: %s", containerName)
 }
 
-func containerDefinition(
+func (cs ClientSelectors) ContainerDefinition(
 	ctx context.Context,
-	client *ecs.Client,
-	taskDefinitionArn string,
+	service *types.Service,
 ) (*types.ContainerDefinition, error) {
-	describeTaskDefinitionOutput, err := client.DescribeTaskDefinition(
+	describeTaskDefinitionOutput, err := cs.client.DescribeTaskDefinition(
 		ctx,
 		&ecs.DescribeTaskDefinitionInput{
-			TaskDefinition: &taskDefinitionArn,
+			TaskDefinition: service.TaskDefinition,
 		},
 	)
 	if err != nil {
