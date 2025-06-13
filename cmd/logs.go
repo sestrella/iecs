@@ -149,7 +149,7 @@ func runLogs(
 	for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
 		logGroupName := containerDefinition.LogConfiguration.Options["awslogs-group"]
 		describedLogGroups, err := logsClient.DescribeLogGroups(ctx, &logs.DescribeLogGroupsInput{
-			LogGroupNamePattern: &logGroupName,
+			LogGroupNamePrefix: &logGroupName,
 		})
 		if err != nil {
 			return err
