@@ -13,6 +13,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
@@ -23,6 +24,13 @@ const (
 	execCommandFlag     = "command"
 	execInteractiveFlag = "interactive"
 )
+
+type SelectedContainer struct {
+	Cluster   *types.Cluster
+	Service   *types.Service
+	Task      *types.Task
+	Container *types.Container
+}
 
 var execCmd = &cobra.Command{
 	Use:   "exec",
@@ -79,7 +87,7 @@ func runExec(
 	command string,
 	interactive bool,
 ) error {
-	selection, err := selectors.ContainerSelector(ctx)
+	selection, err := containerSelector(ctx, selectors)
 	if err != nil {
 		return err
 	}
@@ -145,6 +153,38 @@ func runExec(
 	}()
 
 	return cmd.Wait()
+}
+
+func containerSelector(
+	ctx context.Context,
+	selectors selector.Selectors,
+) (*SelectedContainer, error) {
+	cluster, err := selectors.Cluster(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	service, err := selectors.Service(ctx, cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	task, err := selectors.Task(ctx, service)
+	if err != nil {
+		return nil, err
+	}
+
+	container, err := selectors.Container(ctx, task)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SelectedContainer{
+		Cluster:   cluster,
+		Service:   service,
+		Task:      task,
+		Container: container,
+	}, nil
 }
 
 func init() {
