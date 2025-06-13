@@ -176,10 +176,20 @@ func runLogs(
 	for {
 		event := <-eventsChan
 		switch e := event.(type) {
+		case *logsTypes.StartLiveTailResponseStreamMemberSessionStart:
+			log.Println("Received SessionStart event")
 		case *logsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
 			for _, logEvent := range e.Value.SessionResults {
 				eventDate := time.UnixMilli(*logEvent.Timestamp)
 				fmt.Printf("%s %s %s\n", eventDate, *logEvent.Message, *logEvent.LogStreamName)
+			}
+		default:
+			if err := stream.Err(); err != nil {
+				log.Fatalf("Error occured during streaming: %v", err)
+			} else if event == nil {
+				log.Println("Stream is Closed")
+			} else {
+				log.Fatalf("Unknown event type: %T", e)
 			}
 		}
 	}
