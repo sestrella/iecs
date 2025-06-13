@@ -5,7 +5,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
-	"github.com/sestrella/iecs/selector"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -52,8 +51,8 @@ func (m *MockSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
 	return args.Get(0).(*types.Cluster), args.Error(1)
 }
 
-func (m *MockSelectors) Service(ctx context.Context, clusterArn string) (*types.Service, error) {
-	args := m.Called(ctx, clusterArn)
+func (m *MockSelectors) Service(ctx context.Context, cluster *types.Cluster) (*types.Service, error) {
+	args := m.Called(ctx, cluster)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -62,18 +61,17 @@ func (m *MockSelectors) Service(ctx context.Context, clusterArn string) (*types.
 
 func (m *MockSelectors) Task(
 	ctx context.Context,
-	clusterArn string,
-	serviceArn string,
+	service *types.Service,
 ) (*types.Task, error) {
-	args := m.Called(ctx, clusterArn, serviceArn)
+	args := m.Called(ctx, service)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*types.Task), args.Error(1)
 }
 
-func (m *MockSelectors) Container(containers []types.Container) (*types.Container, error) {
-	args := m.Called(containers)
+func (m *MockSelectors) Container(ctx context.Context, task *types.Task) (*types.Container, error) {
+	args := m.Called(ctx, task)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -82,31 +80,11 @@ func (m *MockSelectors) Container(containers []types.Container) (*types.Containe
 
 func (m *MockSelectors) ContainerDefinition(
 	ctx context.Context,
-	taskDefinition string,
+	service *types.Service,
 ) (*types.ContainerDefinition, error) {
-	args := m.Called(ctx, taskDefinition)
+	args := m.Called(ctx, service)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*types.ContainerDefinition), args.Error(1)
-}
-
-func (m *MockSelectors) ContainerSelector(
-	ctx context.Context,
-) (*selector.SelectedContainer, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*selector.SelectedContainer), args.Error(1)
-}
-
-func (m *MockSelectors) ContainerDefinitionSelector(
-	ctx context.Context,
-) (*selector.SelectedContainerDefinition, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*selector.SelectedContainerDefinition), args.Error(1)
 }

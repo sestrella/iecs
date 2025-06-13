@@ -9,7 +9,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
-	"github.com/sestrella/iecs/selector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -54,14 +53,11 @@ func TestRunExec_Success(t *testing.T) {
 		RuntimeId: &containerRuntimeId,
 	}
 
-	// Mock selected container
-	selectedContainer := &selector.SelectedContainer{
-		Cluster:   cluster,
-		Service:   service,
-		Task:      task,
-		Container: container,
-	}
-	mockSel.On("ContainerSelector", mock.Anything).Return(selectedContainer, nil)
+	// Setup mock calls for selectors
+	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("Task", mock.Anything, service).Return(task, nil)
+	mockSel.On("Container", mock.Anything, task).Return(container, nil)
 
 	// Mock ExecuteCommand response
 	executeCommandOutput := &ecs.ExecuteCommandOutput{
@@ -109,8 +105,8 @@ func TestRunExec_ClusterSelectorError(t *testing.T) {
 	mockClient := new(MockClient)
 
 	// Setup mock responses with an error
-	expectedErr := errors.New("container selector error")
-	mockSel.On("ContainerSelector", mock.Anything).Return(nil, expectedErr)
+	expectedErr := errors.New("cluster selector error")
+	mockSel.On("Cluster", mock.Anything).Return(nil, expectedErr)
 
 	// Mock command executor function - should not be called
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
@@ -144,9 +140,11 @@ func TestRunExec_ServiceSelectorError(t *testing.T) {
 	mockClient := new(MockClient)
 
 	// Setup mock responses
-	// Mock container selector error
+	// Mock service selector error
+	cluster := &types.Cluster{}
 	expectedErr := errors.New("service selector error")
-	mockSel.On("ContainerSelector", mock.Anything).Return(nil, expectedErr)
+	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster).Return(nil, expectedErr)
 
 	// Mock command executor function - should not be called
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
@@ -180,8 +178,12 @@ func TestRunExec_TaskSelectorError(t *testing.T) {
 	mockClient := new(MockClient)
 
 	// Setup mock responses with an error
+	cluster := &types.Cluster{}
+	service := &types.Service{}
 	expectedErr := errors.New("task selector error")
-	mockSel.On("ContainerSelector", mock.Anything).Return(nil, expectedErr)
+	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("Task", mock.Anything, service).Return(nil, expectedErr)
 
 	// Mock command executor function - should not be called
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
@@ -215,8 +217,14 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 	mockClient := new(MockClient)
 
 	// Setup mock responses with an error
+	cluster := &types.Cluster{}
+	service := &types.Service{}
+	task := &types.Task{}
 	expectedErr := errors.New("container selector error")
-	mockSel.On("ContainerSelector", mock.Anything).Return(nil, expectedErr)
+	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("Task", mock.Anything, service).Return(task, nil)
+	mockSel.On("Container", mock.Anything, task).Return(nil, expectedErr)
 
 	// Mock command executor function - should not be called
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
@@ -279,14 +287,11 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 		RuntimeId: &containerRuntimeId,
 	}
 
-	// Mock selected container
-	selectedContainer := &selector.SelectedContainer{
-		Cluster:   cluster,
-		Service:   service,
-		Task:      task,
-		Container: container,
-	}
-	mockSel.On("ContainerSelector", mock.Anything).Return(selectedContainer, nil)
+	// Setup mock calls for selectors
+	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("Task", mock.Anything, service).Return(task, nil)
+	mockSel.On("Container", mock.Anything, task).Return(container, nil)
 
 	// Mock ExecuteCommand error
 	expectedErr := errors.New("execute command error")

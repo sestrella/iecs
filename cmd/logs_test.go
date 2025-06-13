@@ -8,7 +8,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
-	"github.com/sestrella/iecs/selector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -51,13 +50,10 @@ func TestRunLogs_Success(t *testing.T) {
 		LogConfiguration: logConfiguration,
 	}
 
-	selectedContainerDefinition := &selector.SelectedContainerDefinition{
-		Cluster:             cluster,
-		Service:             service,
-		ContainerDefinition: containerDefinition,
-	}
-
-	mockSel.On("ContainerDefinitionSelector", mock.Anything).Return(selectedContainerDefinition, nil)
+	// Setup mock calls for selectors
+	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("ContainerDefinition", mock.Anything, service).Return(containerDefinition, nil)
 	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs", mock.AnythingOfType("client.EventHandler")).Return(nil)
 
 	// Test the function
@@ -74,9 +70,9 @@ func TestRunLogs_SelectorError(t *testing.T) {
 	mockClient := new(MockClient)
 	mockSel := new(MockSelectors)
 
-	// Setup mock responses with an error
-	expectedErr := errors.New("container definition selector error")
-	mockSel.On("ContainerDefinitionSelector", mock.Anything).Return(nil, expectedErr)
+	// Setup mock responses with an error for cluster selector
+	expectedErr := errors.New("cluster selector error")
+	mockSel.On("Cluster", mock.Anything).Return(nil, expectedErr)
 
 	// Test the function
 	err := runLogs(context.Background(), mockClient, mockSel)
@@ -117,13 +113,10 @@ func TestRunLogs_MissingLogConfiguration(t *testing.T) {
 		LogConfiguration: nil,
 	}
 
-	selectedContainerDefinition := &selector.SelectedContainerDefinition{
-		Cluster:             cluster,
-		Service:             service,
-		ContainerDefinition: containerDefinition,
-	}
-
-	mockSel.On("ContainerDefinitionSelector", mock.Anything).Return(selectedContainerDefinition, nil)
+	// Setup mock calls for selectors
+	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("ContainerDefinition", mock.Anything, service).Return(containerDefinition, nil)
 
 	// Test the function
 	err := runLogs(context.Background(), mockClient, mockSel)
@@ -169,13 +162,10 @@ func TestRunLogs_MissingLogOptions(t *testing.T) {
 		LogConfiguration: logConfiguration,
 	}
 
-	selectedContainerDefinition := &selector.SelectedContainerDefinition{
-		Cluster:             cluster,
-		Service:             service,
-		ContainerDefinition: containerDefinition,
-	}
-
-	mockSel.On("ContainerDefinitionSelector", mock.Anything).Return(selectedContainerDefinition, nil)
+	// Setup mock calls for selectors
+	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("ContainerDefinition", mock.Anything, service).Return(containerDefinition, nil)
 
 	// Test the function
 	err := runLogs(context.Background(), mockClient, mockSel)
@@ -224,15 +214,13 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 		LogConfiguration: logConfiguration,
 	}
 
-	selectedContainerDefinition := &selector.SelectedContainerDefinition{
-		Cluster:             cluster,
-		Service:             service,
-		ContainerDefinition: containerDefinition,
-	}
+	// Setup mock calls for selectors
+	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("ContainerDefinition", mock.Anything, service).Return(containerDefinition, nil)
 
 	// Setup StartLiveTail to return an error
 	expectedErr := errors.New("failed to start live tail")
-	mockSel.On("ContainerDefinitionSelector", mock.Anything).Return(selectedContainerDefinition, nil)
 	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs", mock.AnythingOfType("client.EventHandler")).Return(expectedErr)
 
 	// Test the function
@@ -282,13 +270,10 @@ func TestRunLogs_HandlerBehavior(t *testing.T) {
 		LogConfiguration: logConfiguration,
 	}
 
-	selectedContainerDefinition := &selector.SelectedContainerDefinition{
-		Cluster:             cluster,
-		Service:             service,
-		ContainerDefinition: containerDefinition,
-	}
-
-	mockSel.On("ContainerDefinitionSelector", mock.Anything).Return(selectedContainerDefinition, nil)
+	// Setup mock calls for selectors
+	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("ContainerDefinition", mock.Anything, service).Return(containerDefinition, nil)
 
 	// Capture the handler function
 	var capturedHandler client.EventHandler
