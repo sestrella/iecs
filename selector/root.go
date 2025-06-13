@@ -16,19 +16,6 @@ var (
 	titleStyle           = lipgloss.NewStyle().Bold(true)
 )
 
-type SelectedContainer struct {
-	Cluster   *types.Cluster
-	Service   *types.Service
-	Task      *types.Task
-	Container *types.Container
-}
-
-type SelectedContainerDefinition struct {
-	Cluster             *types.Cluster
-	Service             *types.Service
-	ContainerDefinition *types.ContainerDefinition
-}
-
 type Selectors interface {
 	Cluster(ctx context.Context) (*types.Cluster, error)
 	Service(ctx context.Context, cluster *types.Cluster) (*types.Service, error)
@@ -38,9 +25,6 @@ type Selectors interface {
 		ctx context.Context,
 		service *types.Service,
 	) (*types.ContainerDefinition, error)
-
-	ContainerSelector(ctx context.Context) (*SelectedContainer, error)
-	ContainerDefinitionSelector(ctx context.Context) (*SelectedContainerDefinition, error)
 }
 
 type ClientSelectors struct {
@@ -49,62 +33,6 @@ type ClientSelectors struct {
 
 func NewSelectors(client *ecs.Client) Selectors {
 	return ClientSelectors{client: client}
-}
-
-func (cs ClientSelectors) ContainerSelector(
-	ctx context.Context,
-) (*SelectedContainer, error) {
-	cluster, err := cs.Cluster(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := cs.Service(ctx, cluster)
-	if err != nil {
-		return nil, err
-	}
-
-	task, err := cs.Task(ctx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	container, err := cs.Container(ctx, task)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SelectedContainer{
-		Cluster:   cluster,
-		Service:   service,
-		Task:      task,
-		Container: container,
-	}, nil
-}
-
-func (cs ClientSelectors) ContainerDefinitionSelector(
-	ctx context.Context,
-) (*SelectedContainerDefinition, error) {
-	cluster, err := cs.Cluster(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := cs.Service(ctx, cluster)
-	if err != nil {
-		return nil, err
-	}
-
-	containerDefinition, err := cs.ContainerDefinition(ctx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SelectedContainerDefinition{
-		Cluster:             cluster,
-		Service:             service,
-		ContainerDefinition: containerDefinition,
-	}, nil
 }
 
 func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
