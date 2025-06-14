@@ -306,6 +306,7 @@ var lazyCmd = &cobra.Command{
 
 					eventsChan := stream.Events()
 
+					// TODO: check if the page already exists
 					serviceLogs := tview.NewTextView()
 					main.AddAndSwitchToPage(*lazy.service.ServiceArn, serviceLogs, true)
 
@@ -316,7 +317,7 @@ var lazyCmd = &cobra.Command{
 							for _, logEvent := range e.Value.SessionResults {
 								timestamp := time.UnixMilli(*logEvent.Timestamp)
 								app.QueueUpdateDraw(func() {
-									_, err = fmt.Fprintf(serviceLogs, "%v %s %s\n", timestamp, *logEvent.Message, *logEvent.LogStreamName)
+									_, err := fmt.Fprintf(serviceLogs, "%v %s %s\n", timestamp, *logEvent.Message, *logEvent.LogStreamName)
 									if err != nil {
 										panic(err)
 									}
