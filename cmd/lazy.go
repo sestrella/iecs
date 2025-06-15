@@ -39,6 +39,11 @@ type Lazy struct {
 	tasksByService map[string][]ecsTypes.Task
 }
 
+type Handlers struct {
+	start  func()
+	update func(logEvent cwlTypes.LiveTailSessionLogEvent)
+}
+
 func (lazy *Lazy) handleClusterSelection() {
 	lazy.log("Cluster %s selected\n", *lazy.cluster.ClusterName)
 
@@ -295,21 +300,24 @@ var lazyCmd = &cobra.Command{
 						*lazy.cwl,
 						logGroupArns,
 						nil,
-						func(logEvent cwlTypes.LiveTailSessionLogEvent) {
-							timestamp := time.UnixMilli(*logEvent.Timestamp)
-							app.QueueUpdateDraw(func() {
-								_, err = fmt.Fprintf(
-									serviceLogs,
-									"%v %s %s\n",
-									timestamp,
-									*logEvent.Message,
-									*logEvent.LogStreamName,
-								)
-								if err != nil {
-									panic(err)
-								}
-								serviceLogs.ScrollToEnd()
-							})
+						Handlers{
+							start: func() {},
+							update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
+								timestamp := time.UnixMilli(*logEvent.Timestamp)
+								app.QueueUpdateDraw(func() {
+									_, err = fmt.Fprintf(
+										serviceLogs,
+										"%v %s %s\n",
+										timestamp,
+										*logEvent.Message,
+										*logEvent.LogStreamName,
+									)
+									if err != nil {
+										panic(err)
+									}
+									serviceLogs.ScrollToEnd()
+								})
+							},
 						},
 					)
 					if err != nil {
@@ -367,8 +375,10 @@ var lazyCmd = &cobra.Command{
 						*lazy.cwl,
 						logGroupArns,
 						logStreamPrefixes,
-						func(logEvent cwlTypes.LiveTailSessionLogEvent) {
-
+						Handlers{
+							start: func() {},
+							update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
+							},
 						},
 					)
 					if err != nil {
@@ -431,7 +441,7 @@ func startLiveTail(
 	cwlClient cwl.Client,
 	groupIdentifiers []string,
 	streamNames []string,
-	handler func(logEvent cwlTypes.LiveTailSessionLogEvent),
+	handlers Handlers,
 ) error {
 	startedLiveTail, err := cwlClient.StartLiveTail(
 		ctx,
@@ -458,9 +468,15 @@ func startLiveTail(
 		event := <-eventsChan
 		// TODO: manage all event types
 		switch e := event.(type) {
+		case *cwlTypes.StartLiveTailResponseStreamMemberSessionStart:
+			handlers.start()
 		case *cwlTypes.StartLiveTailResponseStreamMemberSessionUpdate:
 			for _, logEvent := range e.Value.SessionResults {
-				handler(logEvent)
+				handlers.update(logEvent)
+			}
+		default:
+			if err := stream.Err(); err != nil {
+				return err
 			}
 		}
 	}
