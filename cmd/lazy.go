@@ -2,13 +2,14 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	cwl "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	cwlTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/gdamore/tcell/v2"
@@ -267,8 +268,80 @@ var lazyCmd = &cobra.Command{
 					if err != nil {
 						panic(err)
 					}
-
 					var logGroupArns []string
+					for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
+						logGroupName := containerDefinition.LogConfiguration.Options["awslogs-group"]
+						describedLogGroups, err := lazy.cwl.DescribeLogGroups(
+							context.TODO(),
+							&cwl.DescribeLogGroupsInput{
+								LogGroupNamePrefix: &logGroupName,
+							},
+						)
+						if err != nil {
+							panic(err)
+						}
+						logGroups := describedLogGroups.LogGroups
+						if len(logGroups) != 1 {
+							panic(errors.New("TODO"))
+						}
+						logGroupArns = append(logGroupArns, *logGroups[0].LogGroupArn)
+					}
+
+					serviceLogs := tview.NewTextView()
+					main.AddAndSwitchToPage(*lazy.service.ServiceArn, serviceLogs, true)
+
+					err = startLiveTail(
+						context.TODO(),
+						*lazy.cwl,
+						logGroupArns,
+						nil,
+						func(logEvent cwlTypes.LiveTailSessionLogEvent) {
+							timestamp := time.UnixMilli(*logEvent.Timestamp)
+							app.QueueUpdateDraw(func() {
+								_, err = fmt.Fprintf(
+									serviceLogs,
+									"%v %s %s\n",
+									timestamp,
+									*logEvent.Message,
+									*logEvent.LogStreamName,
+								)
+								if err != nil {
+									panic(err)
+								}
+								serviceLogs.ScrollToEnd()
+							})
+						},
+					)
+					if err != nil {
+						panic(err)
+					}
+				}()
+				return nil
+			}
+			return event
+		})
+
+		lazy.tasksWidget.SetChangedFunc(
+			func(index int, mainText, secondaryText string, shortcut rune) {
+				lazy.task = &lazy.tasksByService[*lazy.service.ServiceArn][index]
+				lazy.handleTaskSelection()
+			},
+		)
+		lazy.tasksWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Rune() == 'l' {
+				lazy.log("Tailing logs for task %s\n", *lazy.task.TaskArn)
+				go func() {
+					describedTaskDefinition, err := lazy.ecs.DescribeTaskDefinition(
+						context.TODO(),
+						&ecs.DescribeTaskDefinitionInput{
+							TaskDefinition: lazy.task.TaskDefinitionArn,
+						},
+					)
+					if err != nil {
+						panic(err)
+					}
+					var logGroupArns []string
+					var logStreamPrefixes []string
 					for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
 						logOptions := containerDefinition.LogConfiguration.Options
 						logGroupName := logOptions["awslogs-group"]
@@ -282,72 +355,30 @@ var lazyCmd = &cobra.Command{
 							panic(err)
 						}
 						logGroups := describedLogGroups.LogGroups
-						if len(logGroups) == 1 {
-							logGroupArns = append(logGroupArns, *logGroups[0].LogGroupArn)
+						if len(logGroups) != 1 {
+							panic(errors.New("TODO"))
 						}
+						logGroupArns = append(logGroupArns, *logGroups[0].LogGroupArn)
+						logStreamPrefix := logOptions["awslogs-stream-prefix"]
+						logStreamPrefixes = append(logStreamPrefixes, logStreamPrefix)
 					}
-					startedLiveTail, err := lazy.cwl.StartLiveTail(
+					err = startLiveTail(
 						context.TODO(),
-						&cwl.StartLiveTailInput{
-							LogGroupIdentifiers: logGroupArns,
+						*lazy.cwl,
+						logGroupArns,
+						logStreamPrefixes,
+						func(logEvent cwlTypes.LiveTailSessionLogEvent) {
+
 						},
 					)
 					if err != nil {
 						panic(err)
-					}
-
-					stream := startedLiveTail.GetStream()
-					defer func() {
-						err := stream.Close()
-						if err != nil {
-							panic(err)
-						}
-					}()
-
-					eventsChan := stream.Events()
-
-					// TODO: check if the page already exists
-					serviceLogs := tview.NewTextView()
-					main.AddAndSwitchToPage(*lazy.service.ServiceArn, serviceLogs, true)
-
-					for {
-						event := <-eventsChan
-						switch e := event.(type) {
-						case *types.StartLiveTailResponseStreamMemberSessionUpdate:
-							for _, logEvent := range e.Value.SessionResults {
-								timestamp := time.UnixMilli(*logEvent.Timestamp)
-								app.QueueUpdateDraw(func() {
-									_, err := fmt.Fprintf(serviceLogs, "%v %s %s\n", timestamp, *logEvent.Message, *logEvent.LogStreamName)
-									if err != nil {
-										panic(err)
-									}
-									serviceLogs.ScrollToEnd()
-								})
-							}
-						}
 					}
 				}()
 				return nil
 			}
 			return event
 		})
-
-		lazy.tasksWidget.SetChangedFunc(
-			func(index int, mainText, secondaryText string, shortcut rune) {
-				lazy.task = &lazy.tasksByService[*lazy.service.ServiceArn][index]
-
-				// if lazy.app.GetFocus() == lazy.tasksWidget {
-				// 	content, err := json.MarshalIndent(lazy.task, "", "  ")
-				// 	if err != nil {
-				// 		// TODO: Do something
-				// 		log.Fatal(err)
-				// 	}
-				// 	lazy.main.SetText(string(content))
-				// }
-
-				lazy.handleTaskSelection()
-			},
-		)
 
 		lazy.containersWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
@@ -393,6 +424,46 @@ var lazyCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+func startLiveTail(
+	ctx context.Context,
+	cwlClient cwl.Client,
+	groupIdentifiers []string,
+	streamNames []string,
+	handler func(logEvent cwlTypes.LiveTailSessionLogEvent),
+) error {
+	startedLiveTail, err := cwlClient.StartLiveTail(
+		ctx,
+		&cwl.StartLiveTailInput{
+			LogGroupIdentifiers: groupIdentifiers,
+			LogStreamNames:      streamNames,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	stream := startedLiveTail.GetStream()
+	defer func() {
+		err = stream.Close()
+		if err != nil {
+			// TODO: improve error handling
+			panic(err)
+		}
+	}()
+
+	eventsChan := stream.Events()
+	for {
+		event := <-eventsChan
+		// TODO: manage all event types
+		switch e := event.(type) {
+		case *cwlTypes.StartLiveTailResponseStreamMemberSessionUpdate:
+			for _, logEvent := range e.Value.SessionResults {
+				handler(logEvent)
+			}
+		}
+	}
 }
 
 func init() {
