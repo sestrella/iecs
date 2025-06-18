@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -256,15 +257,29 @@ var lazyCmd = &cobra.Command{
 			},
 		)
 		lazy.servicesWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			if event.Rune() == 'l' {
-				lazy.log("Tailing logs for service %s\n", *lazy.service.ServiceName)
+			selectedService := *lazy.service
+			switch event.Rune() {
+			case 'd':
+				lazy.log("Describing service %s\n", *selectedService.ServiceArn)
+				definitionWidget := tview.NewTextView()
+				lazy.main.AddAndSwitchToPage(
+					fmt.Sprintf("def:%s", *selectedService.ServiceArn),
+					definitionWidget,
+					true,
+				)
+				content, err := json.MarshalIndent(selectedService, "", "  ")
+				if err != nil {
+					panic(err)
+				}
+				definitionWidget.SetText(string(content))
+			case 'l':
+				lazy.log("Tailing logs for service %s\n", *selectedService.ServiceArn)
 				go func() {
-					currentService := *lazy.service
-					err := lazy.tailServiceLogs(context.TODO(), currentService)
+					err := lazy.tailServiceLogs(context.TODO(), selectedService)
 					if err != nil {
 						lazy.log(
 							"Error tailing logs for service %s: %v\n",
-							*currentService.ServiceArn,
+							*selectedService.ServiceArn,
 							err,
 						)
 					}
