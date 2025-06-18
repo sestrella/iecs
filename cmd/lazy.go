@@ -404,7 +404,18 @@ func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service)
 		logGroupArns,
 		nil,
 		Handlers{
-			start: func() {},
+			start: func() {
+				lazy.app.QueueUpdateDraw(func() {
+					_, err = fmt.Fprintf(
+						logsWidget,
+						"Session started for service %s\n",
+						*service.ServiceArn,
+					)
+					if err != nil {
+						lazy.log("Error writing to logs: %v", err)
+					}
+				})
+			},
 			update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
 				timestamp := time.UnixMilli(*logEvent.Timestamp)
 				lazy.app.QueueUpdateDraw(func() {
