@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -264,7 +263,17 @@ var lazyCmd = &cobra.Command{
 		lazy.servicesWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			if event.Rune() == 'l' {
 				lazy.log("Tailing logs for service %s\n", *lazy.service.ServiceName)
-				go lazy.tailServiceLogs(context.TODO(), *lazy.service)
+				go func() {
+					currentService := *lazy.service
+					err := lazy.tailServiceLogs(context.TODO(), currentService)
+					if err != nil {
+						lazy.log(
+							"Error tailing logs for service %s: %v",
+							*currentService.ServiceArn,
+							err,
+						)
+					}
+				}()
 				return nil
 			}
 			return event
@@ -279,7 +288,13 @@ var lazyCmd = &cobra.Command{
 		lazy.tasksWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			if event.Rune() == 'l' {
 				lazy.log("Tailing logs for task %s\n", *lazy.task.TaskArn)
-				go lazy.tailTaskLogs(context.TODO(), *lazy.task)
+				go func() {
+					currentTask := *lazy.task
+					err := lazy.tailTaskLogs(context.TODO(), currentTask)
+					if err != nil {
+						lazy.log("Error tailing logs for task %s: %v", *currentTask.TaskArn, err)
+					}
+				}()
 				return nil
 			}
 			return event
@@ -331,7 +346,7 @@ var lazyCmd = &cobra.Command{
 	},
 }
 
-func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service) {
+func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service) error {
 	describedTaskDefinition, err := lazy.ecs.DescribeTaskDefinition(
 		ctx,
 		&ecs.DescribeTaskDefinitionInput{
@@ -339,7 +354,7 @@ func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service)
 		},
 	)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	var logGroupArns []string
 	for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
@@ -351,11 +366,15 @@ func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service)
 			},
 		)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		logGroups := describedLogGroups.LogGroups
 		if len(logGroups) != 1 {
-			panic(errors.New("TODO"))
+			return fmt.Errorf(
+				"expected exactly one log group for %s, got %d",
+				logGroupName,
+				len(logGroups),
+			)
 		}
 		logGroupArns = append(logGroupArns, *logGroups[0].LogGroupArn)
 	}
@@ -381,7 +400,7 @@ func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service)
 						*logEvent.LogStreamName,
 					)
 					if err != nil {
-						panic(err)
+						lazy.log("Error writing to logs: %v", err)
 					}
 					logsWidget.ScrollToEnd()
 				})
@@ -389,11 +408,12 @@ func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service)
 		},
 	)
 	if err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
 
-func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) {
+func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 	describedTaskDefinition, err := lazy.ecs.DescribeTaskDefinition(
 		ctx,
 		&ecs.DescribeTaskDefinitionInput{
@@ -401,7 +421,7 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) {
 		},
 	)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	// TODO: Check if a page already exists
@@ -422,11 +442,15 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) {
 			},
 		)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		logGroups := describedLogGroups.LogGroups
 		if len(logGroups) != 1 {
-			panic(errors.New("TODO"))
+			return fmt.Errorf(
+				"expected exactly one log group for %s, got %d",
+				logGroupName,
+				len(logGroups),
+			)
 		}
 		logGroupArn := logGroups[0].LogGroupArn
 		taskFragments := strings.Split(*task.TaskArn, "/")
@@ -437,11 +461,16 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) {
 			*containerDefinition.Name,
 			taskId,
 		)
+
+		// Use container and logGroupArn in closure to avoid issues with loop variables
+		containerName := *containerDefinition.Name
+		logGroupArnCopy := *logGroupArn
+
 		go func() {
-			err = startLiveTail(
+			err := startLiveTail(
 				ctx,
 				*lazy.cwl,
-				[]string{*logGroupArn},
+				[]string{logGroupArnCopy},
 				[]string{logStreamName},
 				Handlers{
 					start: func() {},
@@ -456,7 +485,11 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) {
 								*logEvent.LogStreamName,
 							)
 							if err != nil {
-								panic(err)
+								lazy.log(
+									"Error writing to logs widget for container %s: %v",
+									containerName,
+									err,
+								)
 							}
 							logsWidget.ScrollToEnd()
 						})
@@ -464,10 +497,11 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) {
 				},
 			)
 			if err != nil {
-				panic(err)
+				lazy.log("Error tailing logs for container %s: %v", containerName, err)
 			}
 		}()
 	}
+	return nil
 }
 
 func startLiveTail(
