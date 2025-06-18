@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -348,8 +349,14 @@ var lazyCmd = &cobra.Command{
 					if err != nil {
 						panic(err)
 					}
-					var logGroupArns []string
-					var logStreamPrefixes []string
+
+					logsWidget := tview.NewTextView()
+					lazy.main.AddAndSwitchToPage(
+						fmt.Sprintf("logs:%s", *lazy.task.TaskArn),
+						logsWidget,
+						true,
+					)
+
 					for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
 						logOptions := containerDefinition.LogConfiguration.Options
 						logGroupName := logOptions["awslogs-group"]
@@ -366,23 +373,45 @@ var lazyCmd = &cobra.Command{
 						if len(logGroups) != 1 {
 							panic(errors.New("TODO"))
 						}
-						logGroupArns = append(logGroupArns, *logGroups[0].LogGroupArn)
-						logStreamPrefix := logOptions["awslogs-stream-prefix"]
-						logStreamPrefixes = append(logStreamPrefixes, logStreamPrefix)
-					}
-					err = startLiveTail(
-						context.TODO(),
-						*lazy.cwl,
-						logGroupArns,
-						logStreamPrefixes,
-						Handlers{
-							start: func() {},
-							update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
-							},
-						},
-					)
-					if err != nil {
-						panic(err)
+						logGroupArn := logGroups[0].LogGroupArn
+						taskFragments := strings.Split(*lazy.task.TaskArn, "/")
+						taskId := taskFragments[len(taskFragments)-1]
+						logStreamName := fmt.Sprintf(
+							"%s/%s/%s",
+							logOptions["awslogs-stream-prefix"],
+							*containerDefinition.Name,
+							taskId,
+						)
+						go func() {
+							err = startLiveTail(
+								context.TODO(),
+								*lazy.cwl,
+								[]string{*logGroupArn},
+								[]string{logStreamName},
+								Handlers{
+									start: func() {},
+									update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
+										timestamp := time.UnixMilli(*logEvent.Timestamp)
+										app.QueueUpdateDraw(func() {
+											_, err := fmt.Fprintf(
+												logsWidget,
+												"%v %s %s",
+												timestamp,
+												*logEvent.Message,
+												*logEvent.LogStreamName,
+											)
+											if err != nil {
+												panic(err)
+											}
+											logsWidget.ScrollToEnd()
+										})
+									},
+								},
+							)
+							if err != nil {
+								panic(err)
+							}
+						}()
 					}
 				}()
 				return nil
