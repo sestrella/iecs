@@ -44,14 +44,11 @@ type Handlers struct {
 	update func(logEvent cwlTypes.LiveTailSessionLogEvent)
 }
 
-func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.Cluster) {
+func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.Cluster) error {
 	lazy.log("Cluster %s selected\n", *cluster.ClusterName)
-
 	services, ok := lazy.servicesByTask[*cluster.ClusterArn]
-
 	if !ok {
 		lazy.log("Fetching services for cluster %s", *cluster.ClusterName)
-
 		listedServices, err := lazy.ecs.ListServices(
 			ctx,
 			&ecs.ListServicesInput{
@@ -59,9 +56,8 @@ func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.C
 			},
 		)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-
 		describedServices, err := lazy.ecs.DescribeServices(
 			ctx,
 			&ecs.DescribeServicesInput{
@@ -70,13 +66,11 @@ func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.C
 			},
 		)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-
 		services = describedServices.Services
 		lazy.servicesByTask[*lazy.cluster.ClusterArn] = services
 	}
-
 	lazy.servicesWidget.Clear()
 	for _, service := range services {
 		lazy.servicesWidget.AddItem(
@@ -86,16 +80,14 @@ func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.C
 			func() {},
 		)
 	}
+	return nil
 }
 
-func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.Service) {
+func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.Service) error {
 	lazy.log("Service %s selected\n", *service.ServiceName)
-
 	tasks, ok := lazy.tasksByService[*service.ServiceArn]
-
 	if !ok {
 		lazy.log("Fetching tasks for service %s", *service.ServiceArn)
-
 		listedTasks, err := lazy.ecs.ListTasks(
 			ctx,
 			&ecs.ListTasksInput{
@@ -104,9 +96,8 @@ func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.S
 			},
 		)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-
 		describedTasks, err := lazy.ecs.DescribeTasks(
 			ctx,
 			&ecs.DescribeTasksInput{
@@ -115,17 +106,16 @@ func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.S
 			},
 		)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-
 		tasks = describedTasks.Tasks
 		lazy.tasksByService[*service.ServiceArn] = tasks
 	}
-
 	lazy.tasksWidget.Clear()
 	for _, task := range tasks {
 		lazy.tasksWidget.AddItem(*task.TaskArn, *task.TaskArn, 0, func() {})
 	}
+	return nil
 }
 
 func (lazy *Lazy) handleTaskSelection(task ecsTypes.Task) {
@@ -249,14 +239,20 @@ var lazyCmd = &cobra.Command{
 		lazy.clustersWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.cluster = &lazy.clusters[index]
-				lazy.handleClusterSelection(context.TODO(), *lazy.cluster)
+				err := lazy.handleClusterSelection(context.TODO(), *lazy.cluster)
+				if err != nil {
+					lazy.log("TODO %s: %v", *lazy.cluster.ClusterArn, err)
+				}
 			},
 		)
 
 		lazy.servicesWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.service = &lazy.servicesByTask[*lazy.cluster.ClusterArn][index]
-				lazy.handleServiceSelection(context.TODO(), *lazy.service)
+				err := lazy.handleServiceSelection(context.TODO(), *lazy.service)
+				if err != nil {
+					lazy.log("TODO %s: %v", *lazy.service.ServiceArn, err)
+				}
 			},
 		)
 		lazy.servicesWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
