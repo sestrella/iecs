@@ -44,18 +44,18 @@ type Handlers struct {
 	update func(logEvent cwlTypes.LiveTailSessionLogEvent)
 }
 
-func (lazy *Lazy) handleClusterSelection() {
-	lazy.log("Cluster %s selected\n", *lazy.cluster.ClusterName)
+func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.Cluster) {
+	lazy.log("Cluster %s selected\n", *cluster.ClusterName)
 
-	services, ok := lazy.servicesByTask[*lazy.cluster.ClusterArn]
+	services, ok := lazy.servicesByTask[*cluster.ClusterArn]
 
 	if !ok {
-		lazy.log("Fetching services for cluster %s", *lazy.cluster.ClusterName)
+		lazy.log("Fetching services for cluster %s", *cluster.ClusterName)
 
 		listedServices, err := lazy.ecs.ListServices(
-			context.TODO(),
+			ctx,
 			&ecs.ListServicesInput{
-				Cluster: lazy.cluster.ClusterArn,
+				Cluster: cluster.ClusterArn,
 			},
 		)
 		if err != nil {
@@ -63,9 +63,9 @@ func (lazy *Lazy) handleClusterSelection() {
 		}
 
 		describedServices, err := lazy.ecs.DescribeServices(
-			context.TODO(),
+			ctx,
 			&ecs.DescribeServicesInput{
-				Cluster:  lazy.cluster.ClusterArn,
+				Cluster:  cluster.ClusterArn,
 				Services: listedServices.ServiceArns,
 			},
 		)
@@ -88,19 +88,19 @@ func (lazy *Lazy) handleClusterSelection() {
 	}
 }
 
-func (lazy *Lazy) handleServiceSelection() {
-	lazy.log("Service %s selected\n", *lazy.service.ServiceName)
+func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.Service) {
+	lazy.log("Service %s selected\n", *service.ServiceName)
 
-	tasks, ok := lazy.tasksByService[*lazy.service.ServiceArn]
+	tasks, ok := lazy.tasksByService[*service.ServiceArn]
 
 	if !ok {
-		lazy.log("Fetching tasks for service %s", *lazy.service.ServiceArn)
+		lazy.log("Fetching tasks for service %s", *service.ServiceArn)
 
 		listedTasks, err := lazy.ecs.ListTasks(
-			context.TODO(),
+			ctx,
 			&ecs.ListTasksInput{
 				Cluster:     lazy.cluster.ClusterArn,
-				ServiceName: lazy.service.ServiceName,
+				ServiceName: service.ServiceName,
 			},
 		)
 		if err != nil {
@@ -108,7 +108,7 @@ func (lazy *Lazy) handleServiceSelection() {
 		}
 
 		describedTasks, err := lazy.ecs.DescribeTasks(
-			context.TODO(),
+			ctx,
 			&ecs.DescribeTasksInput{
 				Cluster: lazy.cluster.ClusterArn,
 				Tasks:   listedTasks.TaskArns,
@@ -119,7 +119,7 @@ func (lazy *Lazy) handleServiceSelection() {
 		}
 
 		tasks = describedTasks.Tasks
-		lazy.tasksByService[*lazy.service.ServiceArn] = tasks
+		lazy.tasksByService[*service.ServiceArn] = tasks
 	}
 
 	lazy.tasksWidget.Clear()
@@ -128,11 +128,10 @@ func (lazy *Lazy) handleServiceSelection() {
 	}
 }
 
-func (lazy *Lazy) handleTaskSelection() {
-	lazy.log("Task %s selected\n", *lazy.task.TaskArn)
-
+func (lazy *Lazy) handleTaskSelection(task ecsTypes.Task) {
+	lazy.log("Task %s selected\n", *task.TaskArn)
 	lazy.containersWidget.Clear()
-	for _, container := range lazy.task.Containers {
+	for _, container := range task.Containers {
 		lazy.containersWidget.AddItem(
 			*container.Name,
 			*container.ContainerArn,
@@ -250,14 +249,14 @@ var lazyCmd = &cobra.Command{
 		lazy.clustersWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.cluster = &lazy.clusters[index]
-				lazy.handleClusterSelection()
+				lazy.handleClusterSelection(context.TODO(), *lazy.cluster)
 			},
 		)
 
 		lazy.servicesWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.service = &lazy.servicesByTask[*lazy.cluster.ClusterArn][index]
-				lazy.handleServiceSelection()
+				lazy.handleServiceSelection(context.TODO(), *lazy.service)
 			},
 		)
 		lazy.servicesWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -282,7 +281,7 @@ var lazyCmd = &cobra.Command{
 		lazy.tasksWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
 				lazy.task = &lazy.tasksByService[*lazy.service.ServiceArn][index]
-				lazy.handleTaskSelection()
+				lazy.handleTaskSelection(*lazy.task)
 			},
 		)
 		lazy.tasksWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
