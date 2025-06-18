@@ -264,67 +264,7 @@ var lazyCmd = &cobra.Command{
 		lazy.servicesWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			if event.Rune() == 'l' {
 				lazy.log("Tailing logs for service %s\n", *lazy.service.ServiceName)
-				go func() {
-					describedTaskDefinition, err := lazy.ecs.DescribeTaskDefinition(
-						context.TODO(),
-						&ecs.DescribeTaskDefinitionInput{
-							TaskDefinition: lazy.service.TaskDefinition,
-						},
-					)
-					if err != nil {
-						panic(err)
-					}
-					var logGroupArns []string
-					for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
-						logGroupName := containerDefinition.LogConfiguration.Options["awslogs-group"]
-						describedLogGroups, err := lazy.cwl.DescribeLogGroups(
-							context.TODO(),
-							&cwl.DescribeLogGroupsInput{
-								LogGroupNamePrefix: &logGroupName,
-							},
-						)
-						if err != nil {
-							panic(err)
-						}
-						logGroups := describedLogGroups.LogGroups
-						if len(logGroups) != 1 {
-							panic(errors.New("TODO"))
-						}
-						logGroupArns = append(logGroupArns, *logGroups[0].LogGroupArn)
-					}
-
-					serviceLogs := tview.NewTextView()
-					main.AddAndSwitchToPage(*lazy.service.ServiceArn, serviceLogs, true)
-
-					err = startLiveTail(
-						context.TODO(),
-						*lazy.cwl,
-						logGroupArns,
-						nil,
-						Handlers{
-							start: func() {},
-							update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
-								timestamp := time.UnixMilli(*logEvent.Timestamp)
-								app.QueueUpdateDraw(func() {
-									_, err = fmt.Fprintf(
-										serviceLogs,
-										"%v %s %s\n",
-										timestamp,
-										*logEvent.Message,
-										*logEvent.LogStreamName,
-									)
-									if err != nil {
-										panic(err)
-									}
-									serviceLogs.ScrollToEnd()
-								})
-							},
-						},
-					)
-					if err != nil {
-						panic(err)
-					}
-				}()
+				go lazy.tailServiceLogs(context.TODO(), *lazy.service)
 				return nil
 			}
 			return event
@@ -339,81 +279,7 @@ var lazyCmd = &cobra.Command{
 		lazy.tasksWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			if event.Rune() == 'l' {
 				lazy.log("Tailing logs for task %s\n", *lazy.task.TaskArn)
-				go func() {
-					describedTaskDefinition, err := lazy.ecs.DescribeTaskDefinition(
-						context.TODO(),
-						&ecs.DescribeTaskDefinitionInput{
-							TaskDefinition: lazy.task.TaskDefinitionArn,
-						},
-					)
-					if err != nil {
-						panic(err)
-					}
-
-					logsWidget := tview.NewTextView()
-					lazy.main.AddAndSwitchToPage(
-						fmt.Sprintf("logs:%s", *lazy.task.TaskArn),
-						logsWidget,
-						true,
-					)
-
-					for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
-						logOptions := containerDefinition.LogConfiguration.Options
-						logGroupName := logOptions["awslogs-group"]
-						describedLogGroups, err := lazy.cwl.DescribeLogGroups(
-							context.TODO(),
-							&cwl.DescribeLogGroupsInput{
-								LogGroupNamePrefix: &logGroupName,
-							},
-						)
-						if err != nil {
-							panic(err)
-						}
-						logGroups := describedLogGroups.LogGroups
-						if len(logGroups) != 1 {
-							panic(errors.New("TODO"))
-						}
-						logGroupArn := logGroups[0].LogGroupArn
-						taskFragments := strings.Split(*lazy.task.TaskArn, "/")
-						taskId := taskFragments[len(taskFragments)-1]
-						logStreamName := fmt.Sprintf(
-							"%s/%s/%s",
-							logOptions["awslogs-stream-prefix"],
-							*containerDefinition.Name,
-							taskId,
-						)
-						go func() {
-							err = startLiveTail(
-								context.TODO(),
-								*lazy.cwl,
-								[]string{*logGroupArn},
-								[]string{logStreamName},
-								Handlers{
-									start: func() {},
-									update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
-										timestamp := time.UnixMilli(*logEvent.Timestamp)
-										app.QueueUpdateDraw(func() {
-											_, err := fmt.Fprintf(
-												logsWidget,
-												"%v %s %s",
-												timestamp,
-												*logEvent.Message,
-												*logEvent.LogStreamName,
-											)
-											if err != nil {
-												panic(err)
-											}
-											logsWidget.ScrollToEnd()
-										})
-									},
-								},
-							)
-							if err != nil {
-								panic(err)
-							}
-						}()
-					}
-				}()
+				go lazy.tailTaskLogs(context.TODO(), *lazy.task)
 				return nil
 			}
 			return event
@@ -463,6 +329,145 @@ var lazyCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service) {
+	describedTaskDefinition, err := lazy.ecs.DescribeTaskDefinition(
+		ctx,
+		&ecs.DescribeTaskDefinitionInput{
+			TaskDefinition: service.TaskDefinition,
+		},
+	)
+	if err != nil {
+		panic(err)
+	}
+	var logGroupArns []string
+	for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
+		logGroupName := containerDefinition.LogConfiguration.Options["awslogs-group"]
+		describedLogGroups, err := lazy.cwl.DescribeLogGroups(
+			ctx,
+			&cwl.DescribeLogGroupsInput{
+				LogGroupNamePrefix: &logGroupName,
+			},
+		)
+		if err != nil {
+			panic(err)
+		}
+		logGroups := describedLogGroups.LogGroups
+		if len(logGroups) != 1 {
+			panic(errors.New("TODO"))
+		}
+		logGroupArns = append(logGroupArns, *logGroups[0].LogGroupArn)
+	}
+
+	logsWidget := tview.NewTextView()
+	lazy.main.AddAndSwitchToPage(fmt.Sprintf("logs:%s", *service.ServiceArn), logsWidget, true)
+
+	err = startLiveTail(
+		ctx,
+		*lazy.cwl,
+		logGroupArns,
+		nil,
+		Handlers{
+			start: func() {},
+			update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
+				timestamp := time.UnixMilli(*logEvent.Timestamp)
+				lazy.app.QueueUpdateDraw(func() {
+					_, err = fmt.Fprintf(
+						logsWidget,
+						"%v %s %s\n",
+						timestamp,
+						*logEvent.Message,
+						*logEvent.LogStreamName,
+					)
+					if err != nil {
+						panic(err)
+					}
+					logsWidget.ScrollToEnd()
+				})
+			},
+		},
+	)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) {
+	describedTaskDefinition, err := lazy.ecs.DescribeTaskDefinition(
+		ctx,
+		&ecs.DescribeTaskDefinitionInput{
+			TaskDefinition: task.TaskDefinitionArn,
+		},
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	// TODO: Check if a page already exists
+	logsWidget := tview.NewTextView()
+	lazy.main.AddAndSwitchToPage(
+		fmt.Sprintf("logs:%s", *task.TaskArn),
+		logsWidget,
+		true,
+	)
+
+	for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
+		logOptions := containerDefinition.LogConfiguration.Options
+		logGroupName := logOptions["awslogs-group"]
+		describedLogGroups, err := lazy.cwl.DescribeLogGroups(
+			ctx,
+			&cwl.DescribeLogGroupsInput{
+				LogGroupNamePrefix: &logGroupName,
+			},
+		)
+		if err != nil {
+			panic(err)
+		}
+		logGroups := describedLogGroups.LogGroups
+		if len(logGroups) != 1 {
+			panic(errors.New("TODO"))
+		}
+		logGroupArn := logGroups[0].LogGroupArn
+		taskFragments := strings.Split(*task.TaskArn, "/")
+		taskId := taskFragments[len(taskFragments)-1]
+		logStreamName := fmt.Sprintf(
+			"%s/%s/%s",
+			logOptions["awslogs-stream-prefix"],
+			*containerDefinition.Name,
+			taskId,
+		)
+		go func() {
+			err = startLiveTail(
+				ctx,
+				*lazy.cwl,
+				[]string{*logGroupArn},
+				[]string{logStreamName},
+				Handlers{
+					start: func() {},
+					update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
+						timestamp := time.UnixMilli(*logEvent.Timestamp)
+						lazy.app.QueueUpdateDraw(func() {
+							_, err := fmt.Fprintf(
+								logsWidget,
+								"%v %s %s",
+								timestamp,
+								*logEvent.Message,
+								*logEvent.LogStreamName,
+							)
+							if err != nil {
+								panic(err)
+							}
+							logsWidget.ScrollToEnd()
+						})
+					},
+				},
+			)
+			if err != nil {
+				panic(err)
+			}
+		}()
+	}
 }
 
 func startLiveTail(
