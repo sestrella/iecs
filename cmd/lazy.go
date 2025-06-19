@@ -231,6 +231,9 @@ var lazyCmd = &cobra.Command{
 			case '6':
 				app.SetFocus(logs)
 				return nil
+			case 'f':
+				//TODO list all available tabs inside the main widget
+				return nil
 			case 't':
 				if lazy.expandMainWidget {
 					left.Clear()
