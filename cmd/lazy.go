@@ -315,6 +315,23 @@ var lazyCmd = &cobra.Command{
 				lazy.container = &lazy.task.Containers[index]
 			},
 		)
+		lazy.containersWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Rune() == 'l' {
+				lazy.log("Tailing logs for container %s\n", *lazy.container.ContainerArn)
+				go func() {
+					err := lazy.tailContainerLogs(context.TODO(), *lazy.task, *lazy.container)
+					if err != nil {
+						lazy.log(
+							"Error tailing logs for container %s: %v",
+							*lazy.container.ContainerArn,
+							err,
+						)
+					}
+				}()
+				return nil
+			}
+			return event
+		})
 
 		go func() {
 			err := lazy.loadClusters(context.TODO())
@@ -499,7 +516,7 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 						lazy.app.QueueUpdateDraw(func() {
 							_, err = fmt.Fprintf(
 								logsWidget,
-								"Session started for container %s at task %s\n",
+								"Session started for container %s in task %s\n",
 								*containerDefinition.Name,
 								*task.TaskArn,
 							)
@@ -535,6 +552,116 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 			}
 		}()
 	}
+	return nil
+}
+
+func (lazy *Lazy) tailContainerLogs(
+	ctx context.Context,
+	task ecsTypes.Task,
+	container ecsTypes.Container,
+) error {
+	describedTaskDefinition, err := lazy.ecs.DescribeTaskDefinition(
+		ctx,
+		&ecs.DescribeTaskDefinitionInput{
+			TaskDefinition: task.TaskDefinitionArn,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	var selectedContainerDefinition ecsTypes.ContainerDefinition
+	for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
+		if *containerDefinition.Name == *container.Name {
+			selectedContainerDefinition = containerDefinition
+			break
+		}
+	}
+
+	// TODO: check if selectedContainerDefinition is not null
+
+	logsWidget := tview.NewTextView()
+	lazy.main.AddAndSwitchToPage(
+		fmt.Sprintf("logs:%s:%s", *task.TaskArn, *container.Name),
+		logsWidget,
+		true,
+	)
+	logOptions := selectedContainerDefinition.LogConfiguration.Options
+	// TODO: handle case when key is not present
+	logGroupName := logOptions["awslogs-group"]
+	describedLogGroups, err := lazy.cwl.DescribeLogGroups(
+		ctx,
+		&cwl.DescribeLogGroupsInput{
+			LogGroupNamePrefix: &logGroupName,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	logGroups := describedLogGroups.LogGroups
+	if len(logGroups) != 1 {
+		return fmt.Errorf(
+			"expected exactly one log group for %s, got %d",
+			logGroupName,
+			len(logGroups),
+		)
+	}
+
+	taskFragments := strings.Split(*task.TaskArn, "/")
+	taskId := taskFragments[len(taskFragments)-1]
+	logStreamName := fmt.Sprintf(
+		"%s/%s/%s",
+		logOptions["awslogs-stream-prefix"],
+		*container.Name,
+		taskId,
+	)
+
+	err = startLiveTail(
+		ctx,
+		*lazy.cwl,
+		[]string{*logGroups[0].LogGroupArn},
+		[]string{logStreamName},
+		Handlers{
+			start: func() {
+				lazy.app.QueueUpdateDraw(func() {
+					_, err = fmt.Fprintf(
+						logsWidget,
+						"Session started for container %s in task %s\n",
+						*container.Name,
+						*task.TaskArn,
+					)
+					if err != nil {
+						lazy.log("Error writing to logs: %v", err)
+					}
+				})
+			},
+			update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
+				timestamp := time.UnixMilli(*logEvent.Timestamp)
+				lazy.app.QueueUpdateDraw(func() {
+					_, err := fmt.Fprintf(
+						logsWidget,
+						"%v %s %s\n",
+						timestamp,
+						*logEvent.Message,
+						*logEvent.LogStreamName,
+					)
+					if err != nil {
+						lazy.log(
+							"Error writing to logs widget for container %s: %v",
+							*container.Name,
+							err,
+						)
+					}
+					logsWidget.ScrollToEnd()
+				})
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
