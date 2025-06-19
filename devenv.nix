@@ -4,7 +4,6 @@
   packages = [
     pkgs.aws-vault
     pkgs.awscli2
-    pkgs.claude-code
     pkgs.cobra-cli
     pkgs.gomod2nix
     pkgs.ssm-session-manager-plugin
