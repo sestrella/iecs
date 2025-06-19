@@ -37,8 +37,9 @@ type Lazy struct {
 	container        *ecsTypes.Container
 	expandMainWidget bool
 
-	servicesByTask map[string][]ecsTypes.Service
-	tasksByService map[string][]ecsTypes.Task
+	servicesByTask    map[string][]ecsTypes.Service
+	tasksByService    map[string][]ecsTypes.Task
+	pageTitlesPerName map[string]string
 }
 
 type Handlers struct {
@@ -175,9 +176,12 @@ var lazyCmd = &cobra.Command{
 		right.AddItem(tasksWidget, 0, 1, false)
 		right.AddItem(containersWidget, 0, 1, false)
 
+		pagesIndex := tview.NewList()
+
 		main := tview.NewPages()
 		main.SetTitle("Main (5)")
 		main.SetBorder(true)
+		main.AddPage("index", pagesIndex, true, false)
 
 		logs := tview.NewTextView()
 		logs.SetTitle("Logs (6)")
@@ -198,17 +202,18 @@ var lazyCmd = &cobra.Command{
 		app := tview.NewApplication()
 
 		lazy := &Lazy{
-			ecs:              ecs.NewFromConfig(cfg),
-			cwl:              cwl.NewFromConfig(cfg),
-			app:              app,
-			clustersWidget:   clustersWidget,
-			servicesWidget:   servicesWidget,
-			tasksWidget:      tasksWidget,
-			containersWidget: containersWidget,
-			logsWidget:       logs,
-			main:             main,
-			servicesByTask:   make(map[string][]ecsTypes.Service),
-			tasksByService:   make(map[string][]ecsTypes.Task),
+			ecs:               ecs.NewFromConfig(cfg),
+			cwl:               cwl.NewFromConfig(cfg),
+			app:               app,
+			clustersWidget:    clustersWidget,
+			servicesWidget:    servicesWidget,
+			tasksWidget:       tasksWidget,
+			containersWidget:  containersWidget,
+			logsWidget:        logs,
+			main:              main,
+			servicesByTask:    make(map[string][]ecsTypes.Service),
+			tasksByService:    make(map[string][]ecsTypes.Task),
+			pageTitlesPerName: make(map[string]string),
 		}
 
 		lazy.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -232,6 +237,19 @@ var lazyCmd = &cobra.Command{
 				app.SetFocus(logs)
 				return nil
 			case 'f':
+				pagesIndex.Clear()
+				for _, pageName := range main.GetPageNames(false) {
+					if pageName != "index" {
+						title := lazy.pageTitlesPerName[pageName]
+						pagesIndex.AddItem(title, pageName, 0, func() {
+							main.SwitchToPage(pageName)
+						})
+					}
+				}
+
+				main.SwitchToPage("index")
+				app.SetFocus(pagesIndex)
+
 				//TODO list all available tabs inside the main widget
 				return nil
 			case 't':
@@ -283,7 +301,7 @@ var lazyCmd = &cobra.Command{
 				lazy.log("Describing service %s\n", *selectedService.ServiceArn)
 				definitionWidget := tview.NewTextView()
 				lazy.main.AddAndSwitchToPage(
-					fmt.Sprintf("def:%s", *selectedService.ServiceArn),
+					fmt.Sprintf("describe@%s", *selectedService.ServiceArn),
 					definitionWidget,
 					true,
 				)
@@ -433,7 +451,13 @@ func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service)
 	}
 
 	logsWidget := tview.NewTextView()
-	lazy.main.AddAndSwitchToPage(fmt.Sprintf("logs:%s", *service.ServiceArn), logsWidget, true)
+	pageName := fmt.Sprintf("logs@%s", *service.ServiceArn)
+	serviceArnPieces := strings.Split(*service.ServiceArn, ":")
+	lazy.pageTitlesPerName[pageName] = fmt.Sprintf(
+		"Logs for service: %s",
+		serviceArnPieces[len(serviceArnPieces)-1],
+	)
+	lazy.main.AddAndSwitchToPage(pageName, logsWidget, true)
 
 	err = startLiveTail(
 		ctx,
@@ -490,11 +514,13 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 
 	// TODO: Check if a page already exists
 	logsWidget := tview.NewTextView()
-	lazy.main.AddAndSwitchToPage(
-		fmt.Sprintf("logs:%s", *task.TaskArn),
-		logsWidget,
-		true,
+	pageName := fmt.Sprintf("logs@%s", *task.TaskArn)
+	taskArnPieces := strings.Split(*task.TaskArn, ":")
+	lazy.pageTitlesPerName[pageName] = fmt.Sprintf(
+		"Logs for task: %s",
+		taskArnPieces[len(taskArnPieces)-1],
 	)
+	lazy.main.AddAndSwitchToPage(pageName, logsWidget, true)
 
 	for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
 		logOptions := containerDefinition.LogConfiguration.Options
@@ -602,7 +628,7 @@ func (lazy *Lazy) tailContainerLogs(
 
 	logsWidget := tview.NewTextView()
 	lazy.main.AddAndSwitchToPage(
-		fmt.Sprintf("logs:%s:%s", *task.TaskArn, *container.Name),
+		fmt.Sprintf("logs@%s@%s", *task.TaskArn, *container.Name),
 		logsWidget,
 		true,
 	)
