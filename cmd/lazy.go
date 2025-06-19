@@ -479,7 +479,6 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 				len(logGroups),
 			)
 		}
-		logGroupArn := logGroups[0].LogGroupArn
 		taskFragments := strings.Split(*task.TaskArn, "/")
 		taskId := taskFragments[len(taskFragments)-1]
 		logStreamName := fmt.Sprintf(
@@ -489,18 +488,26 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 			taskId,
 		)
 
-		// Use container and logGroupArn in closure to avoid issues with loop variables
-		containerName := *containerDefinition.Name
-		logGroupArnCopy := *logGroupArn
-
 		go func() {
 			err := startLiveTail(
 				ctx,
 				*lazy.cwl,
-				[]string{logGroupArnCopy},
+				[]string{*logGroups[0].LogGroupArn},
 				[]string{logStreamName},
 				Handlers{
-					start: func() {},
+					start: func() {
+						lazy.app.QueueUpdateDraw(func() {
+							_, err = fmt.Fprintf(
+								logsWidget,
+								"Session started for container %s at task %s\n",
+								*containerDefinition.Name,
+								*task.TaskArn,
+							)
+							if err != nil {
+								lazy.log("Error writing to logs: %v", err)
+							}
+						})
+					},
 					update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
 						timestamp := time.UnixMilli(*logEvent.Timestamp)
 						lazy.app.QueueUpdateDraw(func() {
@@ -514,7 +521,7 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 							if err != nil {
 								lazy.log(
 									"Error writing to logs widget for container %s: %v",
-									containerName,
+									*containerDefinition.Name,
 									err,
 								)
 							}
@@ -524,7 +531,7 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 				},
 			)
 			if err != nil {
-				lazy.log("Error tailing logs for container %s: %v", containerName, err)
+				lazy.log("Error tailing logs for container %s: %v", *containerDefinition.Name, err)
 			}
 		}()
 	}
