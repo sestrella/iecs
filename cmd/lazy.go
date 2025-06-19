@@ -30,11 +30,12 @@ type Lazy struct {
 	logsWidget       *tview.TextView
 	main             *tview.Pages
 
-	cluster   *ecsTypes.Cluster
-	clusters  []ecsTypes.Cluster
-	service   *ecsTypes.Service
-	task      *ecsTypes.Task
-	container *ecsTypes.Container
+	cluster          *ecsTypes.Cluster
+	clusters         []ecsTypes.Cluster
+	service          *ecsTypes.Service
+	task             *ecsTypes.Task
+	container        *ecsTypes.Container
+	expandMainWidget bool
 
 	servicesByTask map[string][]ecsTypes.Service
 	tasksByService map[string][]ecsTypes.Task
@@ -195,33 +196,6 @@ var lazyCmd = &cobra.Command{
 		root.AddItem(left, 0, 2, false)
 
 		app := tview.NewApplication()
-		app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			if event.Rune() == '1' {
-				app.SetFocus(clustersWidget)
-				return nil
-			}
-			if event.Rune() == '2' {
-				app.SetFocus(servicesWidget)
-				return nil
-			}
-			if event.Rune() == '3' {
-				app.SetFocus(tasksWidget)
-				return nil
-			}
-			if event.Rune() == '4' {
-				app.SetFocus(containersWidget)
-				return nil
-			}
-			if event.Rune() == '5' {
-				app.SetFocus(main)
-				return nil
-			}
-			if event.Rune() == '6' {
-				app.SetFocus(logs)
-				return nil
-			}
-			return event
-		})
 
 		lazy := &Lazy{
 			ecs:              ecs.NewFromConfig(cfg),
@@ -236,6 +210,49 @@ var lazyCmd = &cobra.Command{
 			servicesByTask:   make(map[string][]ecsTypes.Service),
 			tasksByService:   make(map[string][]ecsTypes.Task),
 		}
+
+		lazy.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			switch event.Rune() {
+			case '1':
+				app.SetFocus(clustersWidget)
+				return nil
+			case '2':
+				app.SetFocus(servicesWidget)
+				return nil
+			case '3':
+				app.SetFocus(tasksWidget)
+				return nil
+			case '4':
+				app.SetFocus(containersWidget)
+				return nil
+			case '5':
+				app.SetFocus(main)
+				return nil
+			case '6':
+				app.SetFocus(logs)
+				return nil
+			case 't':
+				if lazy.expandMainWidget {
+					left.Clear()
+					left.AddItem(main, 0, 1, false)
+
+					root.Clear()
+					root.AddItem(left, 0, 1, false)
+					lazy.expandMainWidget = false
+				} else {
+					left.Clear()
+					left.AddItem(main, 0, 4, false)
+					left.AddItem(logs, 0, 1, false)
+
+					root.Clear()
+					root.AddItem(right, 0, 1, false)
+					root.AddItem(left, 0, 2, false)
+					lazy.expandMainWidget = true
+				}
+				return nil
+			}
+			return event
+		})
 
 		lazy.clustersWidget.SetChangedFunc(
 			func(index int, mainText, secondaryText string, shortcut rune) {
