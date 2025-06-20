@@ -388,9 +388,30 @@ var lazyCmd = &cobra.Command{
 
 func (lazy *Lazy) loadClusters(ctx context.Context) error {
 	lazy.log("Loading clusters\n")
-	listedClusters, err := lazy.ecs.ListClusters(ctx, &ecs.ListClustersInput{})
+	clusters, err := lazy.describeClusters(ctx)
 	if err != nil {
 		return err
+	}
+	lazy.clusters = clusters
+	lazy.app.QueueUpdateDraw(func() {
+		lazy.clustersWidget.Clear()
+		for _, cluster := range clusters {
+			lazy.clustersWidget.AddItem(
+				*cluster.ClusterName,
+				*cluster.ClusterArn,
+				0,
+				nil,
+			)
+		}
+		lazy.app.SetFocus(lazy.clustersWidget)
+	})
+	return nil
+}
+
+func (lazy *Lazy) describeClusters(ctx context.Context) ([]ecsTypes.Cluster, error) {
+	listedClusters, err := lazy.ecs.ListClusters(ctx, &ecs.ListClustersInput{})
+	if err != nil {
+		return nil, err
 	}
 	describedClusters, err := lazy.ecs.DescribeClusters(
 		ctx,
@@ -399,22 +420,9 @@ func (lazy *Lazy) loadClusters(ctx context.Context) error {
 		},
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	lazy.clusters = describedClusters.Clusters
-	lazy.app.QueueUpdateDraw(func() {
-		lazy.clustersWidget.Clear()
-		for _, cluster := range lazy.clusters {
-			lazy.clustersWidget.AddItem(
-				*cluster.ClusterName,
-				*cluster.ClusterArn,
-				0,
-				func() {},
-			)
-		}
-		lazy.app.SetFocus(lazy.clustersWidget)
-	})
-	return nil
+	return describedClusters.Clusters, nil
 }
 
 func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service) error {
