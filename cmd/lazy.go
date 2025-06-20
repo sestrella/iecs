@@ -52,26 +52,10 @@ func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.C
 	services, ok := lazy.servicesByTask[*cluster.ClusterArn]
 	if !ok {
 		lazy.log("Fetching services for cluster %s", *cluster.ClusterName)
-		listedServices, err := lazy.ecs.ListServices(
-			ctx,
-			&ecs.ListServicesInput{
-				Cluster: cluster.ClusterArn,
-			},
-		)
+		services, err := lazy.describeServices(ctx, *cluster.ClusterArn)
 		if err != nil {
 			return err
 		}
-		describedServices, err := lazy.ecs.DescribeServices(
-			ctx,
-			&ecs.DescribeServicesInput{
-				Cluster:  cluster.ClusterArn,
-				Services: listedServices.ServiceArns,
-			},
-		)
-		if err != nil {
-			return err
-		}
-		services = describedServices.Services
 		lazy.servicesByTask[*lazy.cluster.ClusterArn] = services
 	}
 	lazy.servicesWidget.Clear()
@@ -84,6 +68,32 @@ func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.C
 		)
 	}
 	return nil
+}
+
+func (lazy *Lazy) describeServices(
+	ctx context.Context,
+	clusterArn string,
+) ([]ecsTypes.Service, error) {
+	listedServices, err := lazy.ecs.ListServices(
+		ctx,
+		&ecs.ListServicesInput{
+			Cluster: &clusterArn,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	describedServices, err := lazy.ecs.DescribeServices(
+		ctx,
+		&ecs.DescribeServicesInput{
+			Cluster:  &clusterArn,
+			Services: listedServices.ServiceArns,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return describedServices.Services, nil
 }
 
 func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.Service) error {
