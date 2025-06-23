@@ -26,9 +26,9 @@ type Lazy struct {
 
 	app              *tview.Application
 	clustersWidget   *ui.ClusterWidget
-	servicesWidget   *tview.List
-	tasksWidget      *tview.List
-	containersWidget *tview.List
+	servicesWidget   *ui.ServiceWidget
+	tasksWidget      *ui.TaskWidget
+	containersWidget *ui.ContainerWidget
 	logsWidget       *tview.TextView
 	main             *tview.Pages
 
@@ -60,15 +60,7 @@ func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.C
 		}
 		lazy.servicesByTask[*lazy.cluster.ClusterArn] = services
 	}
-	lazy.servicesWidget.Clear()
-	for _, service := range services {
-		lazy.servicesWidget.AddItem(
-			*service.ServiceName,
-			*service.ServiceArn,
-			0,
-			func() {},
-		)
-	}
+	lazy.servicesWidget.SetServices(services)
 	return nil
 }
 
@@ -126,24 +118,13 @@ func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.S
 		tasks = describedTasks.Tasks
 		lazy.tasksByService[*service.ServiceArn] = tasks
 	}
-	lazy.tasksWidget.Clear()
-	for _, task := range tasks {
-		lazy.tasksWidget.AddItem(*task.TaskArn, *task.TaskArn, 0, func() {})
-	}
+	lazy.tasksWidget.SetTasks(tasks)
 	return nil
 }
 
 func (lazy *Lazy) handleTaskSelection(task ecsTypes.Task) {
 	lazy.log("Task %s selected\n", *task.TaskArn)
-	lazy.containersWidget.Clear()
-	for _, container := range task.Containers {
-		lazy.containersWidget.AddItem(
-			*container.Name,
-			*container.ContainerArn,
-			0,
-			func() {},
-		)
-	}
+	lazy.containersWidget.SetContainers(task.Containers)
 }
 
 func (lazy *Lazy) log(format string, a ...any) {
@@ -166,18 +147,9 @@ var lazyCmd = &cobra.Command{
 		}
 
 		clustersWidget := ui.NewClusterWidget("Clusters (1)")
-
-		servicesWidget := tview.NewList()
-		servicesWidget.SetTitle("Services (2)")
-		servicesWidget.SetBorder(true)
-
-		tasksWidget := tview.NewList()
-		tasksWidget.SetTitle("Tasks (3)")
-		tasksWidget.SetBorder(true)
-
-		containersWidget := tview.NewList()
-		containersWidget.SetTitle("Containers (4)")
-		containersWidget.SetBorder(true)
+		servicesWidget := ui.NewServiceWidget("Services (2)")
+		tasksWidget := ui.NewTaskWidget("Tasks (3)")
+		containersWidget := ui.NewContainerWidget("Containers (4)")
 
 		right := tview.NewFlex()
 		right.SetDirection(tview.FlexRow)
@@ -295,12 +267,12 @@ var lazyCmd = &cobra.Command{
 			},
 		)
 
-		lazy.servicesWidget.SetChangedFunc(
-			func(index int, mainText, secondaryText string, shortcut rune) {
-				lazy.service = &lazy.servicesByTask[*lazy.cluster.ClusterArn][index]
-				err := lazy.handleServiceSelection(context.TODO(), *lazy.service)
+		lazy.servicesWidget.SetServiceChanged(
+			func(service ecsTypes.Service) {
+				lazy.service = &service
+				err := lazy.handleServiceSelection(context.TODO(), service)
 				if err != nil {
-					lazy.log("TODO %s: %v", *lazy.service.ServiceArn, err)
+					lazy.log("TODO %s: %v", *service.ServiceArn, err)
 				}
 			},
 		)
@@ -337,10 +309,10 @@ var lazyCmd = &cobra.Command{
 			return event
 		})
 
-		lazy.tasksWidget.SetChangedFunc(
-			func(index int, mainText, secondaryText string, shortcut rune) {
-				lazy.task = &lazy.tasksByService[*lazy.service.ServiceArn][index]
-				lazy.handleTaskSelection(*lazy.task)
+		lazy.tasksWidget.SetTaskChanged(
+			func(task ecsTypes.Task) {
+				lazy.task = &task
+				lazy.handleTaskSelection(task)
 			},
 		)
 		lazy.tasksWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -358,9 +330,9 @@ var lazyCmd = &cobra.Command{
 			return event
 		})
 
-		lazy.containersWidget.SetChangedFunc(
-			func(index int, mainText, secondaryText string, shortcut rune) {
-				lazy.container = &lazy.task.Containers[index]
+		lazy.containersWidget.SetContainerChanged(
+			func(container ecsTypes.Container) {
+				lazy.container = &container
 			},
 		)
 		lazy.containersWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
