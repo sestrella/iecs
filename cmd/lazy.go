@@ -16,6 +16,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
+
+	"github.com/sestrella/iecs/internal/ui"
 )
 
 type Lazy struct {
@@ -23,7 +25,7 @@ type Lazy struct {
 	cwl *cwl.Client
 
 	app              *tview.Application
-	clustersWidget   *tview.List
+	clustersWidget   *ui.ClusterWidget
 	servicesWidget   *tview.List
 	tasksWidget      *tview.List
 	containersWidget *tview.List
@@ -163,9 +165,7 @@ var lazyCmd = &cobra.Command{
 			return err
 		}
 
-		clustersWidget := tview.NewList()
-		clustersWidget.SetTitle("Clusters (1)")
-		clustersWidget.SetBorder(true)
+		clustersWidget := ui.NewClusterWidget("Clusters (1)")
 
 		servicesWidget := tview.NewList()
 		servicesWidget.SetTitle("Services (2)")
@@ -285,12 +285,12 @@ var lazyCmd = &cobra.Command{
 			return event
 		})
 
-		lazy.clustersWidget.SetChangedFunc(
-			func(index int, mainText, secondaryText string, shortcut rune) {
-				lazy.cluster = &lazy.clusters[index]
-				err := lazy.handleClusterSelection(context.TODO(), *lazy.cluster)
+		lazy.clustersWidget.SetClusterChanged(
+			func(cluster ecsTypes.Cluster) {
+				lazy.cluster = &cluster
+				err := lazy.handleClusterSelection(context.TODO(), cluster)
 				if err != nil {
-					lazy.log("TODO %s: %v", *lazy.cluster.ClusterArn, err)
+					lazy.log("TODO %s: %v", *cluster.ClusterArn, err)
 				}
 			},
 		)
@@ -404,15 +404,7 @@ func (lazy *Lazy) loadClusters(ctx context.Context) error {
 	}
 	lazy.clusters = clusters
 	lazy.app.QueueUpdateDraw(func() {
-		lazy.clustersWidget.Clear()
-		for _, cluster := range clusters {
-			lazy.clustersWidget.AddItem(
-				*cluster.ClusterName,
-				*cluster.ClusterArn,
-				0,
-				nil,
-			)
-		}
+		lazy.clustersWidget.SetClusters(clusters)
 		lazy.app.SetFocus(lazy.clustersWidget)
 	})
 	return nil
