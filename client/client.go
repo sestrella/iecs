@@ -10,6 +10,7 @@ import (
 	logs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 )
 
 // EventHandler is a function that handles log events.
@@ -17,6 +18,9 @@ type EventHandler func(timestamp time.Time, message string)
 
 // Client interface combines ECS and CloudWatch Logs operations.
 type Client interface {
+	DescribeClusters(ctx context.Context) ([]ecsTypes.Cluster, error)
+	DescribeServices(ctx context.Context, clusterArn string) ([]ecsTypes.Service, error)
+
 	// CloudWatch Logs operations
 	StartLiveTail(
 		ctx context.Context,
@@ -53,6 +57,24 @@ func NewClient(cfg aws.Config) Client {
 }
 
 // ECS operations implementation
+
+func (c *awsClient) DescribeClusters(ctx context.Context) ([]ecsTypes.Cluster, error) {
+	output, err := c.ecsClient.DescribeClusters(ctx, &ecs.DescribeClustersInput{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe clusters: %w", err)
+	}
+	return output.Clusters, nil
+}
+
+func (c *awsClient) DescribeServices(ctx context.Context, clusterArn string) ([]ecsTypes.Service, error) {
+	output, err := c.ecsClient.DescribeServices(ctx, &ecs.DescribeServicesInput{
+		Cluster: &clusterArn,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe services for cluster %s: %w", clusterArn, err)
+	}
+	return output.Services, nil
+}
 
 func (c *awsClient) ExecuteCommand(
 	ctx context.Context,
