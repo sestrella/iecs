@@ -98,11 +98,6 @@ func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.S
 	return nil
 }
 
-func (lazy *Lazy) handleTaskSelection(task ecsTypes.Task) {
-	lazy.log("Task %s selected\n", *task.TaskArn)
-	lazy.containersWidget.SetContainers(task.Containers)
-}
-
 func (lazy *Lazy) log(format string, a ...any) {
 	_, err := fmt.Fprintf(lazy.logsWidget, format, a...)
 	if err != nil {
@@ -289,7 +284,8 @@ var lazyCmd = &cobra.Command{
 		lazy.tasksWidget.SetTaskChanged(
 			func(task ecsTypes.Task) {
 				lazy.task = &task
-				lazy.handleTaskSelection(task)
+				lazy.log("Task %s selected\n", *task.TaskArn)
+				lazy.containersWidget.SetContainers(task.Containers)
 			},
 		)
 		lazy.tasksWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
