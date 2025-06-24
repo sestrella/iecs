@@ -59,21 +59,37 @@ func NewClient(cfg aws.Config) Client {
 // ECS operations implementation
 
 func (c *awsClient) DescribeClusters(ctx context.Context) ([]ecsTypes.Cluster, error) {
-	output, err := c.ecsClient.DescribeClusters(ctx, &ecs.DescribeClustersInput{})
+	listedClusters, err := c.ecsClient.ListClusters(ctx, &ecs.ListClustersInput{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to describe clusters: %w", err)
+		return nil, err
 	}
-	return output.Clusters, nil
+	describedClusters, err := c.ecsClient.DescribeClusters(ctx, &ecs.DescribeClustersInput{
+		Clusters: listedClusters.ClusterArns,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return describedClusters.Clusters, nil
 }
 
-func (c *awsClient) DescribeServices(ctx context.Context, clusterArn string) ([]ecsTypes.Service, error) {
-	output, err := c.ecsClient.DescribeServices(ctx, &ecs.DescribeServicesInput{
+func (c *awsClient) DescribeServices(
+	ctx context.Context,
+	clusterArn string,
+) ([]ecsTypes.Service, error) {
+	listedServices, err := c.ecsClient.ListServices(ctx, &ecs.ListServicesInput{
 		Cluster: &clusterArn,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to describe services for cluster %s: %w", clusterArn, err)
+		return nil, err
 	}
-	return output.Services, nil
+	describedServices, err := c.ecsClient.DescribeServices(ctx, &ecs.DescribeServicesInput{
+		Cluster:  &clusterArn,
+		Services: listedServices.ServiceArns,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return describedServices.Services, nil
 }
 
 func (c *awsClient) ExecuteCommand(

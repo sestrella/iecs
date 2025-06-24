@@ -17,12 +17,14 @@ import (
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
+	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/internal/ui"
 )
 
 type Lazy struct {
-	ecs *ecs.Client
-	cwl *cwl.Client
+	ecs    *ecs.Client
+	cwl    *cwl.Client
+	client client.Client
 
 	app              *tview.Application
 	clustersWidget   *ui.ClusterWidget
@@ -54,7 +56,7 @@ func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.C
 	services, ok := lazy.servicesByTask[*cluster.ClusterArn]
 	if !ok {
 		lazy.log("Fetching services for cluster %s", *cluster.ClusterName)
-		services, err := lazy.describeServices(ctx, *cluster.ClusterArn)
+		services, err := lazy.client.DescribeServices(ctx, *cluster.ClusterArn)
 		if err != nil {
 			return err
 		}
@@ -62,32 +64,6 @@ func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.C
 	}
 	lazy.servicesWidget.SetServices(services)
 	return nil
-}
-
-func (lazy *Lazy) describeServices(
-	ctx context.Context,
-	clusterArn string,
-) ([]ecsTypes.Service, error) {
-	listedServices, err := lazy.ecs.ListServices(
-		ctx,
-		&ecs.ListServicesInput{
-			Cluster: &clusterArn,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	describedServices, err := lazy.ecs.DescribeServices(
-		ctx,
-		&ecs.DescribeServicesInput{
-			Cluster:  &clusterArn,
-			Services: listedServices.ServiceArns,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	return describedServices.Services, nil
 }
 
 func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.Service) error {
@@ -186,6 +162,7 @@ var lazyCmd = &cobra.Command{
 		lazy := &Lazy{
 			ecs:               ecs.NewFromConfig(cfg),
 			cwl:               cwl.NewFromConfig(cfg),
+			client:            client.NewClient(cfg),
 			app:               app,
 			clustersWidget:    clustersWidget,
 			servicesWidget:    servicesWidget,
@@ -370,7 +347,7 @@ var lazyCmd = &cobra.Command{
 
 func (lazy *Lazy) loadClusters(ctx context.Context) error {
 	lazy.log("Loading clusters\n")
-	clusters, err := lazy.describeClusters(ctx)
+	clusters, err := lazy.client.DescribeClusters(ctx)
 	if err != nil {
 		return err
 	}
@@ -380,23 +357,6 @@ func (lazy *Lazy) loadClusters(ctx context.Context) error {
 		lazy.app.SetFocus(lazy.clustersWidget)
 	})
 	return nil
-}
-
-func (lazy *Lazy) describeClusters(ctx context.Context) ([]ecsTypes.Cluster, error) {
-	listedClusters, err := lazy.ecs.ListClusters(ctx, &ecs.ListClustersInput{})
-	if err != nil {
-		return nil, err
-	}
-	describedClusters, err := lazy.ecs.DescribeClusters(
-		ctx,
-		&ecs.DescribeClustersInput{
-			Clusters: listedClusters.ClusterArns,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	return describedClusters.Clusters, nil
 }
 
 func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service) error {
