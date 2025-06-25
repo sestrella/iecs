@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -31,7 +30,7 @@ type Lazy struct {
 	servicesWidget   *ui.ServiceWidget
 	tasksWidget      *ui.TaskWidget
 	containersWidget *ui.ContainerWidget
-	logsWidget       *tview.TextView
+	logsWidget       *ui.LogsWidget
 	main             *tview.Pages
 
 	cluster          *ecsTypes.Cluster
@@ -52,10 +51,10 @@ type Handlers struct {
 }
 
 func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.Cluster) error {
-	lazy.log("Cluster %s selected\n", *cluster.ClusterName)
+	lazy.logsWidget.Log("Cluster %s selected\n", *cluster.ClusterName)
 	services, ok := lazy.servicesByTask[*cluster.ClusterArn]
 	if !ok {
-		lazy.log("Fetching services for cluster %s", *cluster.ClusterName)
+		lazy.logsWidget.Log("Fetching services for cluster %s", *cluster.ClusterName)
 		services, err := lazy.client.DescribeServices(ctx, *cluster.ClusterArn)
 		if err != nil {
 			return err
@@ -67,10 +66,10 @@ func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.C
 }
 
 func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.Service) error {
-	lazy.log("Service %s selected\n", *service.ServiceName)
+	lazy.logsWidget.Log("Service %s selected\n", *service.ServiceName)
 	tasks, ok := lazy.tasksByService[*service.ServiceArn]
 	if !ok {
-		lazy.log("Fetching tasks for service %s", *service.ServiceArn)
+		lazy.logsWidget.Log("Fetching tasks for service %s", *service.ServiceArn)
 		listedTasks, err := lazy.ecs.ListTasks(
 			ctx,
 			&ecs.ListTasksInput{
@@ -98,14 +97,6 @@ func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.S
 	return nil
 }
 
-func (lazy *Lazy) log(format string, a ...any) {
-	_, err := fmt.Fprintf(lazy.logsWidget, format, a...)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	lazy.logsWidget.ScrollToEnd()
-}
 
 // lazyCmd represents the lazy command
 var lazyCmd = &cobra.Command{
@@ -136,9 +127,7 @@ var lazyCmd = &cobra.Command{
 		main.SetBorder(true)
 		main.AddPage("index", pagesIndex, true, false)
 
-		logs := tview.NewTextView()
-		logs.SetTitle("Logs (6)")
-		logs.SetBorder(true)
+		logs := ui.NewLogsView("Logs (6)")
 		logs.SetDisabled(true)
 
 		left := tview.NewFlex()
@@ -234,7 +223,7 @@ var lazyCmd = &cobra.Command{
 				lazy.cluster = &cluster
 				err := lazy.handleClusterSelection(context.TODO(), cluster)
 				if err != nil {
-					lazy.log("TODO %s: %v", *cluster.ClusterArn, err)
+					lazy.logsWidget.Log("TODO %s: %v", *cluster.ClusterArn, err)
 				}
 			},
 		)
@@ -244,7 +233,7 @@ var lazyCmd = &cobra.Command{
 				lazy.service = &service
 				err := lazy.handleServiceSelection(context.TODO(), service)
 				if err != nil {
-					lazy.log("TODO %s: %v", *service.ServiceArn, err)
+					lazy.logsWidget.Log("TODO %s: %v", *service.ServiceArn, err)
 				}
 			},
 		)
@@ -252,7 +241,7 @@ var lazyCmd = &cobra.Command{
 			selectedService := *lazy.service
 			switch event.Rune() {
 			case 'd':
-				lazy.log("Describing service %s\n", *selectedService.ServiceArn)
+				lazy.logsWidget.Log("Describing service %s\n", *selectedService.ServiceArn)
 				definitionWidget := tview.NewTextView()
 				lazy.main.AddAndSwitchToPage(
 					fmt.Sprintf("describe@%s", *selectedService.ServiceArn),
@@ -265,11 +254,11 @@ var lazyCmd = &cobra.Command{
 				}
 				definitionWidget.SetText(string(content))
 			case 'l':
-				lazy.log("Tailing logs for service %s\n", *selectedService.ServiceArn)
+				lazy.logsWidget.Log("Tailing logs for service %s\n", *selectedService.ServiceArn)
 				go func() {
 					err := lazy.tailServiceLogs(context.TODO(), selectedService)
 					if err != nil {
-						lazy.log(
+						lazy.logsWidget.Log(
 							"Error tailing logs for service %s: %v\n",
 							*selectedService.ServiceArn,
 							err,
@@ -284,18 +273,18 @@ var lazyCmd = &cobra.Command{
 		lazy.tasksWidget.SetTaskChanged(
 			func(task ecsTypes.Task) {
 				lazy.task = &task
-				lazy.log("Task %s selected\n", *task.TaskArn)
+				lazy.logsWidget.Log("Task %s selected\n", *task.TaskArn)
 				lazy.containersWidget.SetContainers(task.Containers)
 			},
 		)
 		lazy.tasksWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			if event.Rune() == 'l' {
-				lazy.log("Tailing logs for task %s\n", *lazy.task.TaskArn)
+				lazy.logsWidget.Log("Tailing logs for task %s\n", *lazy.task.TaskArn)
 				go func() {
 					currentTask := *lazy.task
 					err := lazy.tailTaskLogs(context.TODO(), currentTask)
 					if err != nil {
-						lazy.log("Error tailing logs for task %s: %v\n", *currentTask.TaskArn, err)
+						lazy.logsWidget.Log("Error tailing logs for task %s: %v\n", *currentTask.TaskArn, err)
 					}
 				}()
 				return nil
@@ -310,11 +299,11 @@ var lazyCmd = &cobra.Command{
 		)
 		lazy.containersWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			if event.Rune() == 'l' {
-				lazy.log("Tailing logs for container %s\n", *lazy.container.ContainerArn)
+				lazy.logsWidget.Log("Tailing logs for container %s\n", *lazy.container.ContainerArn)
 				go func() {
 					err := lazy.tailContainerLogs(context.TODO(), *lazy.task, *lazy.container)
 					if err != nil {
-						lazy.log(
+						lazy.logsWidget.Log(
 							"Error tailing logs for container %s: %v",
 							*lazy.container.ContainerArn,
 							err,
@@ -329,7 +318,7 @@ var lazyCmd = &cobra.Command{
 		go func() {
 			err := lazy.loadClusters(context.TODO())
 			if err != nil {
-				lazy.log("Error loading clusters: %s\n", err)
+				lazy.logsWidget.Log("Error loading clusters: %s\n", err)
 			}
 		}()
 
@@ -342,7 +331,7 @@ var lazyCmd = &cobra.Command{
 }
 
 func (lazy *Lazy) loadClusters(ctx context.Context) error {
-	lazy.log("Loading clusters\n")
+	lazy.logsWidget.Log("Loading clusters\n")
 	clusters, err := lazy.client.DescribeClusters(ctx)
 	if err != nil {
 		return err
@@ -411,7 +400,7 @@ func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service)
 						*service.ServiceArn,
 					)
 					if err != nil {
-						lazy.log("Error writing to logs: %v", err)
+						lazy.logsWidget.Log("Error writing to logs: %v", err)
 					}
 				})
 			},
@@ -426,7 +415,7 @@ func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service)
 						*logEvent.LogStreamName,
 					)
 					if err != nil {
-						lazy.log("Error writing to logs: %v", err)
+						lazy.logsWidget.Log("Error writing to logs: %v", err)
 					}
 					logsWidget.ScrollToEnd()
 				})
@@ -505,7 +494,7 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 								*task.TaskArn,
 							)
 							if err != nil {
-								lazy.log("Error writing to logs: %v", err)
+								lazy.logsWidget.Log("Error writing to logs: %v", err)
 							}
 						})
 					},
@@ -520,7 +509,7 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 								*logEvent.LogStreamName,
 							)
 							if err != nil {
-								lazy.log(
+								lazy.logsWidget.Log(
 									"Error writing to logs widget for container %s: %v",
 									*containerDefinition.Name,
 									err,
@@ -532,7 +521,7 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 				},
 			)
 			if err != nil {
-				lazy.log("Error tailing logs for container %s: %v", *containerDefinition.Name, err)
+				lazy.logsWidget.Log("Error tailing logs for container %s: %v", *containerDefinition.Name, err)
 			}
 		}()
 	}
@@ -616,7 +605,7 @@ func (lazy *Lazy) tailContainerLogs(
 						*task.TaskArn,
 					)
 					if err != nil {
-						lazy.log("Error writing to logs: %v", err)
+						lazy.logsWidget.Log("Error writing to logs: %v", err)
 					}
 				})
 			},
@@ -631,7 +620,7 @@ func (lazy *Lazy) tailContainerLogs(
 						*logEvent.LogStreamName,
 					)
 					if err != nil {
-						lazy.log(
+						lazy.logsWidget.Log(
 							"Error writing to logs widget for container %s: %v",
 							*container.Name,
 							err,
