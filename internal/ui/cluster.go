@@ -14,7 +14,6 @@ func NewClusterWidget(title string) *ClusterWidget {
 	list := tview.NewList()
 	list.SetTitle(title)
 	list.SetBorder(true)
-
 	return &ClusterWidget{
 		List:     list,
 		clusters: make([]types.Cluster, 0),
