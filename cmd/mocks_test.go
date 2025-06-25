@@ -13,6 +13,22 @@ type MockClient struct {
 	mock.Mock
 }
 
+func (m *MockClient) DescribeClusters(ctx context.Context) ([]types.Cluster, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]types.Cluster), args.Error(1)
+}
+
+func (m *MockClient) DescribeServices(ctx context.Context, clusterArn string) ([]types.Service, error) {
+	args := m.Called(ctx, clusterArn)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]types.Service), args.Error(1)
+}
+
 func (m *MockClient) StartLiveTail(
 	ctx context.Context,
 	logGroupName string,

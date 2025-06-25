@@ -97,7 +97,6 @@ func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.S
 	return nil
 }
 
-
 // lazyCmd represents the lazy command
 var lazyCmd = &cobra.Command{
 	Use:   "lazy",
@@ -128,7 +127,6 @@ var lazyCmd = &cobra.Command{
 		main.AddPage("index", pagesIndex, true, false)
 
 		logs := ui.NewLogsView("Logs (6)")
-		logs.SetDisabled(true)
 
 		left := tview.NewFlex()
 		left.SetDirection(tview.FlexRow)
@@ -284,7 +282,11 @@ var lazyCmd = &cobra.Command{
 					currentTask := *lazy.task
 					err := lazy.tailTaskLogs(context.TODO(), currentTask)
 					if err != nil {
-						lazy.logsWidget.Log("Error tailing logs for task %s: %v\n", *currentTask.TaskArn, err)
+						lazy.logsWidget.Log(
+							"Error tailing logs for task %s: %v\n",
+							*currentTask.TaskArn,
+							err,
+						)
 					}
 				}()
 				return nil
@@ -521,7 +523,11 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 				},
 			)
 			if err != nil {
-				lazy.logsWidget.Log("Error tailing logs for container %s: %v", *containerDefinition.Name, err)
+				lazy.logsWidget.Log(
+					"Error tailing logs for container %s: %v",
+					*containerDefinition.Name,
+					err,
+				)
 			}
 		}()
 	}
