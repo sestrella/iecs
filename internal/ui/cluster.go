@@ -11,11 +11,11 @@ type ClusterWidget struct {
 }
 
 func NewClusterWidget(title string) *ClusterWidget {
-	list := tview.NewList()
-	list.SetTitle(title)
-	list.SetBorder(true)
+	view := tview.NewList()
+	view.SetTitle(title)
+	view.SetBorder(true)
 	return &ClusterWidget{
-		List:     list,
+		List:     view,
 		clusters: make([]types.Cluster, 0),
 	}
 }

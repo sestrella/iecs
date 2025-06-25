@@ -126,7 +126,9 @@ var lazyCmd = &cobra.Command{
 		main.SetBorder(true)
 		main.AddPage("index", pagesIndex, true, false)
 
-		logsWidget := ui.NewLogsView("Logs (6)")
+		logsWidget := ui.NewLogsView()
+		logsWidget.SetTitle("Logs (6)")
+		logsWidget.SetLogTimestamp(true)
 
 		left := tview.NewFlex()
 		left.SetDirection(tview.FlexRow)
@@ -379,14 +381,14 @@ func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service)
 		logGroupArns = append(logGroupArns, *logGroups[0].LogGroupArn)
 	}
 
-	logsWidget := tview.NewTextView()
+	serviceLogsWidget := ui.NewLogsView()
 	pageName := fmt.Sprintf("logs@%s", *service.ServiceArn)
 	serviceArnPieces := strings.Split(*service.ServiceArn, ":")
 	lazy.pageTitlesPerName[pageName] = fmt.Sprintf(
 		"Logs for service: %s",
 		serviceArnPieces[len(serviceArnPieces)-1],
 	)
-	lazy.main.AddAndSwitchToPage(pageName, logsWidget, true)
+	lazy.main.AddAndSwitchToPage(pageName, serviceLogsWidget, true)
 
 	err = startLiveTail(
 		ctx,
@@ -396,30 +398,21 @@ func (lazy *Lazy) tailServiceLogs(ctx context.Context, service ecsTypes.Service)
 		Handlers{
 			start: func() {
 				lazy.app.QueueUpdateDraw(func() {
-					_, err = fmt.Fprintf(
-						logsWidget,
+					serviceLogsWidget.Log(
 						"Session started for service %s",
 						*service.ServiceArn,
 					)
-					if err != nil {
-						lazy.logsWidget.Log("Error writing to logs: %v", err)
-					}
 				})
 			},
 			update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
 				timestamp := time.UnixMilli(*logEvent.Timestamp)
 				lazy.app.QueueUpdateDraw(func() {
-					_, err = fmt.Fprintf(
-						logsWidget,
+					serviceLogsWidget.Log(
 						"%v %s %s",
 						timestamp,
 						*logEvent.Message,
 						*logEvent.LogStreamName,
 					)
-					if err != nil {
-						lazy.logsWidget.Log("Error writing to logs: %v", err)
-					}
-					logsWidget.ScrollToEnd()
 				})
 			},
 		},
@@ -442,14 +435,14 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 	}
 
 	// TODO: Check if a page already exists
-	logsWidget := tview.NewTextView()
+	taskLogsWidget := ui.NewLogsView()
 	pageName := fmt.Sprintf("logs@%s", *task.TaskArn)
 	taskArnPieces := strings.Split(*task.TaskArn, ":")
 	lazy.pageTitlesPerName[pageName] = fmt.Sprintf(
 		"Logs for task: %s",
 		taskArnPieces[len(taskArnPieces)-1],
 	)
-	lazy.main.AddAndSwitchToPage(pageName, logsWidget, true)
+	lazy.main.AddAndSwitchToPage(pageName, taskLogsWidget, true)
 
 	for _, containerDefinition := range describedTaskDefinition.TaskDefinition.ContainerDefinitions {
 		logOptions := containerDefinition.LogConfiguration.Options
@@ -489,35 +482,22 @@ func (lazy *Lazy) tailTaskLogs(ctx context.Context, task ecsTypes.Task) error {
 				Handlers{
 					start: func() {
 						lazy.app.QueueUpdateDraw(func() {
-							_, err = fmt.Fprintf(
-								logsWidget,
+							taskLogsWidget.Log(
 								"Session started for container %s in task %s",
 								*containerDefinition.Name,
 								*task.TaskArn,
 							)
-							if err != nil {
-								lazy.logsWidget.Log("Error writing to logs: %v", err)
-							}
 						})
 					},
 					update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
 						timestamp := time.UnixMilli(*logEvent.Timestamp)
 						lazy.app.QueueUpdateDraw(func() {
-							_, err := fmt.Fprintf(
-								logsWidget,
+							taskLogsWidget.Log(
 								"%v %s %s",
 								timestamp,
 								*logEvent.Message,
 								*logEvent.LogStreamName,
 							)
-							if err != nil {
-								lazy.logsWidget.Log(
-									"Error writing to logs widget for container %s: %v",
-									*containerDefinition.Name,
-									err,
-								)
-							}
-							logsWidget.ScrollToEnd()
 						})
 					},
 				},
@@ -559,10 +539,10 @@ func (lazy *Lazy) tailContainerLogs(
 
 	// TODO: check if selectedContainerDefinition is not null
 
-	logsWidget := tview.NewTextView()
+	containerLogsWidget := ui.NewLogsView()
 	lazy.main.AddAndSwitchToPage(
 		fmt.Sprintf("logs@%s@%s", *task.TaskArn, *container.Name),
-		logsWidget,
+		containerLogsWidget,
 		true,
 	)
 	logOptions := selectedContainerDefinition.LogConfiguration.Options
@@ -604,35 +584,22 @@ func (lazy *Lazy) tailContainerLogs(
 		Handlers{
 			start: func() {
 				lazy.app.QueueUpdateDraw(func() {
-					_, err = fmt.Fprintf(
-						logsWidget,
+					containerLogsWidget.Log(
 						"Session started for container %s in task %s",
 						*container.Name,
 						*task.TaskArn,
 					)
-					if err != nil {
-						lazy.logsWidget.Log("Error writing to logs: %v", err)
-					}
 				})
 			},
 			update: func(logEvent cwlTypes.LiveTailSessionLogEvent) {
 				timestamp := time.UnixMilli(*logEvent.Timestamp)
 				lazy.app.QueueUpdateDraw(func() {
-					_, err := fmt.Fprintf(
-						logsWidget,
+					containerLogsWidget.Log(
 						"%v %s %s",
 						timestamp,
 						*logEvent.Message,
 						*logEvent.LogStreamName,
 					)
-					if err != nil {
-						lazy.logsWidget.Log(
-							"Error writing to logs widget for container %s: %v",
-							*container.Name,
-							err,
-						)
-					}
-					logsWidget.ScrollToEnd()
 				})
 			},
 		},
