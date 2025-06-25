@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/rivo/tview"
 )
@@ -18,8 +19,8 @@ func NewLogsView(title string) *LogsWidget {
 }
 
 func (widget *LogsWidget) Log(format string, a ...any) {
-	// TODO: Add timestamp
-	_, err := fmt.Fprintf(widget, format, a...)
+	now := time.Now().Format(time.DateTime)
+	_, err := fmt.Fprintf(widget, "%s "+format+"\n", append([]any{now}, a...)...)
 	if err != nil {
 		// TODO: Log error to a file
 		panic(err)
