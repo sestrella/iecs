@@ -21,3 +21,7 @@ func (widget *PagesWidget) AddPage(name string, title string, page tview.Primiti
 	widget.titlesPerPage[name] = title
 	widget.AddAndSwitchToPage(name, page, true)
 }
+
+func (widget *PagesWidget) GetPageTitle(name string) string {
+	return widget.titlesPerPage[name]
+}
