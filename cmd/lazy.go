@@ -300,7 +300,7 @@ var lazyCmd = &cobra.Command{
 				if err != nil {
 					lazy.logsWidget.Log(
 						"Error tailing logs for container %s: %v",
-						*lazy.container.ContainerArn,
+						*container.ContainerArn,
 						err,
 					)
 				}
