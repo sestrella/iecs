@@ -118,10 +118,7 @@ var lazyCmd = &cobra.Command{
 		right.AddItem(tasksWidget, 0, 1, false)
 		right.AddItem(containersWidget, 0, 1, false)
 
-		pagesIndex := tview.NewList()
-
 		main := ui.NewPagesWidget("Main (5)")
-		main.AddPage("index", "Index", pagesIndex)
 
 		logsWidget := ui.NewLogsView()
 		logsWidget.SetTitle("Logs (6)")
@@ -176,18 +173,7 @@ var lazyCmd = &cobra.Command{
 				app.SetFocus(logsWidget)
 				return nil
 			case 'f':
-				pagesIndex.Clear()
-				for _, pageName := range main.GetPageNames(false) {
-					if pageName != "index" {
-						title := lazy.main.GetPageTitle(pageName)
-						pagesIndex.AddItem(title, pageName, 0, func() {
-							main.SwitchToPage(pageName)
-						})
-					}
-				}
-
-				main.SwitchToPage("index")
-				app.SetFocus(pagesIndex)
+				app.SetFocus(main.ShowIndex())
 
 				//TODO list all available tabs inside the main widget
 				return nil
