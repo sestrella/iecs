@@ -122,6 +122,7 @@ var lazyCmd = &cobra.Command{
 
 		logsWidget := ui.NewLogsView()
 		logsWidget.SetTitle("Logs (6)")
+		logsWidget.SetBorder(true)
 		logsWidget.SetLogTimestamp(true)
 
 		left := tview.NewFlex()
@@ -151,6 +152,10 @@ var lazyCmd = &cobra.Command{
 			servicesByTask:   make(map[string][]ecsTypes.Service),
 			tasksByService:   make(map[string][]ecsTypes.Task),
 		}
+
+		containersWidget.SetExecuteCommandFunc(func(container ecsTypes.Container) {
+			logsWidget.Log("Executing command on container: %s", *container.ContainerArn)
+		})
 
 		lazy.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Rune() {
@@ -288,22 +293,18 @@ var lazyCmd = &cobra.Command{
 				lazy.container = &container
 			},
 		)
-		lazy.containersWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			if event.Rune() == 'l' {
-				lazy.logsWidget.Log("Tailing logs for container %s", *lazy.container.ContainerArn)
-				go func() {
-					err := lazy.tailContainerLogs(context.TODO(), *lazy.task, *lazy.container)
-					if err != nil {
-						lazy.logsWidget.Log(
-							"Error tailing logs for container %s: %v",
-							*lazy.container.ContainerArn,
-							err,
-						)
-					}
-				}()
-				return nil
-			}
-			return event
+		lazy.containersWidget.SetTailLogsFunc(func(container ecsTypes.Container) {
+			lazy.logsWidget.Log("Tailing logs for container %s", *container.ContainerArn)
+			go func() {
+				err := lazy.tailContainerLogs(context.TODO(), *lazy.task, container)
+				if err != nil {
+					lazy.logsWidget.Log(
+						"Error tailing logs for container %s: %v",
+						*lazy.container.ContainerArn,
+						err,
+					)
+				}
+			}()
 		})
 
 		go func() {
