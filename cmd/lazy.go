@@ -149,6 +149,10 @@ var lazyCmd = &cobra.Command{
 			tasksByService:   make(map[string][]ecsTypes.Task),
 		}
 
+		clustersWidget.SetReloadFunc(func() {
+			logsWidget.Log("Reloading clusters")
+		})
+
 		containersWidget.SetExecuteCommandFunc(func(container ecsTypes.Container) {
 			logsWidget.Log("Executing command on container: %s", *container.ContainerArn)
 		})
@@ -289,7 +293,11 @@ var lazyCmd = &cobra.Command{
 		lazy.containersWidget.SetTailLogsFunc(func(container ecsTypes.Container) {
 			lazy.logsWidget.Log("Tailing logs for container %s", *container.ContainerArn)
 			go func() {
-				err := lazy.tailContainerLogs(context.TODO(), *lazy.tasksWidget.GetTask(), container)
+				err := lazy.tailContainerLogs(
+					context.TODO(),
+					*lazy.tasksWidget.GetTask(),
+					container,
+				)
 				if err != nil {
 					lazy.logsWidget.Log(
 						"Error tailing logs for container %s: %v",

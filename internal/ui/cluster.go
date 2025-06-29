@@ -2,23 +2,38 @@ package ui
 
 import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 type ClusterWidget struct {
 	*tview.List
-	clusters []types.Cluster
-	cluster  *types.Cluster
+	clusters   []types.Cluster
+	cluster    *types.Cluster
+	reloadFunc func()
 }
 
 func NewClusterWidget(title string) *ClusterWidget {
+	widget := &ClusterWidget{}
+
 	view := tview.NewList()
 	view.SetTitle(title)
 	view.SetBorder(true)
-	return &ClusterWidget{
-		List:     view,
-		clusters: make([]types.Cluster, 0),
-	}
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Rune() == 'r' {
+			widget.reloadFunc()
+			return nil
+		}
+		return event
+	})
+
+	widget.List = view
+
+	return widget
+}
+
+func (widget *ClusterWidget) GetCluster() *types.Cluster {
+	return widget.cluster
 }
 
 func (widget *ClusterWidget) SetClusters(clusters []types.Cluster) {
@@ -41,6 +56,6 @@ func (widget *ClusterWidget) SetClusterChanged(f func(cluster types.Cluster)) {
 	})
 }
 
-func (widget *ClusterWidget) GetCluster() *types.Cluster {
-	return widget.cluster
+func (widget *ClusterWidget) SetReloadFunc(reloadFunc func()) {
+	widget.reloadFunc = reloadFunc
 }

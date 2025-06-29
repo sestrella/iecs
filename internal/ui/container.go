@@ -56,12 +56,14 @@ func (widget *ContainerWidget) SetContainerChanged(f func(container types.Contai
 	})
 }
 
-func (widget *ContainerWidget) SetExecuteCommandFunc(f func(container types.Container)) {
-	widget.executeCommandFunc = f
+func (widget *ContainerWidget) SetExecuteCommandFunc(
+	executeCommandFunc func(container types.Container),
+) {
+	widget.executeCommandFunc = executeCommandFunc
 }
 
-func (widget *ContainerWidget) SetTailLogsFunc(f func(container types.Container)) {
-	widget.tailLogsFunc = f
+func (widget *ContainerWidget) SetTailLogsFunc(tailLogsFunc func(container types.Container)) {
+	widget.tailLogsFunc = tailLogsFunc
 }
 
 func (widget *ContainerWidget) GetContainer() *types.Container {
