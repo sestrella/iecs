@@ -8,9 +8,9 @@ import (
 
 type ServiceWidget struct {
 	*tview.List
-	services   []types.Service
-	service    *types.Service
-	reloadFunc func()
+	services []types.Service
+	service  *types.Service
+	onReload func()
 }
 
 func NewServiceWidget(title string) *ServiceWidget {
@@ -21,7 +21,7 @@ func NewServiceWidget(title string) *ServiceWidget {
 	list.SetBorder(true)
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Rune() == 'r' {
-			widget.reloadFunc()
+			widget.onReload()
 			return nil
 		}
 		return event
@@ -63,6 +63,6 @@ func (widget *ServiceWidget) ClearServices() {
 	widget.Clear()
 }
 
-func (widget *ServiceWidget) SetReloadFunc(reloadFunc func()) {
-	widget.reloadFunc = reloadFunc
+func (widget *ServiceWidget) SetOnReload(onReload func()) {
+	widget.onReload = onReload
 }

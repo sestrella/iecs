@@ -8,9 +8,9 @@ import (
 
 type TaskWidget struct {
 	*tview.List
-	tasks      []types.Task
-	task       *types.Task
-	reloadFunc func()
+	tasks    []types.Task
+	task     *types.Task
+	onReload func()
 }
 
 func NewTaskWidget(title string) *TaskWidget {
@@ -21,7 +21,7 @@ func NewTaskWidget(title string) *TaskWidget {
 	list.SetBorder(true)
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Rune() == 'r' {
-			widget.reloadFunc()
+			widget.onReload()
 			return nil
 		}
 		return event
@@ -58,6 +58,6 @@ func (widget *TaskWidget) ClearTasks() {
 	widget.Clear()
 }
 
-func (widget *TaskWidget) SetReloadFunc(reloadFunc func()) {
-	widget.reloadFunc = reloadFunc
+func (widget *TaskWidget) SetOnReload(onReload func()) {
+	widget.onReload = onReload
 }

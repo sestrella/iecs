@@ -12,7 +12,7 @@ type ContainerWidget struct {
 	container          types.Container
 	executeCommandFunc func(types.Container)
 	tailLogsFunc       func(types.Container)
-	reloadFunc         func()
+	onReload           func()
 }
 
 func NewContainerWidget(title string) *ContainerWidget {
@@ -30,7 +30,7 @@ func NewContainerWidget(title string) *ContainerWidget {
 			widget.tailLogsFunc(widget.container)
 			return nil
 		case 'r':
-			widget.reloadFunc()
+			widget.onReload()
 			return nil
 		}
 		return event
@@ -80,6 +80,6 @@ func (widget *ContainerWidget) ClearContainers() {
 	widget.Clear()
 }
 
-func (widget *ContainerWidget) SetReloadFunc(reloadFunc func()) {
-	widget.reloadFunc = reloadFunc
+func (widget *ContainerWidget) SetOnReload(onReload func()) {
+	widget.onReload = onReload
 }

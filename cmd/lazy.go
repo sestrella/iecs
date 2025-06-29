@@ -149,7 +149,7 @@ var lazyCmd = &cobra.Command{
 			tasksByService:   make(map[string][]ecsTypes.Task),
 		}
 
-		clustersWidget.SetReloadFunc(func() {
+		clustersWidget.SetOnReload(func() {
 			logsWidget.Log("Reloading clusters")
 			go func() {
 				lazy.app.QueueUpdateDraw(func() {
@@ -177,7 +177,7 @@ var lazyCmd = &cobra.Command{
 			}()
 		})
 
-		servicesWidget.SetReloadFunc(func() {
+		servicesWidget.SetOnReload(func() {
 			cluster := lazy.clustersWidget.GetCluster()
 			if cluster == nil {
 				logsWidget.Log("No cluster selected for service reload")
@@ -210,7 +210,7 @@ var lazyCmd = &cobra.Command{
 			}()
 		})
 
-		tasksWidget.SetReloadFunc(func() {
+		tasksWidget.SetOnReload(func() {
 			service := lazy.servicesWidget.GetService()
 			if service == nil {
 				logsWidget.Log("No service selected for task reload")
@@ -268,7 +268,7 @@ var lazyCmd = &cobra.Command{
 			}()
 		})
 
-		containersWidget.SetReloadFunc(func() {
+		containersWidget.SetOnReload(func() {
 			task := lazy.tasksWidget.GetTask()
 			if task == nil {
 				logsWidget.Log("No task selected for container reload")

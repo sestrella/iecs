@@ -8,9 +8,9 @@ import (
 
 type ClusterWidget struct {
 	*tview.List
-	clusters   []types.Cluster
-	cluster    *types.Cluster
-	reloadFunc func()
+	clusters []types.Cluster
+	cluster  *types.Cluster
+	onReload func()
 }
 
 func NewClusterWidget(title string) *ClusterWidget {
@@ -21,7 +21,7 @@ func NewClusterWidget(title string) *ClusterWidget {
 	view.SetBorder(true)
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Rune() == 'r' {
-			widget.reloadFunc()
+			widget.onReload()
 			return nil
 		}
 		return event
@@ -56,6 +56,6 @@ func (widget *ClusterWidget) SetClusterChanged(f func(cluster types.Cluster)) {
 	})
 }
 
-func (widget *ClusterWidget) SetReloadFunc(reloadFunc func()) {
-	widget.reloadFunc = reloadFunc
+func (widget *ClusterWidget) SetOnReload(onReload func()) {
+	widget.onReload = onReload
 }
