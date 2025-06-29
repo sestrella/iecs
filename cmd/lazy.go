@@ -283,7 +283,7 @@ var lazyCmd = &cobra.Command{
 			})
 		})
 
-		containersWidget.SetExecuteCommandFunc(func(container ecsTypes.Container) {
+		containersWidget.SetOnExecuteCommand(func(container ecsTypes.Container) {
 			logsWidget.Log("Executing command on container: %s", *container.ContainerArn)
 		})
 
@@ -420,7 +420,7 @@ var lazyCmd = &cobra.Command{
 				// Container is now stored in the widget
 			},
 		)
-		lazy.containersWidget.SetTailLogsFunc(func(container ecsTypes.Container) {
+		lazy.containersWidget.SetOnTailLogs(func(container ecsTypes.Container) {
 			lazy.logsWidget.Log("Tailing logs for container %s", *container.ContainerArn)
 			go func() {
 				err := lazy.tailContainerLogs(

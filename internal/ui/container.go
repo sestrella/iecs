@@ -8,26 +8,26 @@ import (
 
 type ContainerWidget struct {
 	*tview.List
-	containers         []types.Container
-	container          types.Container
-	executeCommandFunc func(types.Container)
-	tailLogsFunc       func(types.Container)
-	onReload           func()
+	containers       []types.Container
+	container        types.Container
+	onExecuteCommand func(types.Container)
+	onTailLogs       func(types.Container)
+	onReload         func()
 }
 
 func NewContainerWidget(title string) *ContainerWidget {
 	widget := &ContainerWidget{}
 
-	list := tview.NewList()
-	list.SetTitle(title)
-	list.SetBorder(true)
-	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	view := tview.NewList()
+	view.SetTitle(title)
+	view.SetBorder(true)
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case 'e':
-			widget.executeCommandFunc(widget.container)
+			widget.onExecuteCommand(widget.container)
 			return nil
 		case 'l':
-			widget.tailLogsFunc(widget.container)
+			widget.onTailLogs(widget.container)
 			return nil
 		case 'r':
 			widget.onReload()
@@ -35,9 +35,15 @@ func NewContainerWidget(title string) *ContainerWidget {
 		}
 		return event
 	})
-	widget.List = list
+
+	widget.List = view
+	widget.containers = make([]types.Container, 0)
 
 	return widget
+}
+
+func (widget *ContainerWidget) GetContainer() *types.Container {
+	return &widget.container
 }
 
 func (widget *ContainerWidget) SetContainers(containers []types.Container) {
@@ -60,26 +66,22 @@ func (widget *ContainerWidget) SetContainerChanged(f func(container types.Contai
 	})
 }
 
-func (widget *ContainerWidget) SetExecuteCommandFunc(
-	executeCommandFunc func(container types.Container),
+func (widget *ContainerWidget) SetOnExecuteCommand(
+	onExecuteCommand func(container types.Container),
 ) {
-	widget.executeCommandFunc = executeCommandFunc
+	widget.onExecuteCommand = onExecuteCommand
 }
 
-func (widget *ContainerWidget) SetTailLogsFunc(tailLogsFunc func(container types.Container)) {
-	widget.tailLogsFunc = tailLogsFunc
+func (widget *ContainerWidget) SetOnTailLogs(onTailLogs func(container types.Container)) {
+	widget.onTailLogs = onTailLogs
 }
 
-func (widget *ContainerWidget) GetContainer() *types.Container {
-	return &widget.container
+func (widget *ContainerWidget) SetOnReload(onReload func()) {
+	widget.onReload = onReload
 }
 
 func (widget *ContainerWidget) ClearContainers() {
 	widget.containers = make([]types.Container, 0)
 	widget.container = types.Container{}
 	widget.Clear()
-}
-
-func (widget *ContainerWidget) SetOnReload(onReload func()) {
-	widget.onReload = onReload
 }
