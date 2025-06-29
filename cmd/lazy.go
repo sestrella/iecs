@@ -33,8 +33,6 @@ type Lazy struct {
 	logsWidget       *ui.LogsWidget
 	main             *ui.PagesWidget
 
-	cluster          *ecsTypes.Cluster
-	clusters         []ecsTypes.Cluster
 	service          *ecsTypes.Service
 	task             *ecsTypes.Task
 	container        *ecsTypes.Container
@@ -58,7 +56,7 @@ func (lazy *Lazy) handleClusterSelection(ctx context.Context, cluster ecsTypes.C
 		if err != nil {
 			return err
 		}
-		lazy.servicesByTask[*lazy.cluster.ClusterArn] = services
+		lazy.servicesByTask[*cluster.ClusterArn] = services
 	}
 	lazy.servicesWidget.SetServices(services)
 	return nil
@@ -69,10 +67,11 @@ func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.S
 	tasks, ok := lazy.tasksByService[*service.ServiceArn]
 	if !ok {
 		lazy.logsWidget.Log("Fetching tasks for service %s", *service.ServiceArn)
+		cluster := lazy.clustersWidget.GetCluster()
 		listedTasks, err := lazy.ecs.ListTasks(
 			ctx,
 			&ecs.ListTasksInput{
-				Cluster:     lazy.cluster.ClusterArn,
+				Cluster:     cluster.ClusterArn,
 				ServiceName: service.ServiceName,
 			},
 		)
@@ -82,7 +81,7 @@ func (lazy *Lazy) handleServiceSelection(ctx context.Context, service ecsTypes.S
 		describedTasks, err := lazy.ecs.DescribeTasks(
 			ctx,
 			&ecs.DescribeTasksInput{
-				Cluster: lazy.cluster.ClusterArn,
+				Cluster: cluster.ClusterArn,
 				Tasks:   listedTasks.TaskArns,
 			},
 		)
@@ -207,7 +206,6 @@ var lazyCmd = &cobra.Command{
 
 		lazy.clustersWidget.SetClusterChanged(
 			func(cluster ecsTypes.Cluster) {
-				lazy.cluster = &cluster
 				err := lazy.handleClusterSelection(context.TODO(), cluster)
 				if err != nil {
 					lazy.logsWidget.Log("TODO %s: %v", *cluster.ClusterArn, err)
@@ -328,7 +326,6 @@ func (lazy *Lazy) loadClusters(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	lazy.clusters = clusters
 	lazy.app.QueueUpdateDraw(func() {
 		lazy.clustersWidget.SetClusters(clusters)
 		lazy.app.SetFocus(lazy.clustersWidget)
