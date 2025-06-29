@@ -186,6 +186,11 @@ var lazyCmd = &cobra.Command{
 
 			logsWidget.Log("Reloading services for cluster %s", *cluster.ClusterName)
 			go func() {
+				lazy.app.QueueUpdateDraw(func() {
+					lazy.servicesWidget.ClearServices()
+					lazy.tasksWidget.ClearTasks()
+					lazy.containersWidget.ClearContainers()
+				})
 				services, err := lazy.client.DescribeServices(context.TODO(), *cluster.ClusterArn)
 				if err != nil {
 					lazy.app.QueueUpdateDraw(func() {
@@ -194,10 +199,6 @@ var lazyCmd = &cobra.Command{
 					return
 				}
 				lazy.app.QueueUpdateDraw(func() {
-					// Clear dependent widgets
-					lazy.tasksWidget.ClearTasks()
-					lazy.containersWidget.ClearContainers()
-
 					// Clear cached data for this cluster
 					lazy.servicesByTask[*cluster.ClusterArn] = services
 					lazy.tasksByService = make(map[string][]ecsTypes.Task)
@@ -224,6 +225,10 @@ var lazyCmd = &cobra.Command{
 
 			logsWidget.Log("Reloading tasks for service %s", *service.ServiceName)
 			go func() {
+				lazy.app.QueueUpdateDraw(func() {
+					lazy.tasksWidget.ClearTasks()
+					lazy.containersWidget.ClearContainers()
+				})
 				listedTasks, err := lazy.ecs.ListTasks(
 					context.TODO(),
 					&ecs.ListTasksInput{
@@ -253,9 +258,6 @@ var lazyCmd = &cobra.Command{
 				}
 
 				lazy.app.QueueUpdateDraw(func() {
-					// Clear dependent widgets
-					lazy.containersWidget.ClearContainers()
-
 					// Update cached data
 					lazy.tasksByService[*service.ServiceArn] = describedTasks.Tasks
 
@@ -275,6 +277,7 @@ var lazyCmd = &cobra.Command{
 
 			logsWidget.Log("Reloading containers for task")
 			lazy.app.QueueUpdateDraw(func() {
+				lazy.containersWidget.ClearContainers()
 				lazy.containersWidget.SetContainers(task.Containers)
 				logsWidget.Log("Containers reloaded successfully")
 			})
