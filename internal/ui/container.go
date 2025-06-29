@@ -69,3 +69,9 @@ func (widget *ContainerWidget) SetTailLogsFunc(tailLogsFunc func(container types
 func (widget *ContainerWidget) GetContainer() *types.Container {
 	return &widget.container
 }
+
+func (widget *ContainerWidget) ClearContainers() {
+	widget.containers = make([]types.Container, 0)
+	widget.container = types.Container{}
+	widget.Clear()
+}

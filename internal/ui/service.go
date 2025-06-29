@@ -45,3 +45,9 @@ func (widget *ServiceWidget) SetServiceChanged(f func(service types.Service)) {
 func (widget *ServiceWidget) GetService() *types.Service {
 	return widget.service
 }
+
+func (widget *ServiceWidget) ClearServices() {
+	widget.services = make([]types.Service, 0)
+	widget.service = nil
+	widget.Clear()
+}

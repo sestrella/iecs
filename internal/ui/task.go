@@ -40,3 +40,9 @@ func (widget *TaskWidget) SetTaskChanged(f func(task types.Task)) {
 func (widget *TaskWidget) GetTask() *types.Task {
 	return widget.task
 }
+
+func (widget *TaskWidget) ClearTasks() {
+	widget.tasks = make([]types.Task, 0)
+	widget.task = nil
+	widget.Clear()
+}
