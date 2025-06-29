@@ -8,6 +8,7 @@ import (
 type ServiceWidget struct {
 	*tview.List
 	services []types.Service
+	service  *types.Service
 }
 
 func NewServiceWidget(title string) *ServiceWidget {
@@ -36,6 +37,11 @@ func (widget *ServiceWidget) SetServices(services []types.Service) {
 
 func (widget *ServiceWidget) SetServiceChanged(f func(service types.Service)) {
 	widget.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
+		widget.service = &widget.services[index]
 		f(widget.services[index])
 	})
+}
+
+func (widget *ServiceWidget) GetService() *types.Service {
+	return widget.service
 }

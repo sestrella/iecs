@@ -33,9 +33,6 @@ type Lazy struct {
 	logsWidget       *ui.LogsWidget
 	main             *ui.PagesWidget
 
-	service          *ecsTypes.Service
-	task             *ecsTypes.Task
-	container        *ecsTypes.Container
 	expandMainWidget bool
 
 	servicesByTask map[string][]ecsTypes.Service
@@ -215,7 +212,6 @@ var lazyCmd = &cobra.Command{
 
 		lazy.servicesWidget.SetServiceChanged(
 			func(service ecsTypes.Service) {
-				lazy.service = &service
 				err := lazy.handleServiceSelection(context.TODO(), service)
 				if err != nil {
 					lazy.logsWidget.Log("TODO %s: %v", *service.ServiceArn, err)
@@ -223,7 +219,7 @@ var lazyCmd = &cobra.Command{
 			},
 		)
 		lazy.servicesWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			selectedService := *lazy.service
+			selectedService := *lazy.servicesWidget.GetService()
 			switch event.Rune() {
 			case 'd':
 				lazy.logsWidget.Log("Describing service %s", *selectedService.ServiceArn)
@@ -262,16 +258,15 @@ var lazyCmd = &cobra.Command{
 
 		lazy.tasksWidget.SetTaskChanged(
 			func(task ecsTypes.Task) {
-				lazy.task = &task
 				lazy.logsWidget.Log("Task %s selected", *task.TaskArn)
 				lazy.containersWidget.SetContainers(task.Containers)
 			},
 		)
 		lazy.tasksWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			if event.Rune() == 'l' {
-				lazy.logsWidget.Log("Tailing logs for task %s", *lazy.task.TaskArn)
+				currentTask := *lazy.tasksWidget.GetTask()
+				lazy.logsWidget.Log("Tailing logs for task %s", *currentTask.TaskArn)
 				go func() {
-					currentTask := *lazy.task
 					err := lazy.tailTaskLogs(context.TODO(), currentTask)
 					if err != nil {
 						lazy.logsWidget.Log(
@@ -288,13 +283,13 @@ var lazyCmd = &cobra.Command{
 
 		lazy.containersWidget.SetContainerChanged(
 			func(container ecsTypes.Container) {
-				lazy.container = &container
+				// Container is now stored in the widget
 			},
 		)
 		lazy.containersWidget.SetTailLogsFunc(func(container ecsTypes.Container) {
 			lazy.logsWidget.Log("Tailing logs for container %s", *container.ContainerArn)
 			go func() {
-				err := lazy.tailContainerLogs(context.TODO(), *lazy.task, container)
+				err := lazy.tailContainerLogs(context.TODO(), *lazy.tasksWidget.GetTask(), container)
 				if err != nil {
 					lazy.logsWidget.Log(
 						"Error tailing logs for container %s: %v",

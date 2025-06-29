@@ -8,6 +8,7 @@ import (
 type TaskWidget struct {
 	*tview.List
 	tasks []types.Task
+	task  *types.Task
 }
 
 func NewTaskWidget(title string) *TaskWidget {
@@ -31,6 +32,11 @@ func (widget *TaskWidget) SetTasks(tasks []types.Task) {
 
 func (widget *TaskWidget) SetTaskChanged(f func(task types.Task)) {
 	widget.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
+		widget.task = &widget.tasks[index]
 		f(widget.tasks[index])
 	})
+}
+
+func (widget *TaskWidget) GetTask() *types.Task {
+	return widget.task
 }

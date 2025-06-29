@@ -63,3 +63,7 @@ func (widget *ContainerWidget) SetExecuteCommandFunc(f func(container types.Cont
 func (widget *ContainerWidget) SetTailLogsFunc(f func(container types.Container)) {
 	widget.tailLogsFunc = f
 }
+
+func (widget *ContainerWidget) GetContainer() *types.Container {
+	return &widget.container
+}
