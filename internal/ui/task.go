@@ -2,24 +2,35 @@ package ui
 
 import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 type TaskWidget struct {
 	*tview.List
-	tasks []types.Task
-	task  *types.Task
+	tasks      []types.Task
+	task       *types.Task
+	reloadFunc func()
 }
 
 func NewTaskWidget(title string) *TaskWidget {
+	widget := &TaskWidget{}
+
 	list := tview.NewList()
 	list.SetTitle(title)
 	list.SetBorder(true)
+	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Rune() == 'r' {
+			widget.reloadFunc()
+			return nil
+		}
+		return event
+	})
 
-	return &TaskWidget{
-		List:  list,
-		tasks: make([]types.Task, 0),
-	}
+	widget.List = list
+	widget.tasks = make([]types.Task, 0)
+
+	return widget
 }
 
 func (widget *TaskWidget) SetTasks(tasks []types.Task) {
@@ -45,4 +56,8 @@ func (widget *TaskWidget) ClearTasks() {
 	widget.tasks = make([]types.Task, 0)
 	widget.task = nil
 	widget.Clear()
+}
+
+func (widget *TaskWidget) SetReloadFunc(reloadFunc func()) {
+	widget.reloadFunc = reloadFunc
 }

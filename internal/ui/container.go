@@ -12,6 +12,7 @@ type ContainerWidget struct {
 	container          types.Container
 	executeCommandFunc func(types.Container)
 	tailLogsFunc       func(types.Container)
+	reloadFunc         func()
 }
 
 func NewContainerWidget(title string) *ContainerWidget {
@@ -27,6 +28,9 @@ func NewContainerWidget(title string) *ContainerWidget {
 			return nil
 		case 'l':
 			widget.tailLogsFunc(widget.container)
+			return nil
+		case 'r':
+			widget.reloadFunc()
 			return nil
 		}
 		return event
@@ -74,4 +78,8 @@ func (widget *ContainerWidget) ClearContainers() {
 	widget.containers = make([]types.Container, 0)
 	widget.container = types.Container{}
 	widget.Clear()
+}
+
+func (widget *ContainerWidget) SetReloadFunc(reloadFunc func()) {
+	widget.reloadFunc = reloadFunc
 }

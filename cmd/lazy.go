@@ -177,6 +177,109 @@ var lazyCmd = &cobra.Command{
 			}()
 		})
 
+		servicesWidget.SetReloadFunc(func() {
+			cluster := lazy.clustersWidget.GetCluster()
+			if cluster == nil {
+				logsWidget.Log("No cluster selected for service reload")
+				return
+			}
+
+			logsWidget.Log("Reloading services for cluster %s", *cluster.ClusterName)
+			go func() {
+				services, err := lazy.client.DescribeServices(context.TODO(), *cluster.ClusterArn)
+				if err != nil {
+					lazy.app.QueueUpdateDraw(func() {
+						logsWidget.Log("Error reloading services: %v", err)
+					})
+					return
+				}
+				lazy.app.QueueUpdateDraw(func() {
+					// Clear dependent widgets
+					lazy.tasksWidget.ClearTasks()
+					lazy.containersWidget.ClearContainers()
+
+					// Clear cached data for this cluster
+					lazy.servicesByTask[*cluster.ClusterArn] = services
+					lazy.tasksByService = make(map[string][]ecsTypes.Task)
+
+					// Update services
+					lazy.servicesWidget.SetServices(services)
+					logsWidget.Log("Services reloaded successfully")
+				})
+			}()
+		})
+
+		tasksWidget.SetReloadFunc(func() {
+			service := lazy.servicesWidget.GetService()
+			if service == nil {
+				logsWidget.Log("No service selected for task reload")
+				return
+			}
+
+			cluster := lazy.clustersWidget.GetCluster()
+			if cluster == nil {
+				logsWidget.Log("No cluster selected for task reload")
+				return
+			}
+
+			logsWidget.Log("Reloading tasks for service %s", *service.ServiceName)
+			go func() {
+				listedTasks, err := lazy.ecs.ListTasks(
+					context.TODO(),
+					&ecs.ListTasksInput{
+						Cluster:     cluster.ClusterArn,
+						ServiceName: service.ServiceName,
+					},
+				)
+				if err != nil {
+					lazy.app.QueueUpdateDraw(func() {
+						logsWidget.Log("Error listing tasks: %v", err)
+					})
+					return
+				}
+
+				describedTasks, err := lazy.ecs.DescribeTasks(
+					context.TODO(),
+					&ecs.DescribeTasksInput{
+						Cluster: cluster.ClusterArn,
+						Tasks:   listedTasks.TaskArns,
+					},
+				)
+				if err != nil {
+					lazy.app.QueueUpdateDraw(func() {
+						logsWidget.Log("Error describing tasks: %v", err)
+					})
+					return
+				}
+
+				lazy.app.QueueUpdateDraw(func() {
+					// Clear dependent widgets
+					lazy.containersWidget.ClearContainers()
+
+					// Update cached data
+					lazy.tasksByService[*service.ServiceArn] = describedTasks.Tasks
+
+					// Update tasks
+					lazy.tasksWidget.SetTasks(describedTasks.Tasks)
+					logsWidget.Log("Tasks reloaded successfully")
+				})
+			}()
+		})
+
+		containersWidget.SetReloadFunc(func() {
+			task := lazy.tasksWidget.GetTask()
+			if task == nil {
+				logsWidget.Log("No task selected for container reload")
+				return
+			}
+
+			logsWidget.Log("Reloading containers for task")
+			lazy.app.QueueUpdateDraw(func() {
+				lazy.containersWidget.SetContainers(task.Containers)
+				logsWidget.Log("Containers reloaded successfully")
+			})
+		})
+
 		containersWidget.SetExecuteCommandFunc(func(container ecsTypes.Container) {
 			logsWidget.Log("Executing command on container: %s", *container.ContainerArn)
 		})

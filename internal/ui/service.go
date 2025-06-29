@@ -2,24 +2,35 @@ package ui
 
 import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 type ServiceWidget struct {
 	*tview.List
-	services []types.Service
-	service  *types.Service
+	services   []types.Service
+	service    *types.Service
+	reloadFunc func()
 }
 
 func NewServiceWidget(title string) *ServiceWidget {
+	widget := &ServiceWidget{}
+
 	list := tview.NewList()
 	list.SetTitle(title)
 	list.SetBorder(true)
+	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Rune() == 'r' {
+			widget.reloadFunc()
+			return nil
+		}
+		return event
+	})
 
-	return &ServiceWidget{
-		List:     list,
-		services: make([]types.Service, 0),
-	}
+	widget.List = list
+	widget.services = make([]types.Service, 0)
+
+	return widget
 }
 
 func (widget *ServiceWidget) SetServices(services []types.Service) {
@@ -50,4 +61,8 @@ func (widget *ServiceWidget) ClearServices() {
 	widget.services = make([]types.Service, 0)
 	widget.service = nil
 	widget.Clear()
+}
+
+func (widget *ServiceWidget) SetReloadFunc(reloadFunc func()) {
+	widget.reloadFunc = reloadFunc
 }
