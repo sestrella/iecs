@@ -152,13 +152,6 @@ var lazyCmd = &cobra.Command{
 		clustersWidget.SetReloadFunc(func() {
 			logsWidget.Log("Reloading clusters")
 			go func() {
-				clusters, err := lazy.client.DescribeClusters(context.TODO())
-				if err != nil {
-					lazy.app.QueueUpdateDraw(func() {
-						logsWidget.Log("Error reloading clusters: %v", err)
-					})
-					return
-				}
 				lazy.app.QueueUpdateDraw(func() {
 					// Clear dependent widgets
 					lazy.servicesWidget.ClearServices()
@@ -168,7 +161,15 @@ var lazyCmd = &cobra.Command{
 					// Clear cached data
 					lazy.servicesByTask = make(map[string][]ecsTypes.Service)
 					lazy.tasksByService = make(map[string][]ecsTypes.Task)
-
+				})
+				clusters, err := lazy.client.DescribeClusters(context.TODO())
+				if err != nil {
+					lazy.app.QueueUpdateDraw(func() {
+						logsWidget.Log("Error reloading clusters: %v", err)
+					})
+					return
+				}
+				lazy.app.QueueUpdateDraw(func() {
 					// Update clusters
 					lazy.clustersWidget.SetClusters(clusters)
 					logsWidget.Log("Clusters reloaded successfully")
