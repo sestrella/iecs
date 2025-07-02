@@ -2,8 +2,14 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"os"
+	"os/exec"
+	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -11,6 +17,7 @@ import (
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
 
 // EventHandler is a function that handles log events.
@@ -20,6 +27,13 @@ type EventHandler func(timestamp time.Time, message string)
 type Client interface {
 	DescribeClusters(ctx context.Context) ([]ecsTypes.Cluster, error)
 	DescribeServices(ctx context.Context, clusterArn string) ([]ecsTypes.Service, error)
+	ExecuteCommand2(
+		ctx context.Context,
+		cluster *ecsTypes.Cluster,
+		task *ecsTypes.Task,
+		container *ecsTypes.Container,
+		command string,
+	) error
 
 	// CloudWatch Logs operations
 	StartLiveTail(
@@ -42,6 +56,7 @@ type Client interface {
 
 // awsClient implements the combined Client interface
 type awsClient struct {
+	cfg        aws.Config
 	ecsClient  *ecs.Client
 	logsClient *logs.Client
 }
@@ -51,6 +66,7 @@ func NewClient(cfg aws.Config) Client {
 	ecsClient := ecs.NewFromConfig(cfg)
 	logsClient := logs.NewFromConfig(cfg)
 	return &awsClient{
+		cfg:        cfg,
 		ecsClient:  ecsClient,
 		logsClient: logsClient,
 	}
@@ -193,5 +209,85 @@ func (c *awsClient) StartLiveTail(
 			}
 		}
 	}
+	return nil
+}
+
+func (c *awsClient) ExecuteCommand2(
+	ctx context.Context,
+	cluster *ecsTypes.Cluster,
+	task *ecsTypes.Task,
+	container *ecsTypes.Container,
+	command string,
+) error {
+	executeCommand, err := c.ecsClient.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
+		Cluster:     cluster.ClusterArn,
+		Task:        task.TaskArn,
+		Container:   container.Name,
+		Command:     &command,
+		Interactive: true,
+	})
+	if err != nil {
+		return err
+	}
+
+	session, err := json.Marshal(executeCommand.Session)
+	if err != nil {
+		return err
+	}
+
+	taskArnSlices := strings.Split(*task.TaskArn, "/")
+	if len(taskArnSlices) < 2 {
+		// TODO: review error message
+		return fmt.Errorf("unable to extract task name from '%s'", *task.TaskArn)
+	}
+
+	taskName := strings.Join(taskArnSlices[1:], "/")
+	target := fmt.Sprintf(
+		"ecs:%s_%s_%s",
+		*cluster.ClusterName,
+		taskName,
+		*container.RuntimeId,
+	)
+	startSession, err := json.Marshal(ssm.StartSessionInput{
+		Target: &target,
+	})
+	if err != nil {
+		return err
+	}
+
+	region := c.cfg.Region
+	cmd := exec.Command(
+		"session-manager-plugin",
+		string(session),
+		region,
+		"StartSession",
+		"",
+		string(startSession),
+		fmt.Sprintf("https://ssm.%s.amazonaws.com", region),
+	)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	stop := make(chan os.Signal, 1)
+	defer signal.Stop(stop)
+
+	go func() {
+		signal.Notify(stop, os.Interrupt)
+		<-stop
+
+		if err := cmd.Process.Kill(); err != nil {
+			// gui.Log.Error(err)
+		}
+	}()
+
+	if err := cmd.Run(); err != nil {
+		// gui.Log.Error(err)
+	}
+
+	cmd.Stdin = nil
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+
 	return nil
 }
