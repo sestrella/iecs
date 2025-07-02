@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -285,6 +289,33 @@ var lazyCmd = &cobra.Command{
 
 		containersWidget.SetOnExecuteCommand(func(container ecsTypes.Container) {
 			logsWidget.Log("Executing command on container: %s", *container.ContainerArn)
+			app.Suspend(func() {
+				cmd := exec.Command("bash")
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				cmd.Stdin = os.Stdin
+
+				stop := make(chan os.Signal, 1)
+				defer signal.Stop(stop)
+
+				go func() {
+					signal.Notify(stop, os.Interrupt)
+					<-stop
+
+					if err := cmd.Process.Kill(); err != nil {
+						// panic(err)
+					}
+				}()
+
+				if err := cmd.Run(); err != nil {
+					// panic(err)
+				}
+
+				cmd.Stdin = nil
+				cmd.Stdout = io.Discard
+				cmd.Stderr = io.Discard
+
+			})
 		})
 
 		lazy.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
