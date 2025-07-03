@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
@@ -21,10 +22,10 @@ type Selectors interface {
 	Service(ctx context.Context, cluster *types.Cluster) (*types.Service, error)
 	Task(ctx context.Context, service *types.Service) (*types.Task, error)
 	Container(ctx context.Context, task *types.Task) (*types.Container, error)
-	ContainerDefinition(
+	ContainerDefinitions(
 		ctx context.Context,
-		service *types.Service,
-	) (*types.ContainerDefinition, error)
+		taskDefinitionArn string,
+	) ([]types.ContainerDefinition, error)
 }
 
 type ClientSelectors struct {
@@ -216,51 +217,55 @@ func (cs ClientSelectors) Container(
 	return nil, fmt.Errorf("container not found: %s", containerName)
 }
 
-func (cs ClientSelectors) ContainerDefinition(
+func (cs ClientSelectors) ContainerDefinitions(
 	ctx context.Context,
-	service *types.Service,
-) (*types.ContainerDefinition, error) {
+	taskDefinitionArn string,
+) ([]types.ContainerDefinition, error) {
 	describeTaskDefinitionOutput, err := cs.client.DescribeTaskDefinition(
 		ctx,
 		&ecs.DescribeTaskDefinitionInput{
-			TaskDefinition: service.TaskDefinition,
+			TaskDefinition: &taskDefinitionArn,
 		},
 	)
 	if err != nil {
 		return nil, err
 	}
+
 	taskDefinition := describeTaskDefinitionOutput.TaskDefinition
-	var containerDefinitionNames []string
+
+	var containerNames []string
 	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
-		containerDefinitionNames = append(containerDefinitionNames, *containerDefinition.Name)
+		containerNames = append(containerNames, *containerDefinition.Name)
 	}
-	var containerDefinitionName string
-	if len(containerDefinitionNames) == 1 {
-		log.Printf("Pre-select the only available container definition")
-		containerDefinitionName = containerDefinitionNames[0]
-	} else {
-		form := huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Title("Select container definition").
-					Options(huh.NewOptions(containerDefinitionNames...)...).
-					Value(&containerDefinitionName).
-					WithHeight(5),
-			),
-		)
-		if err = form.Run(); err != nil {
-			return nil, err
+
+	var selectedContainerNames []string
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title("Select container definition").
+				Options(huh.NewOptions(containerNames...)...).
+				Value(&selectedContainerNames).
+				Validate(func(s []string) error {
+					if len(s) > 0 {
+						return nil
+					}
+					return fmt.Errorf("no container(s) selected")
+				}),
+		),
+	)
+	if err = form.Run(); err != nil {
+		return nil, err
+	}
+
+	var selectedContainers []types.ContainerDefinition
+	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
+		if slices.Contains(selectedContainerNames, *containerDefinition.Name) {
+			selectedContainers = append(selectedContainers, containerDefinition)
 		}
 	}
-	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
-		if *containerDefinition.Name == containerDefinitionName {
-			fmt.Printf(
-				"%s %s\n",
-				titleStyle.Render("Container definition:"),
-				*containerDefinition.Name,
-			)
-			return &containerDefinition, nil
-		}
+	if len(selectedContainers) > 0 {
+		return selectedContainers, nil
 	}
-	return nil, fmt.Errorf("container definition not found: %s", containerDefinitionName)
+
+	return nil, fmt.Errorf("no containers selected")
 }

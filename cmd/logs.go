@@ -3,20 +3,33 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/fatih/color"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
 
-type SelectedContainerDefinition struct {
-	Cluster             *types.Cluster
-	Service             *types.Service
-	ContainerDefinition *types.ContainerDefinition
+type LogsSelection struct {
+	cluster    *types.Cluster
+	service    *types.Service
+	tasks      []types.Task
+	containers []types.ContainerDefinition
+}
+
+type LogOptions struct {
+	containerName string
+	group         string
+	streamPrefix  string
+	log           func(format string, args ...any)
 }
 
 var logsCmd = &cobra.Command{
@@ -31,12 +44,21 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		client := client.NewClient(cfg)
+
 		ecsClient := ecs.NewFromConfig(cfg)
-		err = runLogs(context.TODO(), client, selector.NewSelectors(ecsClient))
+		logsClient := cloudwatchlogs.NewFromConfig(cfg)
+		client := client.NewClient(cfg)
+		err = runLogs(
+			context.TODO(),
+			ecsClient,
+			logsClient,
+			client,
+			selector.NewSelectors(ecsClient),
+		)
 		if err != nil {
 			return err
 		}
+
 		return nil
 	},
 	Aliases: []string{"tail"},
@@ -44,65 +66,112 @@ var logsCmd = &cobra.Command{
 
 func runLogs(
 	ctx context.Context,
+	ecsClient *ecs.Client,
+	logsClient *cloudwatchlogs.Client,
 	client client.Client,
 	selectors selector.Selectors,
 ) error {
-	selection, err := containerDefinitionSelector(ctx, selectors)
+	selection, err := containerDefinitionSelector(ctx, ecsClient, selectors)
 	if err != nil {
 		return err
 	}
 
-	if selection.ContainerDefinition.LogConfiguration == nil {
-		return fmt.Errorf(
-			"no log configuration found for container: %s",
-			*selection.ContainerDefinition.Name,
-		)
+	var allLogOptions []LogOptions
+	for index, container := range selection.containers {
+		options := container.LogConfiguration.Options
+		// TODO: check if options exist
+		allLogOptions = append(allLogOptions, LogOptions{
+			containerName: *container.Name,
+			group:         options["awslogs-group"],
+			streamPrefix:  options["awslogs-stream-prefix"],
+			log:           logByIndex(index),
+		})
 	}
 
-	logOptions := selection.ContainerDefinition.LogConfiguration.Options
-	if len(logOptions) == 0 {
-		return fmt.Errorf(
-			"missing log options for container: %s",
-			*selection.ContainerDefinition.Name,
-		)
-	}
+	var wg sync.WaitGroup
+	for _, task := range selection.tasks {
+		taskArnSlices := strings.Split(*task.TaskArn, "/")
+		taskId := taskArnSlices[len(taskArnSlices)-1]
 
-	awslogsGroup, ok := logOptions["awslogs-group"]
-	if !ok {
-		return fmt.Errorf(
-			"missing awslogs-group option for container: %s",
-			*selection.ContainerDefinition.Name,
-		)
-	}
+		for _, logOptions := range allLogOptions {
+			streamName := fmt.Sprintf(
+				"%s/%s/%s",
+				logOptions.streamPrefix,
+				logOptions.containerName,
+				taskId,
+			)
+			wg.Add(1)
 
-	streamPrefix, ok := logOptions["awslogs-stream-prefix"]
-	if !ok {
-		return fmt.Errorf(
-			"missing awslogs-stream-prefix option for container: %s",
-			*selection.ContainerDefinition.Name,
-		)
-	}
+			go func() {
+				defer wg.Done()
+				logGroups, err := logsClient.DescribeLogGroups(
+					ctx,
+					&cloudwatchlogs.DescribeLogGroupsInput{
+						LogGroupNamePrefix: &logOptions.group,
+					},
+				)
+				// TODO check log groups size
 
-	// Use our logs client to start the live tail
-	err = client.StartLiveTail(
-		ctx,
-		awslogsGroup,
-		streamPrefix,
-		func(timestamp time.Time, message string) {
-			fmt.Printf("%v %s\n", timestamp, message)
-		},
-	)
-	if err != nil {
-		return err
+				startLiveTail, err := logsClient.StartLiveTail(
+					ctx,
+					&cloudwatchlogs.StartLiveTailInput{
+						LogGroupIdentifiers: []string{*logGroups.LogGroups[0].LogGroupArn},
+						LogStreamNames:      []string{streamName},
+					},
+				)
+				if err != nil {
+					panic(err)
+				}
+
+				stream := startLiveTail.GetStream()
+				defer stream.Close()
+
+				events := stream.Events()
+				for {
+					event := <-events
+					switch e := event.(type) {
+					case *logsTypes.StartLiveTailResponseStreamMemberSessionStart:
+						fmt.Println("Received SessionStart event")
+					case *logsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
+						for _, result := range e.Value.SessionResults {
+							timestamp := time.UnixMilli(*result.Timestamp)
+							logOptions.log("%s | %s | %s | %s\n", taskId, logOptions.containerName, timestamp, *result.Message)
+						}
+					default:
+						if err := stream.Err(); err != nil {
+							fmt.Printf("Error occured during streaming: %v", err)
+						} else if event == nil {
+							fmt.Println("Stream is Closed")
+							return
+						} else {
+							fmt.Printf("Unknown event type: %T", e)
+						}
+					}
+				}
+			}()
+		}
 	}
+	wg.Wait()
 
 	return nil
 }
 
+func logByIndex(index int) func(string, ...any) {
+	switch index % 3 {
+	case 0:
+		return color.Cyan
+	case 1:
+		return color.Blue
+	default:
+		return color.Magenta
+	}
+}
+
 func containerDefinitionSelector(
 	ctx context.Context,
+	ecsClient *ecs.Client,
 	selectors selector.Selectors,
-) (*SelectedContainerDefinition, error) {
+) (*LogsSelection, error) {
 	cluster, err := selectors.Cluster(ctx)
 	if err != nil {
 		return nil, err
@@ -113,15 +182,29 @@ func containerDefinitionSelector(
 		return nil, err
 	}
 
-	containerDefinition, err := selectors.ContainerDefinition(ctx, service)
+	listTasks, err := ecsClient.ListTasks(ctx, &ecs.ListTasksInput{
+		Cluster:     cluster.ClusterArn,
+		ServiceName: service.ServiceName,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	return &SelectedContainerDefinition{
-		Cluster:             cluster,
-		Service:             service,
-		ContainerDefinition: containerDefinition,
+	describeTasks, err := ecsClient.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+		Cluster: cluster.ClusterArn,
+		Tasks:   listTasks.TaskArns,
+	})
+
+	containers, err := selectors.ContainerDefinitions(ctx, *service.TaskDefinition)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LogsSelection{
+		cluster:    cluster,
+		service:    service,
+		tasks:      describeTasks.Tasks,
+		containers: containers,
 	}, nil
 }
 
