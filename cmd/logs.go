@@ -12,7 +12,6 @@ import (
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
-	"github.com/fatih/color"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
@@ -29,7 +28,6 @@ type LogOptions struct {
 	containerName string
 	group         string
 	streamPrefix  string
-	log           func(format string, args ...any)
 }
 
 var logsCmd = &cobra.Command{
@@ -77,14 +75,13 @@ func runLogs(
 	}
 
 	var allLogOptions []LogOptions
-	for index, container := range selection.containers {
+	for _, container := range selection.containers {
 		options := container.LogConfiguration.Options
 		// TODO: check if options exist
 		allLogOptions = append(allLogOptions, LogOptions{
 			containerName: *container.Name,
 			group:         options["awslogs-group"],
 			streamPrefix:  options["awslogs-stream-prefix"],
-			log:           logByIndex(index),
 		})
 	}
 
@@ -135,7 +132,7 @@ func runLogs(
 					case *logsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
 						for _, result := range e.Value.SessionResults {
 							timestamp := time.UnixMilli(*result.Timestamp)
-							logOptions.log("%s | %s | %s | %s\n", taskId, logOptions.containerName, timestamp, *result.Message)
+							fmt.Printf("%s | %s | %s | %s\n", taskId, logOptions.containerName, timestamp, *result.Message)
 						}
 					default:
 						if err := stream.Err(); err != nil {
@@ -154,17 +151,6 @@ func runLogs(
 	wg.Wait()
 
 	return nil
-}
-
-func logByIndex(index int) func(string, ...any) {
-	switch index % 3 {
-	case 0:
-		return color.Cyan
-	case 1:
-		return color.Blue
-	default:
-		return color.Magenta
-	}
 }
 
 func containerDefinitionSelector(
