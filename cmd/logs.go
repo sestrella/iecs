@@ -67,7 +67,7 @@ func runLogs(
 	ctx context.Context,
 	ecsClient *ecs.Client,
 	logsClient *cloudwatchlogs.Client,
-	foo client.Client,
+	clients client.Client,
 	selectors selector.Selectors,
 ) error {
 	selection, err := containerDefinitionSelector(ctx, ecsClient, selectors)
@@ -103,7 +103,8 @@ func runLogs(
 			go func() {
 				defer wg.Done()
 
-				foo.StartLiveTail(ctx, logOptions.group, streamName, client.LiveTailHandlers{
+				// TODO: rename clients
+				clients.StartLiveTail(ctx, logOptions.group, streamName, client.LiveTailHandlers{
 					Start: func() {
 						log.Printf(
 							"Starting live trail for container '%s' running at task '%s'\n",
@@ -113,13 +114,22 @@ func runLogs(
 					},
 					Update: func(event logsTypes.LiveTailSessionLogEvent) {
 						timestamp := time.UnixMilli(*event.Timestamp)
-						log.Printf(
-							"%s | %s | %s | %s\n",
-							taskId,
-							logOptions.containerName,
-							timestamp,
-							*event.Message,
-						)
+						if len(selection.tasks) > 1 {
+							fmt.Printf(
+								"%s | %s | %s | %s\n",
+								taskId,
+								logOptions.containerName,
+								timestamp,
+								*event.Message,
+							)
+						} else {
+							fmt.Printf(
+								"%s | %s | %s\n",
+								logOptions.containerName,
+								timestamp,
+								*event.Message,
+							)
+						}
 					},
 				})
 			}()

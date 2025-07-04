@@ -242,14 +242,14 @@ func (cs ClientSelectors) ContainerDefinitions(
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
-				Title("Select container definition").
+				Title("Containers").
 				Options(huh.NewOptions(containerNames...)...).
 				Value(&selectedContainerNames).
 				Validate(func(s []string) error {
 					if len(s) > 0 {
 						return nil
 					}
-					return fmt.Errorf("no container(s) selected")
+					return fmt.Errorf("select at least one container")
 				}),
 		),
 	)
