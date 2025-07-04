@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -66,7 +67,7 @@ func runLogs(
 	ctx context.Context,
 	ecsClient *ecs.Client,
 	logsClient *cloudwatchlogs.Client,
-	client client.Client,
+	foo client.Client,
 	selectors selector.Selectors,
 ) error {
 	selection, err := containerDefinitionSelector(ctx, ecsClient, selectors)
@@ -101,50 +102,26 @@ func runLogs(
 
 			go func() {
 				defer wg.Done()
-				logGroups, err := logsClient.DescribeLogGroups(
-					ctx,
-					&cloudwatchlogs.DescribeLogGroupsInput{
-						LogGroupNamePrefix: &logOptions.group,
+
+				foo.StartLiveTail(ctx, logOptions.group, streamName, client.LiveTailHandlers{
+					Start: func() {
+						log.Printf(
+							"Starting live trail for container '%s' running at task '%s'\n",
+							logOptions.containerName,
+							taskId,
+						)
 					},
-				)
-				// TODO check log groups size
-
-				startLiveTail, err := logsClient.StartLiveTail(
-					ctx,
-					&cloudwatchlogs.StartLiveTailInput{
-						LogGroupIdentifiers: []string{*logGroups.LogGroups[0].LogGroupArn},
-						LogStreamNames:      []string{streamName},
+					Update: func(event logsTypes.LiveTailSessionLogEvent) {
+						timestamp := time.UnixMilli(*event.Timestamp)
+						log.Printf(
+							"%s | %s | %s | %s\n",
+							taskId,
+							logOptions.containerName,
+							timestamp,
+							*event.Message,
+						)
 					},
-				)
-				if err != nil {
-					panic(err)
-				}
-
-				stream := startLiveTail.GetStream()
-				defer stream.Close()
-
-				events := stream.Events()
-				for {
-					event := <-events
-					switch e := event.(type) {
-					case *logsTypes.StartLiveTailResponseStreamMemberSessionStart:
-						fmt.Println("Received SessionStart event")
-					case *logsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
-						for _, result := range e.Value.SessionResults {
-							timestamp := time.UnixMilli(*result.Timestamp)
-							fmt.Printf("%s | %s | %s | %s\n", taskId, logOptions.containerName, timestamp, *result.Message)
-						}
-					default:
-						if err := stream.Err(); err != nil {
-							fmt.Printf("Error occured during streaming: %v", err)
-						} else if event == nil {
-							fmt.Println("Stream is Closed")
-							return
-						} else {
-							fmt.Printf("Unknown event type: %T", e)
-						}
-					}
-				}
+				})
 			}()
 		}
 	}
