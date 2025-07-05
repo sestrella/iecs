@@ -70,7 +70,7 @@ func runLogs(
 	clients client.Client,
 	selectors selector.Selectors,
 ) error {
-	selection, err := containerDefinitionSelector(ctx, ecsClient, selectors)
+	selection, err := logsSelector(ctx, selectors)
 	if err != nil {
 		return err
 	}
@@ -140,9 +140,8 @@ func runLogs(
 	return nil
 }
 
-func containerDefinitionSelector(
+func logsSelector(
 	ctx context.Context,
-	ecsClient *ecs.Client,
 	selectors selector.Selectors,
 ) (*LogsSelection, error) {
 	cluster, err := selectors.Cluster(ctx)
@@ -155,18 +154,10 @@ func containerDefinitionSelector(
 		return nil, err
 	}
 
-	listTasks, err := ecsClient.ListTasks(ctx, &ecs.ListTasksInput{
-		Cluster:     cluster.ClusterArn,
-		ServiceName: service.ServiceName,
-	})
+	tasks, err := selectors.Tasks(ctx, service)
 	if err != nil {
 		return nil, err
 	}
-
-	describeTasks, err := ecsClient.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: cluster.ClusterArn,
-		Tasks:   listTasks.TaskArns,
-	})
 
 	containers, err := selectors.ContainerDefinitions(ctx, *service.TaskDefinition)
 	if err != nil {
@@ -176,7 +167,7 @@ func containerDefinitionSelector(
 	return &LogsSelection{
 		cluster:    cluster,
 		service:    service,
-		tasks:      describeTasks.Tasks,
+		tasks:      tasks,
 		containers: containers,
 	}, nil
 }

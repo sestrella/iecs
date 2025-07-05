@@ -21,8 +21,8 @@ type Selectors interface {
 	Cluster(ctx context.Context) (*types.Cluster, error)
 	Service(ctx context.Context, cluster *types.Cluster) (*types.Service, error)
 	Task(ctx context.Context, service *types.Service) (*types.Task, error)
-	Container(ctx context.Context, task *types.Task) (*types.Container, error)
 	Tasks(ctx context.Context, service *types.Service) ([]types.Task, error)
+	Container(ctx context.Context, task *types.Task) (*types.Container, error)
 	ContainerDefinitions(
 		ctx context.Context,
 		taskDefinitionArn string,
@@ -183,6 +183,62 @@ func (cs ClientSelectors) Task(
 	return &task, nil
 }
 
+func (cs ClientSelectors) Tasks(
+	ctx context.Context,
+	service *types.Service,
+) ([]types.Task, error) {
+	listTasksOutput, err := cs.client.ListTasks(ctx, &ecs.ListTasksInput{
+		Cluster:     service.ClusterArn,
+		ServiceName: service.ServiceArn,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	taskArns := listTasksOutput.TaskArns
+	if len(taskArns) == 0 {
+		return nil, fmt.Errorf(
+			"no tasks found for service: %s in cluster: %s",
+			*service.ServiceArn,
+			*service.ClusterArn,
+		)
+	}
+
+	var selectedTaskArns []string
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title("Tasks").
+				Options(huh.NewOptions(taskArns...)...).
+				Value(&selectedTaskArns).
+				Validate(func(s []string) error {
+					if len(s) > 0 {
+						return nil
+					}
+					return fmt.Errorf("select at least one task")
+				}),
+		),
+	)
+	if err = form.Run(); err != nil {
+		return nil, err
+	}
+
+	describeTasksOutput, err := cs.client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+		Cluster: service.ClusterArn,
+		Tasks:   selectedTaskArns,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	tasks := describeTasksOutput.Tasks
+	if len(tasks) == 0 {
+		return nil, fmt.Errorf("no tasks selected")
+	}
+
+	return tasks, nil
+}
+
 func (cs ClientSelectors) Container(
 	ctx context.Context,
 	task *types.Task,
@@ -269,58 +325,4 @@ func (cs ClientSelectors) ContainerDefinitions(
 	}
 
 	return nil, fmt.Errorf("no containers selected")
-}
-
-func (cs ClientSelectors) Tasks(
-	ctx context.Context,
-	service *types.Service,
-) ([]types.Task, error) {
-	listTasksOutput, err := cs.client.ListTasks(ctx, &ecs.ListTasksInput{
-		Cluster:     service.ClusterArn,
-		ServiceName: service.ServiceArn,
-	})
-	if err != nil {
-		return nil, err
-	}
-	taskArns := listTasksOutput.TaskArns
-	if len(taskArns) == 0 {
-		return nil, fmt.Errorf(
-			"no tasks found for service: %s in cluster: %s",
-			*service.ServiceArn,
-			*service.ClusterArn,
-		)
-	}
-
-	var selectedTaskArns []string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewMultiSelect[string]().
-				Title("Tasks").
-				Options(huh.NewOptions(taskArns...)...).
-				Value(&selectedTaskArns).
-				Validate(func(s []string) error {
-					if len(s) > 0 {
-						return nil
-					}
-					return fmt.Errorf("select at least one task")
-				}),
-		),
-	)
-	if err = form.Run(); err != nil {
-		return nil, err
-	}
-
-	describeTasksOutput, err := cs.client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: service.ClusterArn,
-		Tasks:   selectedTaskArns,
-	})
-	if err != nil {
-		return nil, err
-	}
-	tasks := describeTasksOutput.Tasks
-	if len(tasks) == 0 {
-		return nil, fmt.Errorf("no tasks selected")
-	}
-
-	return tasks, nil
 }
