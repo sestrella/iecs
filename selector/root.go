@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"slices"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
@@ -205,25 +206,31 @@ func (cs ClientSelectors) Tasks(
 	}
 
 	var selectedTaskArns []string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewMultiSelect[string]().
-				Title("Tasks").
-				Options(huh.NewOptions(taskArns...)...).
-				Value(&selectedTaskArns).
-				Validate(func(s []string) error {
-					if len(s) > 0 {
-						return nil
-					}
-					return fmt.Errorf("select at least one task")
-				}),
-		),
-	)
-	if err = form.Run(); err != nil {
-		return nil, err
+	if len(taskArns) == 1 {
+		log.Println("Pre-selecting the only task available")
+		selectedTaskArns = append(selectedTaskArns, taskArns[0])
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewMultiSelect[string]().
+					Title("Task(s)").
+					Options(huh.NewOptions(taskArns...)...).
+					Value(&selectedTaskArns).
+					Validate(func(s []string) error {
+						if len(s) > 0 {
+							return nil
+						}
+						return fmt.Errorf("select at least one task")
+					}),
+			),
+		)
+		if err = form.Run(); err != nil {
+			return nil, err
+		}
 	}
 
-	describeTasksOutput, err := cs.client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+	fmt.Printf("%s: %s\n", titleStyle.Render("Task(s)"), strings.Join(selectedTaskArns, ","))
+	describeTasks, err := cs.client.DescribeTasks(ctx, &ecs.DescribeTasksInput{
 		Cluster: service.ClusterArn,
 		Tasks:   selectedTaskArns,
 	})
@@ -231,7 +238,7 @@ func (cs ClientSelectors) Tasks(
 		return nil, err
 	}
 
-	tasks := describeTasksOutput.Tasks
+	tasks := describeTasks.Tasks
 	if len(tasks) == 0 {
 		return nil, fmt.Errorf("no tasks selected")
 	}
