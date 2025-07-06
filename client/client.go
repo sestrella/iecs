@@ -19,6 +19,8 @@ type LiveTailHandlers struct {
 
 // Client interface combines ECS and CloudWatch Logs operations.
 type Client interface {
+	ListClusters(ctx context.Context) ([]string, error)
+
 	// CloudWatch Logs operations
 	StartLiveTail(
 		ctx context.Context,
@@ -55,6 +57,20 @@ func NewClient(cfg aws.Config) Client {
 }
 
 // ECS operations implementation
+
+func (c *awsClient) ListClusters(ctx context.Context) ([]string, error) {
+	listClusters, err := c.ecsClient.ListClusters(ctx, &ecs.ListClustersInput{})
+	if err != nil {
+		return nil, err
+	}
+
+	clusterArns := listClusters.ClusterArns
+	if len(clusterArns) == 0 {
+		return nil, fmt.Errorf("no clusters found")
+	}
+
+	return clusterArns, nil
+}
 
 func (c *awsClient) ExecuteCommand(
 	ctx context.Context,
