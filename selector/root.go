@@ -254,6 +254,7 @@ func (cs ClientSelectors) Container(
 	for _, container := range task.Containers {
 		containerNames = append(containerNames, *container.Name)
 	}
+
 	var containerName string
 	if len(containerNames) == 1 {
 		log.Printf("Pre-selecting the only available container")
@@ -272,12 +273,14 @@ func (cs ClientSelectors) Container(
 			return nil, err
 		}
 	}
+
 	for _, container := range task.Containers {
 		if *container.Name == containerName {
 			fmt.Printf("%s %s\n", titleStyle.Render("Container:"), *container.Name)
 			return &container, nil
 		}
 	}
+
 	return nil, fmt.Errorf("container not found: %s", containerName)
 }
 
