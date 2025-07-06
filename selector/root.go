@@ -49,7 +49,7 @@ func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
 	}
 	var clusterArn string
 	if len(clusterArns) == 1 {
-		log.Printf("Pre-select the only available cluster")
+		log.Printf("Pre-selecting the only available cluster")
 		clusterArn = clusterArns[0]
 	} else {
 		form := huh.NewForm(
@@ -98,7 +98,7 @@ func (cs ClientSelectors) Service(
 	}
 	var serviceArn string
 	if len(serviceArns) == 1 {
-		log.Printf("Pre-select the only available service")
+		log.Printf("Pre-selecting the only available service")
 		serviceArn = serviceArns[0]
 	} else {
 		form := huh.NewForm(
@@ -152,7 +152,7 @@ func (cs ClientSelectors) Task(
 	}
 	var taskArn string
 	if len(taskArns) == 1 {
-		log.Printf("Pre-select the only available task")
+		log.Printf("Pre-selecting the only available task")
 		taskArn = taskArns[0]
 	} else {
 		form := huh.NewForm(
@@ -256,7 +256,7 @@ func (cs ClientSelectors) Container(
 	}
 	var containerName string
 	if len(containerNames) == 1 {
-		log.Printf("Pre-select the only available container")
+		log.Printf("Pre-selecting the only available container")
 		containerName = containerNames[0]
 	} else {
 		form := huh.NewForm(
@@ -285,7 +285,7 @@ func (cs ClientSelectors) ContainerDefinitions(
 	ctx context.Context,
 	taskDefinitionArn string,
 ) ([]types.ContainerDefinition, error) {
-	describeTaskDefinitionOutput, err := cs.client.DescribeTaskDefinition(
+	describeTaskDefinition, err := cs.client.DescribeTaskDefinition(
 		ctx,
 		&ecs.DescribeTaskDefinitionInput{
 			TaskDefinition: &taskDefinitionArn,
@@ -295,7 +295,7 @@ func (cs ClientSelectors) ContainerDefinitions(
 		return nil, err
 	}
 
-	taskDefinition := describeTaskDefinitionOutput.TaskDefinition
+	taskDefinition := describeTaskDefinition.TaskDefinition
 
 	var containerNames []string
 	for _, containerDefinition := range taskDefinition.ContainerDefinitions {
@@ -303,22 +303,27 @@ func (cs ClientSelectors) ContainerDefinitions(
 	}
 
 	var selectedContainerNames []string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewMultiSelect[string]().
-				Title("Containers").
-				Options(huh.NewOptions(containerNames...)...).
-				Value(&selectedContainerNames).
-				Validate(func(s []string) error {
-					if len(s) > 0 {
-						return nil
-					}
-					return fmt.Errorf("select at least one container")
-				}),
-		),
-	)
-	if err = form.Run(); err != nil {
-		return nil, err
+	if len(containerNames) == 1 {
+		log.Printf("Pre-selecting the only available container")
+		selectedContainerNames = append(selectedContainerNames, containerNames[0])
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewMultiSelect[string]().
+					Title("Containers").
+					Options(huh.NewOptions(containerNames...)...).
+					Value(&selectedContainerNames).
+					Validate(func(s []string) error {
+						if len(s) > 0 {
+							return nil
+						}
+						return fmt.Errorf("select at least one container")
+					}),
+			),
+		)
+		if err = form.Run(); err != nil {
+			return nil, err
+		}
 	}
 
 	var selectedContainers []types.ContainerDefinition
@@ -327,9 +332,9 @@ func (cs ClientSelectors) ContainerDefinitions(
 			selectedContainers = append(selectedContainers, containerDefinition)
 		}
 	}
-	if len(selectedContainers) > 0 {
-		return selectedContainers, nil
+	if len(selectedContainers) == 0 {
+		return nil, fmt.Errorf("no containers selected")
 	}
 
-	return nil, fmt.Errorf("no containers selected")
+	return selectedContainers, nil
 }
