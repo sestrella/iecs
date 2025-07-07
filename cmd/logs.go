@@ -101,34 +101,42 @@ func runLogs(
 				defer wg.Done()
 
 				// TODO: rename clients
-				clients.StartLiveTail(ctx, logOptions.group, streamName, client.LiveTailHandlers{
-					Start: func() {
-						log.Printf(
-							"Starting live trail for container '%s' running at task '%s'\n",
-							logOptions.containerName,
-							taskId,
-						)
-					},
-					Update: func(event logsTypes.LiveTailSessionLogEvent) {
-						timestamp := time.UnixMilli(*event.Timestamp)
-						if len(selection.tasks) > 1 {
-							fmt.Printf(
-								"%s | %s | %s | %s\n",
+				err := clients.StartLiveTail(
+					ctx,
+					logOptions.group,
+					streamName,
+					client.LiveTailHandlers{
+						Start: func() {
+							log.Printf(
+								"Starting live trail for container '%s' running at task '%s'\n",
+								logOptions.containerName,
 								taskId,
-								logOptions.containerName,
-								timestamp,
-								*event.Message,
 							)
-						} else {
-							fmt.Printf(
-								"%s | %s | %s\n",
-								logOptions.containerName,
-								timestamp,
-								*event.Message,
-							)
-						}
+						},
+						Update: func(event logsTypes.LiveTailSessionLogEvent) {
+							timestamp := time.UnixMilli(*event.Timestamp)
+							if len(selection.tasks) > 1 {
+								fmt.Printf(
+									"%s | %s | %s | %s\n",
+									taskId,
+									logOptions.containerName,
+									timestamp,
+									*event.Message,
+								)
+							} else {
+								fmt.Printf(
+									"%s | %s | %s\n",
+									logOptions.containerName,
+									timestamp,
+									*event.Message,
+								)
+							}
+						},
 					},
-				})
+				)
+				if err != nil {
+					fmt.Printf("Error Starting live trail: %v", err)
+				}
 			}()
 		}
 	}
