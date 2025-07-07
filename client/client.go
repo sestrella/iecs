@@ -9,6 +9,7 @@ import (
 	logs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 )
 
 // EventHandler is a function that handles log events.
@@ -19,7 +20,25 @@ type LiveTailHandlers struct {
 
 // Client interface combines ECS and CloudWatch Logs operations.
 type Client interface {
+	// Clusters
 	ListClusters(ctx context.Context) ([]string, error)
+	DescribeClusters(ctx context.Context, clusterArns []string) ([]ecsTypes.Cluster, error)
+
+	// Services
+	ListServices(ctx context.Context, clusterArn string) ([]string, error)
+	DescribeServices(
+		ctx context.Context,
+		clusterArn string,
+		serviceArns []string,
+	) ([]ecsTypes.Service, error)
+
+	// Tasks
+	ListTasks(ctx context.Context, clusterArn string, serviceArn string) ([]string, error)
+	DescribeTasks(
+		ctx context.Context,
+		clusterArn string,
+		taskArns []string,
+	) ([]ecsTypes.Task, error)
 
 	// CloudWatch Logs operations
 	StartLiveTail(
@@ -70,6 +89,82 @@ func (c *awsClient) ListClusters(ctx context.Context) ([]string, error) {
 	}
 
 	return clusterArns, nil
+}
+
+func (c *awsClient) DescribeClusters(ctx context.Context, clusterArns []string) ([]ecsTypes.Cluster, error) {
+	describeClusters, err := c.ecsClient.DescribeClusters(ctx, &ecs.DescribeClustersInput{
+		Clusters: clusterArns,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return describeClusters.Clusters, nil
+}
+
+func (c *awsClient) ListServices(ctx context.Context, clusterArn string) ([]string, error) {
+	listServices, err := c.ecsClient.ListServices(ctx, &ecs.ListServicesInput{
+		Cluster: &clusterArn,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	serviceArns := listServices.ServiceArns
+	if len(serviceArns) == 0 {
+		return nil, fmt.Errorf("no services found in cluster %s", clusterArn)
+	}
+
+	return serviceArns, nil
+}
+
+func (c *awsClient) DescribeServices(
+	ctx context.Context,
+	clusterArn string,
+	serviceArns []string,
+) ([]ecsTypes.Service, error) {
+	describeServices, err := c.ecsClient.DescribeServices(ctx, &ecs.DescribeServicesInput{
+		Cluster:  &clusterArn,
+		Services: serviceArns,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return describeServices.Services, nil
+}
+
+func (c *awsClient) ListTasks(ctx context.Context, clusterArn string, serviceName string) ([]string, error) {
+	listTasks, err := c.ecsClient.ListTasks(ctx, &ecs.ListTasksInput{
+		Cluster:     &clusterArn,
+		ServiceName: &serviceName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	taskArns := listTasks.TaskArns
+	if len(taskArns) == 0 {
+		return nil, fmt.Errorf("no tasks found in service %s", serviceName)
+	}
+
+	return taskArns, nil
+}
+
+func (c *awsClient) DescribeTasks(
+	ctx context.Context,
+	clusterArn string,
+	taskArns []string,
+) ([]ecsTypes.Task, error) {
+	describeTasks, err := c.ecsClient.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+		Cluster: &clusterArn,
+		Tasks:   taskArns,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return describeTasks.Tasks, nil
 }
 
 func (c *awsClient) ExecuteCommand(
