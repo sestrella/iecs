@@ -57,6 +57,12 @@ type Client interface {
 		command string,
 		interactive bool,
 	) (*ecs.ExecuteCommandOutput, error)
+
+	// Task Definitions
+	DescribeTaskDefinition(
+		ctx context.Context,
+		taskDefinitionArn string,
+	) (*ecsTypes.TaskDefinition, error)
 }
 
 // awsClient implements the combined Client interface
@@ -182,6 +188,23 @@ func (c *awsClient) ExecuteCommand(
 		Command:     &command,
 		Interactive: interactive,
 	})
+}
+
+func (c *awsClient) DescribeTaskDefinition(
+	ctx context.Context,
+	taskDefinitionArn string,
+) (*ecsTypes.TaskDefinition, error) {
+	describeTaskDefinition, err := c.ecsClient.DescribeTaskDefinition(
+		ctx,
+		&ecs.DescribeTaskDefinitionInput{
+			TaskDefinition: &taskDefinitionArn,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return describeTaskDefinition.TaskDefinition, nil
 }
 
 // CloudWatch Logs implementation

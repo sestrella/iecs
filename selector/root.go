@@ -7,10 +7,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/sestrella/iecs/client"
 )
 
 var (
@@ -31,22 +31,17 @@ type Selectors interface {
 }
 
 type ClientSelectors struct {
-	ecsClient *ecs.Client
+	client client.Client
 }
 
-func NewSelectors(ecsClient *ecs.Client) Selectors {
-	return ClientSelectors{ecsClient: ecsClient}
+func NewSelectors(client client.Client) Selectors {
+	return ClientSelectors{client: client}
 }
 
 func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
-	listClusters, err := cs.ecsClient.ListClusters(ctx, &ecs.ListClustersInput{})
+	clusterArns, err := cs.client.ListClusters(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	clusterArns := listClusters.ClusterArns
-	if len(clusterArns) == 0 {
-		return nil, fmt.Errorf("no clusters found")
 	}
 
 	var selectedClusterArn string
@@ -70,14 +65,11 @@ func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
 		}
 	}
 
-	describeClusters, err := cs.ecsClient.DescribeClusters(ctx, &ecs.DescribeClustersInput{
-		Clusters: []string{selectedClusterArn},
-	})
+	clusters, err := cs.client.DescribeClusters(ctx, []string{selectedClusterArn})
 	if err != nil {
 		return nil, err
 	}
 
-	clusters := describeClusters.Clusters
 	if len(clusters) == 0 {
 		return nil, fmt.Errorf("cluster not found: %s", selectedClusterArn)
 	}
@@ -91,16 +83,9 @@ func (cs ClientSelectors) Service(
 	ctx context.Context,
 	cluster *types.Cluster,
 ) (*types.Service, error) {
-	listServices, err := cs.ecsClient.ListServices(ctx, &ecs.ListServicesInput{
-		Cluster: cluster.ClusterArn,
-	})
+	serviceArns, err := cs.client.ListServices(ctx, *cluster.ClusterArn)
 	if err != nil {
 		return nil, err
-	}
-
-	serviceArns := listServices.ServiceArns
-	if len(serviceArns) == 0 {
-		return nil, fmt.Errorf("no services found in cluster: %s", *cluster.ClusterArn)
 	}
 
 	var selectedServiceArn string
@@ -123,15 +108,11 @@ func (cs ClientSelectors) Service(
 		}
 	}
 
-	describeServices, err := cs.ecsClient.DescribeServices(ctx, &ecs.DescribeServicesInput{
-		Cluster:  cluster.ClusterArn,
-		Services: []string{selectedServiceArn},
-	})
+	services, err := cs.client.DescribeServices(ctx, *cluster.ClusterArn, []string{selectedServiceArn})
 	if err != nil {
 		return nil, err
 	}
 
-	services := describeServices.Services
 	if len(services) == 0 {
 		return nil, fmt.Errorf("service not found: %s", selectedServiceArn)
 	}
@@ -145,21 +126,9 @@ func (cs ClientSelectors) Task(
 	ctx context.Context,
 	service *types.Service,
 ) (*types.Task, error) {
-	listTasks, err := cs.ecsClient.ListTasks(ctx, &ecs.ListTasksInput{
-		Cluster:     service.ClusterArn,
-		ServiceName: service.ServiceArn,
-	})
+	taskArns, err := cs.client.ListTasks(ctx, *service.ClusterArn, *service.ServiceArn)
 	if err != nil {
 		return nil, err
-	}
-
-	taskArns := listTasks.TaskArns
-	if len(taskArns) == 0 {
-		return nil, fmt.Errorf(
-			"no tasks found for service: %s in cluster: %s",
-			*service.ServiceArn,
-			*service.ClusterArn,
-		)
 	}
 
 	var selectedTaskArn string
@@ -181,15 +150,11 @@ func (cs ClientSelectors) Task(
 		}
 	}
 
-	describeTasks, err := cs.ecsClient.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: service.ClusterArn,
-		Tasks:   []string{selectedTaskArn},
-	})
+	tasks, err := cs.client.DescribeTasks(ctx, *service.ClusterArn, []string{selectedTaskArn})
 	if err != nil {
 		return nil, err
 	}
 
-	tasks := describeTasks.Tasks
 	if len(tasks) == 0 {
 		return nil, fmt.Errorf("task not found: %s", selectedTaskArn)
 	}
@@ -203,21 +168,9 @@ func (cs ClientSelectors) Tasks(
 	ctx context.Context,
 	service *types.Service,
 ) ([]types.Task, error) {
-	listTasksOutput, err := cs.ecsClient.ListTasks(ctx, &ecs.ListTasksInput{
-		Cluster:     service.ClusterArn,
-		ServiceName: service.ServiceArn,
-	})
+	taskArns, err := cs.client.ListTasks(ctx, *service.ClusterArn, *service.ServiceArn)
 	if err != nil {
 		return nil, err
-	}
-
-	taskArns := listTasksOutput.TaskArns
-	if len(taskArns) == 0 {
-		return nil, fmt.Errorf(
-			"no tasks found for service: %s in cluster: %s",
-			*service.ServiceArn,
-			*service.ClusterArn,
-		)
 	}
 
 	var selectedTaskArns []string
@@ -245,15 +198,11 @@ func (cs ClientSelectors) Tasks(
 	}
 
 	fmt.Printf("%s %s\n", titleStyle.Render("Task(s):"), strings.Join(selectedTaskArns, ","))
-	describeTasks, err := cs.ecsClient.DescribeTasks(ctx, &ecs.DescribeTasksInput{
-		Cluster: service.ClusterArn,
-		Tasks:   selectedTaskArns,
-	})
+	tasks, err := cs.client.DescribeTasks(ctx, *service.ClusterArn, selectedTaskArns)
 	if err != nil {
 		return nil, err
 	}
 
-	tasks := describeTasks.Tasks
 	if len(tasks) == 0 {
 		return nil, fmt.Errorf("no tasks selected")
 	}
@@ -303,17 +252,10 @@ func (cs ClientSelectors) ContainerDefinitions(
 	ctx context.Context,
 	taskDefinitionArn string,
 ) ([]types.ContainerDefinition, error) {
-	describeTaskDefinition, err := cs.ecsClient.DescribeTaskDefinition(
-		ctx,
-		&ecs.DescribeTaskDefinitionInput{
-			TaskDefinition: &taskDefinitionArn,
-		},
-	)
+	taskDefinition, err := cs.client.DescribeTaskDefinition(ctx, taskDefinitionArn)
 	if err != nil {
 		return nil, err
 	}
-
-	taskDefinition := describeTaskDefinition.TaskDefinition
 
 	var containerNames []string
 	for _, containerDefinition := range taskDefinition.ContainerDefinitions {

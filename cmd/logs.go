@@ -9,9 +9,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
@@ -44,15 +42,11 @@ var logsCmd = &cobra.Command{
 			return err
 		}
 
-		ecsClient := ecs.NewFromConfig(cfg)
-		logsClient := cloudwatchlogs.NewFromConfig(cfg)
 		client := client.NewClient(cfg)
 		err = runLogs(
 			context.TODO(),
-			ecsClient,
-			logsClient,
 			client,
-			selector.NewSelectors(ecsClient),
+			selector.NewSelectors(client),
 		)
 		if err != nil {
 			return err
@@ -65,8 +59,6 @@ var logsCmd = &cobra.Command{
 
 func runLogs(
 	ctx context.Context,
-	ecsClient *ecs.Client,
-	logsClient *cloudwatchlogs.Client,
 	clients client.Client,
 	selectors selector.Selectors,
 ) error {
