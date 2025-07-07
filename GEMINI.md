@@ -3,5 +3,5 @@
 Before submitting any changes, validate them by running the following command:
 
 ```
-go build -v ./...
+go test -v ./...
 ```

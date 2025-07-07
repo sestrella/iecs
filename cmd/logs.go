@@ -69,8 +69,13 @@ func runLogs(
 
 	var allLogOptions []LogOptions
 	for _, container := range selection.containers {
+		if container.LogConfiguration == nil {
+			return fmt.Errorf("no log configuration found for container %s", *container.Name)
+		}
 		options := container.LogConfiguration.Options
-		// TODO: check if options exist
+		if options == nil {
+			return fmt.Errorf("no log options found for container %s", *container.Name)
+		}
 		allLogOptions = append(allLogOptions, LogOptions{
 			containerName: *container.Name,
 			group:         options["awslogs-group"],
