@@ -100,7 +100,6 @@ func runLogs(
 			go func() {
 				defer wg.Done()
 
-				// TODO: rename clients
 				err := clients.StartLiveTail(
 					ctx,
 					logOptions.group,
@@ -135,7 +134,7 @@ func runLogs(
 					},
 				)
 				if err != nil {
-					fmt.Printf("Error Starting live trail: %v", err)
+					fmt.Printf("Error live tailing logs: %v", err)
 				}
 			}()
 		}
