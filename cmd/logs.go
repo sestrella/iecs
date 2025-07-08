@@ -97,7 +97,7 @@ func runLogs(
 			)
 			wg.Add(1)
 
-			go func() {
+			go func(taskId string, logOptions LogOptions) {
 				defer wg.Done()
 
 				err := clients.StartLiveTail(
@@ -136,7 +136,7 @@ func runLogs(
 				if err != nil {
 					fmt.Printf("Error live tailing logs: %v", err)
 				}
-			}()
+			}(taskId, logOptions)
 		}
 	}
 	wg.Wait()
