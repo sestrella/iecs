@@ -32,10 +32,11 @@ type Selectors interface {
 
 type ClientSelectors struct {
 	client client.Client
+	theme  huh.Theme
 }
 
-func NewSelectors(client client.Client) Selectors {
-	return ClientSelectors{client: client}
+func NewSelectors(client client.Client, theme huh.Theme) Selectors {
+	return ClientSelectors{client: client, theme: theme}
 }
 
 func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
@@ -59,7 +60,7 @@ func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
 					Value(&selectedClusterArn).
 					WithHeight(5),
 			),
-		)
+		).WithTheme(&cs.theme)
 		if err = form.Run(); err != nil {
 			return nil, err
 		}
@@ -101,7 +102,7 @@ func (cs ClientSelectors) Service(
 					Value(&selectedServiceArn).
 					WithHeight(5),
 			),
-		)
+		).WithTheme(&cs.theme)
 
 		if err = form.Run(); err != nil {
 			return nil, err
@@ -148,7 +149,7 @@ func (cs ClientSelectors) Task(
 					Value(&selectedTaskArn).
 					WithHeight(5),
 			),
-		)
+		).WithTheme(&cs.theme)
 		if err = form.Run(); err != nil {
 			return nil, err
 		}
@@ -195,7 +196,7 @@ func (cs ClientSelectors) Tasks(
 						return fmt.Errorf("no task selected")
 					}),
 			),
-		)
+		).WithTheme(&cs.theme)
 		if err = form.Run(); err != nil {
 			return nil, err
 		}
@@ -236,7 +237,7 @@ func (cs ClientSelectors) Container(
 					Value(&containerName).
 					WithHeight(5),
 			),
-		)
+		).WithTheme(&cs.theme)
 		if err := form.Run(); err != nil {
 			return nil, err
 		}
@@ -284,7 +285,7 @@ func (cs ClientSelectors) ContainerDefinitions(
 						return fmt.Errorf("no container selected")
 					}),
 			),
-		)
+		).WithTheme(&cs.theme)
 		if err = form.Run(); err != nil {
 			return nil, err
 		}
