@@ -13,8 +13,8 @@
   languages.go.enable = true;
 
   git-hooks.hooks = {
-    gofmt.enable = true;
     golangci-lint.enable = true;
+    golines.enable = true;
     gomod2nix = {
       enable = true;
       entry = "${pkgs.gomod2nix}/bin/gomod2nix";

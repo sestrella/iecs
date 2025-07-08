@@ -32,7 +32,16 @@ var rootCmd = &cobra.Command{
 
 func Execute(version string) error {
 	rootCmd.PersistentFlags().
-		StringVarP(&themeName, "theme", "t", "charm", fmt.Sprintf("The theme to use. Available themes are: %s", strings.Join(themes, " ")))
+		StringVarP(
+			&themeName,
+			"theme",
+			"t",
+			"charm",
+			fmt.Sprintf(
+				"The theme to use. Available themes are: %s",
+				strings.Join(themes, " "),
+			),
+		)
 	rootCmd.Version = version
 
 	err := rootCmd.Execute()
