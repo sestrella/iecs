@@ -52,7 +52,7 @@ func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
-					Title("Cluster").
+					Title("Select a cluster").
 					Options(
 						huh.NewOptions(clusterArns...)...,
 					).
@@ -96,7 +96,7 @@ func (cs ClientSelectors) Service(
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
-					Title("Service").
+					Title("Select a cluster").
 					Options(huh.NewOptions(serviceArns...)...).
 					Value(&selectedServiceArn).
 					WithHeight(5),
@@ -108,7 +108,11 @@ func (cs ClientSelectors) Service(
 		}
 	}
 
-	services, err := cs.client.DescribeServices(ctx, *cluster.ClusterArn, []string{selectedServiceArn})
+	services, err := cs.client.DescribeServices(
+		ctx,
+		*cluster.ClusterArn,
+		[]string{selectedServiceArn},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +143,7 @@ func (cs ClientSelectors) Task(
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
-					Title("Select task").
+					Title("Select a task").
 					Options(huh.NewOptions(taskArns...)...).
 					Value(&selectedTaskArn).
 					WithHeight(5),
@@ -181,14 +185,14 @@ func (cs ClientSelectors) Tasks(
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewMultiSelect[string]().
-					Title("Task(s)").
+					Title("Select at least one task").
 					Options(huh.NewOptions(taskArns...)...).
 					Value(&selectedTaskArns).
 					Validate(func(s []string) error {
 						if len(s) > 0 {
 							return nil
 						}
-						return fmt.Errorf("select at least one task")
+						return fmt.Errorf("no task selected")
 					}),
 			),
 		)
@@ -227,7 +231,7 @@ func (cs ClientSelectors) Container(
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
-					Title("Select container").
+					Title("Select a container").
 					Options(huh.NewOptions(containerNames...)...).
 					Value(&containerName).
 					WithHeight(5),
@@ -270,14 +274,14 @@ func (cs ClientSelectors) ContainerDefinitions(
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewMultiSelect[string]().
-					Title("Containers").
+					Title("Select at least one container").
 					Options(huh.NewOptions(containerNames...)...).
 					Value(&selectedContainerNames).
 					Validate(func(s []string) error {
 						if len(s) > 0 {
 							return nil
 						}
-						return fmt.Errorf("select at least one container")
+						return fmt.Errorf("no container selected")
 					}),
 			),
 		)
