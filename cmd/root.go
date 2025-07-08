@@ -3,7 +3,6 @@ package cmd
 import (
 	_ "embed"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/charmbracelet/huh"
@@ -53,7 +52,6 @@ func Execute(version string) error {
 }
 
 func themeByName(themeName string) (*huh.Theme, error) {
-	log.Printf("Selected theme %s\n", themeName)
 	switch themeName {
 	case ThemeBase:
 		return huh.ThemeBase(), nil
