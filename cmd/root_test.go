@@ -1,67 +1,43 @@
 package cmd
 
 import (
+	"fmt"
+	"sort"
+	"strings"
 	"testing"
 
-	"github.com/charmbracelet/huh"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestThemeByName(t *testing.T) {
-	tests := []struct {
-		name          string
-		themeName     string
-		expectedTheme *huh.Theme
-		expectError   bool
-	}{
-		{
-			name:          "Base",
-			themeName:     ThemeBase,
-			expectedTheme: huh.ThemeBase(),
-			expectError:   false,
-		},
-		{
-			name:          "Base16",
-			themeName:     ThemeBase16,
-			expectedTheme: huh.ThemeBase16(),
-			expectError:   false,
-		},
-		{
-			name:          "Catppuccin",
-			themeName:     ThemeCatppuccin,
-			expectedTheme: huh.ThemeCatppuccin(),
-			expectError:   false,
-		},
-		{
-			name:          "Charm",
-			themeName:     ThemeCharm,
-			expectedTheme: huh.ThemeCharm(),
-			expectError:   false,
-		},
-		{
-			name:          "Dracula",
-			themeName:     ThemeDracula,
-			expectedTheme: huh.ThemeDracula(),
-			expectError:   false,
-		},
-		{
-			name:          "Invalid",
-			themeName:     "invalid",
-			expectedTheme: nil,
-			expectError:   true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			theme, err := themeByName(tt.themeName)
-			if tt.expectError {
-				assert.Error(t, err)
-				assert.Nil(t, theme)
-			} else {
+	t.Run("Valid Themes", func(t *testing.T) {
+		for name, themeFunc := range themes {
+			t.Run(name, func(t *testing.T) {
+				theme, err := themeByName(name)
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedTheme, theme)
-			}
-		})
-	}
+				assert.NotNil(t, theme)
+				assert.Equal(t, themeFunc(), theme)
+			})
+		}
+	})
+
+	t.Run("Invalid Theme", func(t *testing.T) {
+		invalidThemeName := "invalid-theme"
+		theme, err := themeByName(invalidThemeName)
+
+		var themeNames []string
+		for name := range themes {
+			themeNames = append(themeNames, name)
+		}
+		sort.Strings(themeNames)
+
+		expectedError := fmt.Sprintf(
+			"unsupported theme '%s' expecting one of: %s",
+			invalidThemeName,
+			strings.Join(themeNames, " "),
+		)
+
+		assert.EqualError(t, err, expectedError)
+		assert.Nil(t, theme)
+	})
 }
