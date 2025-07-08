@@ -4,25 +4,48 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	logs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 )
 
 // EventHandler is a function that handles log events.
-type EventHandler func(timestamp time.Time, message string)
+type LiveTailHandlers struct {
+	Start  func()
+	Update func(logsTypes.LiveTailSessionLogEvent)
+}
 
 // Client interface combines ECS and CloudWatch Logs operations.
 type Client interface {
+	// Clusters
+	ListClusters(ctx context.Context) ([]string, error)
+	DescribeClusters(ctx context.Context, clusterArns []string) ([]ecsTypes.Cluster, error)
+
+	// Services
+	ListServices(ctx context.Context, clusterArn string) ([]string, error)
+	DescribeServices(
+		ctx context.Context,
+		clusterArn string,
+		serviceArns []string,
+	) ([]ecsTypes.Service, error)
+
+	// Tasks
+	ListTasks(ctx context.Context, clusterArn string, serviceArn string) ([]string, error)
+	DescribeTasks(
+		ctx context.Context,
+		clusterArn string,
+		taskArns []string,
+	) ([]ecsTypes.Task, error)
+
 	// CloudWatch Logs operations
 	StartLiveTail(
 		ctx context.Context,
 		logGroupName string,
 		streamPrefix string,
-		handler EventHandler,
+		handler LiveTailHandlers,
 	) error
 
 	// ECS operations
@@ -34,6 +57,12 @@ type Client interface {
 		command string,
 		interactive bool,
 	) (*ecs.ExecuteCommandOutput, error)
+
+	// Task Definitions
+	DescribeTaskDefinition(
+		ctx context.Context,
+		taskDefinitionArn string,
+	) (*ecsTypes.TaskDefinition, error)
 }
 
 // awsClient implements the combined Client interface
@@ -54,6 +83,96 @@ func NewClient(cfg aws.Config) Client {
 
 // ECS operations implementation
 
+func (c *awsClient) ListClusters(ctx context.Context) ([]string, error) {
+	listClusters, err := c.ecsClient.ListClusters(ctx, &ecs.ListClustersInput{})
+	if err != nil {
+		return nil, err
+	}
+
+	clusterArns := listClusters.ClusterArns
+	if len(clusterArns) == 0 {
+		return nil, fmt.Errorf("no clusters found")
+	}
+
+	return clusterArns, nil
+}
+
+func (c *awsClient) DescribeClusters(ctx context.Context, clusterArns []string) ([]ecsTypes.Cluster, error) {
+	describeClusters, err := c.ecsClient.DescribeClusters(ctx, &ecs.DescribeClustersInput{
+		Clusters: clusterArns,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return describeClusters.Clusters, nil
+}
+
+func (c *awsClient) ListServices(ctx context.Context, clusterArn string) ([]string, error) {
+	listServices, err := c.ecsClient.ListServices(ctx, &ecs.ListServicesInput{
+		Cluster: &clusterArn,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	serviceArns := listServices.ServiceArns
+	if len(serviceArns) == 0 {
+		return nil, fmt.Errorf("no services found in cluster %s", clusterArn)
+	}
+
+	return serviceArns, nil
+}
+
+func (c *awsClient) DescribeServices(
+	ctx context.Context,
+	clusterArn string,
+	serviceArns []string,
+) ([]ecsTypes.Service, error) {
+	describeServices, err := c.ecsClient.DescribeServices(ctx, &ecs.DescribeServicesInput{
+		Cluster:  &clusterArn,
+		Services: serviceArns,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return describeServices.Services, nil
+}
+
+func (c *awsClient) ListTasks(ctx context.Context, clusterArn string, serviceName string) ([]string, error) {
+	listTasks, err := c.ecsClient.ListTasks(ctx, &ecs.ListTasksInput{
+		Cluster:     &clusterArn,
+		ServiceName: &serviceName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	taskArns := listTasks.TaskArns
+	if len(taskArns) == 0 {
+		return nil, fmt.Errorf("no tasks found in service %s", serviceName)
+	}
+
+	return taskArns, nil
+}
+
+func (c *awsClient) DescribeTasks(
+	ctx context.Context,
+	clusterArn string,
+	taskArns []string,
+) ([]ecsTypes.Task, error) {
+	describeTasks, err := c.ecsClient.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+		Cluster: &clusterArn,
+		Tasks:   taskArns,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return describeTasks.Tasks, nil
+}
+
 func (c *awsClient) ExecuteCommand(
 	ctx context.Context,
 	cluster string,
@@ -71,54 +190,49 @@ func (c *awsClient) ExecuteCommand(
 	})
 }
 
-// CloudWatch Logs implementation
-
-func (c *awsClient) describeLogGroups(
+func (c *awsClient) DescribeTaskDefinition(
 	ctx context.Context,
-	logGroupNamePrefix string,
-) (*logs.DescribeLogGroupsOutput, error) {
-	input := &logs.DescribeLogGroupsInput{}
-	if logGroupNamePrefix != "" {
-		input.LogGroupNamePrefix = &logGroupNamePrefix
-	}
-
-	output, err := c.logsClient.DescribeLogGroups(ctx, input)
+	taskDefinitionArn string,
+) (*ecsTypes.TaskDefinition, error) {
+	describeTaskDefinition, err := c.ecsClient.DescribeTaskDefinition(
+		ctx,
+		&ecs.DescribeTaskDefinitionInput{
+			TaskDefinition: &taskDefinitionArn,
+		},
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to describe log groups: %w", err)
+		return nil, err
 	}
 
-	if len(output.LogGroups) == 0 {
-		return nil, fmt.Errorf("no log groups found with prefix: %s", logGroupNamePrefix)
-	}
-
-	return output, nil
+	return describeTaskDefinition.TaskDefinition, nil
 }
+
+// CloudWatch Logs implementation
 
 func (c *awsClient) StartLiveTail(
 	ctx context.Context,
 	logGroupName string,
-	streamPrefix string,
-	handler EventHandler,
+	streamName string,
+	handler LiveTailHandlers,
 ) error {
 	// Describe log groups to get the ARN
-	describeOutput, err := c.describeLogGroups(ctx, logGroupName)
+	describeLogGroups, err := c.logsClient.DescribeLogGroups(ctx, &logs.DescribeLogGroupsInput{
+		LogGroupNamePrefix: &logGroupName,
+	})
 	if err != nil {
 		return err
 	}
 
-	logGroupArn := describeOutput.LogGroups[0].LogGroupArn
-	if logGroupArn == nil {
-		return fmt.Errorf("log group ARN is nil for group: %s", logGroupName)
+	logGroups := describeLogGroups.LogGroups
+	if len(logGroups) == 0 {
+		return fmt.Errorf("no log group '%s' found", logGroupName)
 	}
 
 	// Start the live tail
-	startLiveTail, err := c.logsClient.StartLiveTail(
-		ctx,
-		&logs.StartLiveTailInput{
-			LogGroupIdentifiers:   []string{*logGroupArn},
-			LogStreamNamePrefixes: []string{streamPrefix},
-		},
-	)
+	startLiveTail, err := c.logsClient.StartLiveTail(ctx, &logs.StartLiveTailInput{
+		LogGroupIdentifiers: []string{*logGroups[0].LogGroupArn},
+		LogStreamNames:      []string{streamName},
+	})
 	if err != nil {
 		return fmt.Errorf("failed to start live tail: %w", err)
 	}
@@ -127,33 +241,30 @@ func (c *awsClient) StartLiveTail(
 	stream := startLiveTail.GetStream()
 	defer func() {
 		if err = stream.Close(); err != nil {
-			log.Fatal(err)
+			log.Printf("Unable to close stream: %v", err)
 		}
 	}()
 
-	eventsChannel := stream.Events()
+	eventsStream := stream.Events()
 
 	// Process events
 	for {
-		select {
-		case <-ctx.Done():
-			log.Println("Context cancelled, stopping event handler.")
-			return nil
-		case event := <-eventsChannel:
-			switch e := event.(type) {
-			case *logsTypes.StartLiveTailResponseStreamMemberSessionStart:
-				log.Printf("Live Tail Session Started: RequestId: %s, SessionId: %s\n", *e.Value.RequestId, *e.Value.SessionId)
-			case *logsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
-				for _, logEvent := range e.Value.SessionResults {
-					date := time.UnixMilli(*logEvent.Timestamp)
-					handler(date, *logEvent.Message)
-				}
-			default:
-				log.Printf("Received unknown event type: %T\n", e)
-				if err := stream.Err(); err != nil {
-					return err
-				}
+		event := <-eventsStream
+		switch e := event.(type) {
+		case *logsTypes.StartLiveTailResponseStreamMemberSessionStart:
+			handler.Start()
+		case *logsTypes.StartLiveTailResponseStreamMemberSessionUpdate:
+			for _, result := range e.Value.SessionResults {
+				handler.Update(result)
 			}
+		default:
+			if err := stream.Err(); err != nil {
+				return err
+			}
+			if event == nil {
+				return fmt.Errorf("stream is closed")
+			}
+			return fmt.Errorf("unknown event type: %T", e)
 		}
 	}
 }

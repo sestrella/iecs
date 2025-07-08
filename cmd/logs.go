@@ -3,20 +3,24 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
 
-type SelectedContainerDefinition struct {
-	Cluster             *types.Cluster
-	Service             *types.Service
-	ContainerDefinition *types.ContainerDefinition
+type LogsSelection struct {
+	cluster    *types.Cluster
+	service    *types.Service
+	tasks      []types.Task
+	containers []types.ContainerDefinition
 }
 
 var logsCmd = &cobra.Command{
@@ -31,12 +35,17 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		client := client.NewClient(cfg)
-		ecsClient := ecs.NewFromConfig(cfg)
-		err = runLogs(context.TODO(), client, selector.NewSelectors(ecsClient))
+		err = runLogs(
+			context.TODO(),
+			client,
+			selector.NewSelectors(client),
+		)
 		if err != nil {
 			return err
 		}
+
 		return nil
 	},
 	Aliases: []string{"tail"},
@@ -44,65 +53,101 @@ var logsCmd = &cobra.Command{
 
 func runLogs(
 	ctx context.Context,
-	client client.Client,
+	clients client.Client,
 	selectors selector.Selectors,
 ) error {
-	selection, err := containerDefinitionSelector(ctx, selectors)
+	type LogOptions struct {
+		containerName string
+		group         string
+		streamPrefix  string
+	}
+
+	selection, err := logsSelector(ctx, selectors)
 	if err != nil {
 		return err
 	}
 
-	if selection.ContainerDefinition.LogConfiguration == nil {
-		return fmt.Errorf(
-			"no log configuration found for container: %s",
-			*selection.ContainerDefinition.Name,
-		)
+	var allLogOptions []LogOptions
+	for _, container := range selection.containers {
+		if container.LogConfiguration == nil {
+			return fmt.Errorf("no log configuration found for container %s", *container.Name)
+		}
+		options := container.LogConfiguration.Options
+		if options == nil {
+			return fmt.Errorf("no log options found for container %s", *container.Name)
+		}
+		allLogOptions = append(allLogOptions, LogOptions{
+			containerName: *container.Name,
+			group:         options["awslogs-group"],
+			streamPrefix:  options["awslogs-stream-prefix"],
+		})
 	}
 
-	logOptions := selection.ContainerDefinition.LogConfiguration.Options
-	if len(logOptions) == 0 {
-		return fmt.Errorf(
-			"missing log options for container: %s",
-			*selection.ContainerDefinition.Name,
-		)
-	}
+	var wg sync.WaitGroup
+	for _, task := range selection.tasks {
+		taskArnSlices := strings.Split(*task.TaskArn, "/")
+		taskId := taskArnSlices[len(taskArnSlices)-1]
 
-	awslogsGroup, ok := logOptions["awslogs-group"]
-	if !ok {
-		return fmt.Errorf(
-			"missing awslogs-group option for container: %s",
-			*selection.ContainerDefinition.Name,
-		)
-	}
+		for _, logOptions := range allLogOptions {
+			streamName := fmt.Sprintf(
+				"%s/%s/%s",
+				logOptions.streamPrefix,
+				logOptions.containerName,
+				taskId,
+			)
+			wg.Add(1)
 
-	streamPrefix, ok := logOptions["awslogs-stream-prefix"]
-	if !ok {
-		return fmt.Errorf(
-			"missing awslogs-stream-prefix option for container: %s",
-			*selection.ContainerDefinition.Name,
-		)
-	}
+			go func(taskId string, logOptions LogOptions) {
+				defer wg.Done()
 
-	// Use our logs client to start the live tail
-	err = client.StartLiveTail(
-		ctx,
-		awslogsGroup,
-		streamPrefix,
-		func(timestamp time.Time, message string) {
-			fmt.Printf("%v %s\n", timestamp, message)
-		},
-	)
-	if err != nil {
-		return err
+				err := clients.StartLiveTail(
+					ctx,
+					logOptions.group,
+					streamName,
+					client.LiveTailHandlers{
+						Start: func() {
+							log.Printf(
+								"Starting live tail for container '%s' running at task '%s'\n",
+								logOptions.containerName,
+								taskId,
+							)
+						},
+						Update: func(event logsTypes.LiveTailSessionLogEvent) {
+							timestamp := time.UnixMilli(*event.Timestamp)
+							if len(selection.tasks) > 1 {
+								fmt.Printf(
+									"%s | %s | %s | %s\n",
+									taskId,
+									logOptions.containerName,
+									timestamp,
+									*event.Message,
+								)
+							} else {
+								fmt.Printf(
+									"%s | %s | %s\n",
+									logOptions.containerName,
+									timestamp,
+									*event.Message,
+								)
+							}
+						},
+					},
+				)
+				if err != nil {
+					fmt.Printf("Error live tailing logs: %v", err)
+				}
+			}(taskId, logOptions)
+		}
 	}
+	wg.Wait()
 
 	return nil
 }
 
-func containerDefinitionSelector(
+func logsSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
-) (*SelectedContainerDefinition, error) {
+) (*LogsSelection, error) {
 	cluster, err := selectors.Cluster(ctx)
 	if err != nil {
 		return nil, err
@@ -113,15 +158,21 @@ func containerDefinitionSelector(
 		return nil, err
 	}
 
-	containerDefinition, err := selectors.ContainerDefinition(ctx, service)
+	tasks, err := selectors.Tasks(ctx, service)
 	if err != nil {
 		return nil, err
 	}
 
-	return &SelectedContainerDefinition{
-		Cluster:             cluster,
-		Service:             service,
-		ContainerDefinition: containerDefinition,
+	containers, err := selectors.ContainerDefinitions(ctx, *service.TaskDefinition)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LogsSelection{
+		cluster:    cluster,
+		service:    service,
+		tasks:      tasks,
+		containers: containers,
 	}, nil
 }
 
