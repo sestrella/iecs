@@ -31,6 +31,11 @@ var logsCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs logs [flags]
   `,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		theme, err := themeByName(themeName)
+		if err != nil {
+			return err
+		}
+
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
 			return err
@@ -40,7 +45,7 @@ var logsCmd = &cobra.Command{
 		err = runLogs(
 			context.TODO(),
 			client,
-			selector.NewSelectors(client),
+			selector.NewSelectors(client, *theme),
 		)
 		if err != nil {
 			return err

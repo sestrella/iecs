@@ -39,6 +39,11 @@ var execCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs exec [flags]
   `,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		theme, err := themeByName(themeName)
+		if err != nil {
+			return err
+		}
+
 		smpPath, err := exec.LookPath("session-manager-plugin")
 		if err != nil {
 			return err
@@ -62,7 +67,7 @@ var execCmd = &cobra.Command{
 			smpPath,
 			awsClient,
 			exec.Command,
-			selector.NewSelectors(awsClient),
+			selector.NewSelectors(awsClient, *theme),
 			cfg.Region,
 			command,
 			interactive,
