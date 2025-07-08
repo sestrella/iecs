@@ -300,5 +300,10 @@ func (cs ClientSelectors) ContainerDefinitions(
 		return nil, fmt.Errorf("no containers selected")
 	}
 
+	fmt.Printf(
+		"%s %s\n",
+		titleStyle.Render("Container(s):"),
+		strings.Join(selectedContainerNames, ","),
+	)
 	return selectedContainers, nil
 }
