@@ -23,12 +23,6 @@ type LogsSelection struct {
 	containers []types.ContainerDefinition
 }
 
-type LogOptions struct {
-	containerName string
-	group         string
-	streamPrefix  string
-}
-
 var logsCmd = &cobra.Command{
 	Use:   "logs",
 	Short: "View the logs of a container",
@@ -62,6 +56,12 @@ func runLogs(
 	clients client.Client,
 	selectors selector.Selectors,
 ) error {
+	type LogOptions struct {
+		containerName string
+		group         string
+		streamPrefix  string
+	}
+
 	selection, err := logsSelector(ctx, selectors)
 	if err != nil {
 		return err
