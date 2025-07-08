@@ -63,8 +63,10 @@ func TestRunLogs_Success(t *testing.T) {
 	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
 	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
 	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
-	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
-	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("client.LiveTailHandlers")).Return(nil)
+	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
+		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
+	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("client.LiveTailHandlers")).
+		Return(nil)
 
 	// Test the function
 	err := runLogs(context.Background(), mockClient, mockSel)
@@ -135,14 +137,15 @@ func TestRunLogs_MissingLogConfiguration(t *testing.T) {
 	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
 	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
 	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
-	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
+	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
+		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
 
 	// Test the function
 	err := runLogs(context.Background(), mockClient, mockSel)
 
 	// Check assertions
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no log configuration found")
+	assert.Contains(t, err.Error(), "no log configuration foundasdadsa")
 	mockSel.AssertExpectations(t)
 	// StartLiveTail should not be called
 	mockClient.AssertNotCalled(t, "StartLiveTail")
@@ -193,7 +196,8 @@ func TestRunLogs_MissingLogOptions(t *testing.T) {
 	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
 	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
 	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
-	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
+	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
+		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
 
 	// Test the function
 	err := runLogs(context.Background(), mockClient, mockSel)
@@ -254,11 +258,13 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
 	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
 	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
-	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
+	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
+		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
 
 	// Setup StartLiveTail to return an error
 	expectedErr := errors.New("failed to start live tail")
-	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("client.LiveTailHandlers")).Return(expectedErr)
+	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("client.LiveTailHandlers")).
+		Return(expectedErr)
 
 	// Test the function
 	err := runLogs(context.Background(), mockClient, mockSel)
@@ -318,13 +324,16 @@ func TestRunLogs_HandlerBehavior(t *testing.T) {
 	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
 	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
 	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
-	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
+	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
+		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
 
 	// Capture the handler function
 	var capturedHandler client.LiveTailHandlers
-	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("client.LiveTailHandlers")).Run(func(args mock.Arguments) {
-		capturedHandler = args.Get(3).(client.LiveTailHandlers)
-	}).Return(nil)
+	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("client.LiveTailHandlers")).
+		Run(func(args mock.Arguments) {
+			capturedHandler = args.Get(3).(client.LiveTailHandlers)
+		}).
+		Return(nil)
 
 	// Start the logs function
 	err := runLogs(context.Background(), mockClient, mockSel)
@@ -344,7 +353,9 @@ func TestRunLogs_HandlerBehavior(t *testing.T) {
 
 	// Call the handler with test data
 	// In a real implementation, you'd capture the output and verify it
-	capturedHandler.Update(logstypes.LiveTailSessionLogEvent{Message: &message, Timestamp: &timestamp})
+	capturedHandler.Update(
+		logstypes.LiveTailSessionLogEvent{Message: &message, Timestamp: &timestamp},
+	)
 
 	// Since we can't easily capture fmt.Printf output in this example,
 	// we mainly verify that the handler doesn't panic and completes
