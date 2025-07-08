@@ -107,7 +107,7 @@ func runLogs(
 					client.LiveTailHandlers{
 						Start: func() {
 							log.Printf(
-								"Starting live trail for container '%s' running at task '%s'\n",
+								"Starting live tail for container '%s' running at task '%s'\n",
 								logOptions.containerName,
 								taskId,
 							)
