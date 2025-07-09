@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -11,10 +10,20 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/fatih/color"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
+
+var printers = []Printer{
+	color.Blue,
+	color.Cyan,
+	color.Magenta,
+	color.Red,
+}
+
+type Printer = func(string, ...any)
 
 type LogsSelection struct {
 	cluster    *types.Cluster
@@ -31,6 +40,11 @@ var logsCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs logs [flags]
   `,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		noColors, err := cmd.Flags().GetBool("no-colors")
+		if err != nil {
+			return err
+		}
+
 		theme, err := themeByName(themeName)
 		if err != nil {
 			return err
@@ -44,6 +58,7 @@ var logsCmd = &cobra.Command{
 		client := client.NewClient(cfg)
 		err = runLogs(
 			context.TODO(),
+			noColors,
 			client,
 			selector.NewSelectors(client, *theme),
 		)
@@ -58,6 +73,7 @@ var logsCmd = &cobra.Command{
 
 func runLogs(
 	ctx context.Context,
+	noColors bool,
 	clients client.Client,
 	selectors selector.Selectors,
 ) error {
@@ -65,6 +81,7 @@ func runLogs(
 		containerName string
 		group         string
 		streamPrefix  string
+		printer       Printer
 	}
 
 	selection, err := logsSelector(ctx, selectors)
@@ -73,7 +90,7 @@ func runLogs(
 	}
 
 	var allLogOptions []LogOptions
-	for _, container := range selection.containers {
+	for index, container := range selection.containers {
 		if container.LogConfiguration == nil {
 			return fmt.Errorf("no log configuration found for container %s", *container.Name)
 		}
@@ -85,6 +102,7 @@ func runLogs(
 			containerName: *container.Name,
 			group:         options["awslogs-group"],
 			streamPrefix:  options["awslogs-stream-prefix"],
+			printer:       printerByIndex(noColors, index),
 		})
 	}
 
@@ -111,7 +129,7 @@ func runLogs(
 					streamName,
 					client.LiveTailHandlers{
 						Start: func() {
-							log.Printf(
+							logOptions.printer(
 								"Starting live tail for container '%s' running at task '%s'\n",
 								logOptions.containerName,
 								taskId,
@@ -120,7 +138,7 @@ func runLogs(
 						Update: func(event logsTypes.LiveTailSessionLogEvent) {
 							timestamp := time.UnixMilli(*event.Timestamp)
 							if len(selection.tasks) > 1 {
-								fmt.Printf(
+								logOptions.printer(
 									"%s | %s | %s | %s\n",
 									taskId,
 									logOptions.containerName,
@@ -128,7 +146,7 @@ func runLogs(
 									*event.Message,
 								)
 							} else {
-								fmt.Printf(
+								logOptions.printer(
 									"%s | %s | %s\n",
 									logOptions.containerName,
 									timestamp,
@@ -139,7 +157,7 @@ func runLogs(
 					},
 				)
 				if err != nil {
-					fmt.Printf("Error live tailing logs: %v", err)
+					logOptions.printer("Error live tailing logs: %v", err)
 				}
 			}(taskId, logOptions)
 		}
@@ -181,6 +199,18 @@ func logsSelector(
 	}, nil
 }
 
+func printerByIndex(noColors bool, index int) Printer {
+	if noColors {
+		return func(format string, a ...any) {
+			fmt.Printf(format, a...)
+		}
+	}
+
+	return printers[index%len(printers)]
+}
+
 func init() {
+	logsCmd.Flags().BoolP("no-colors", "", false, "Disable log coloring")
+
 	rootCmd.AddCommand(logsCmd)
 }
