@@ -40,6 +40,11 @@ var logsCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs logs [flags]
   `,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		noColors, err := cmd.Flags().GetBool("no-colors")
+		if err != nil {
+			return err
+		}
+
 		theme, err := themeByName(themeName)
 		if err != nil {
 			return err
@@ -53,6 +58,7 @@ var logsCmd = &cobra.Command{
 		client := client.NewClient(cfg)
 		err = runLogs(
 			context.TODO(),
+			noColors,
 			client,
 			selector.NewSelectors(client, *theme),
 		)
@@ -67,6 +73,7 @@ var logsCmd = &cobra.Command{
 
 func runLogs(
 	ctx context.Context,
+	noColors bool,
 	clients client.Client,
 	selectors selector.Selectors,
 ) error {
@@ -95,7 +102,7 @@ func runLogs(
 			containerName: *container.Name,
 			group:         options["awslogs-group"],
 			streamPrefix:  options["awslogs-stream-prefix"],
-			printer:       printers[index%len(printers)],
+			printer:       printerByIndex(noColors, index),
 		})
 	}
 
@@ -192,6 +199,18 @@ func logsSelector(
 	}, nil
 }
 
+func printerByIndex(noColors bool, index int) Printer {
+	if noColors {
+		return func(format string, a ...any) {
+			fmt.Printf(format, a...)
+		}
+	}
+
+	return printers[index%len(printers)]
+}
+
 func init() {
+	logsCmd.Flags().BoolP("no-colors", "", false, "Disable log coloring")
+
 	rootCmd.AddCommand(logsCmd)
 }
