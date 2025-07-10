@@ -2,6 +2,7 @@
 
 {
   packages = [
+    pkgs.agg
     pkgs.asciinema
     pkgs.aws-vault
     pkgs.awscli2
