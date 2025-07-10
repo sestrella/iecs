@@ -34,3 +34,6 @@ devenv.local.nix
 
 # Nix
 result
+
+# asciinema
+demo.cast
