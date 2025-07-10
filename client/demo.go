@@ -62,6 +62,9 @@ func (c DemoClient) DescribeServices(
 			ServiceName: aws.String(fmt.Sprintf("service-%d", len(services)+1)),
 			ClusterArn:  aws.String(clusterArn),
 			Status:      aws.String("ACTIVE"),
+			TaskDefinition: aws.String(
+				"arn:aws:ecs:us-east-1:123456789012:task-definition/task-def-1:1",
+			),
 		})
 	}
 	return services, nil
@@ -115,6 +118,17 @@ func (c DemoClient) DescribeTaskDefinition(
 						"awslogs-group":         "log-group-1",
 						"awslogs-region":        "us-east-1",
 						"awslogs-stream-prefix": "prefix-1",
+					},
+				},
+			},
+			{
+				Name: aws.String("container-2"),
+				LogConfiguration: &ecsTypes.LogConfiguration{
+					LogDriver: ecsTypes.LogDriverAwslogs,
+					Options: map[string]string{
+						"awslogs-group":         "log-group-2",
+						"awslogs-region":        "us-east-1",
+						"awslogs-stream-prefix": "prefix-2",
 					},
 				},
 			},
