@@ -2,6 +2,7 @@
 
 {
   packages = [
+    pkgs.asciinema
     pkgs.aws-vault
     pkgs.awscli2
     pkgs.claude-code
