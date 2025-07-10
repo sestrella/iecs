@@ -3,7 +3,7 @@
 [![Build](https://github.com/sestrella/iecs/actions/workflows/build.yml/badge.svg)](https://github.com/sestrella/iecs/actions/workflows/build.yml)
 [![Release](https://github.com/sestrella/iecs/actions/workflows/release.yml/badge.svg)](https://github.com/sestrella/iecs/actions/workflows/release.yml)
 
-[![asciicast](https://asciinema.org/a/727015.svg)](https://asciinema.org/a/727015)
+<script src="https://asciinema.org/a/727015.js" id="asciicast-727015" async="true"></script>
 
 An interactive CLI for ECS to help with troubleshooting tasks like:
 
