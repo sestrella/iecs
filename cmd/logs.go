@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -129,7 +130,7 @@ func runLogs(
 					streamName,
 					client.LiveTailHandlers{
 						Start: func() {
-							logOptions.printer(
+							log.Printf(
 								"Starting live tail for container '%s' running at task '%s'\n",
 								logOptions.containerName,
 								taskId,
@@ -145,10 +146,16 @@ func runLogs(
 									timestamp,
 									*event.Message,
 								)
-							} else {
+							} else if len(selection.containers) > 1 {
 								logOptions.printer(
 									"%s | %s | %s\n",
 									logOptions.containerName,
+									timestamp,
+									*event.Message,
+								)
+							} else {
+								logOptions.printer(
+									"%s | %s\n",
 									timestamp,
 									*event.Message,
 								)
