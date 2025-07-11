@@ -4,18 +4,23 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"os/exec"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	logs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
 
 // awsClient implements the combined Client interface
 type awsClient struct {
+	region     string
 	ecsClient  *ecs.Client
 	logsClient *logs.Client
 }
@@ -25,6 +30,7 @@ func NewClient(cfg aws.Config) Client {
 	ecsClient := ecs.NewFromConfig(cfg)
 	logsClient := logs.NewFromConfig(cfg)
 	return &awsClient{
+		region:     cfg.Region,
 		ecsClient:  ecsClient,
 		logsClient: logsClient,
 	}
@@ -131,19 +137,58 @@ func (c *awsClient) DescribeTasks(
 
 func (c *awsClient) ExecuteCommand(
 	ctx context.Context,
-	cluster string,
-	task string,
-	container string,
+	cluster *ecsTypes.Cluster,
+	taskArn string,
+	container *ecsTypes.Container,
 	command string,
 	interactive bool,
-) (*ecs.ExecuteCommandOutput, error) {
-	return c.ecsClient.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
-		Cluster:     &cluster,
-		Task:        &task,
-		Container:   &container,
+) (*exec.Cmd, error) {
+	executeCommand, err := c.ecsClient.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
+		Cluster:     cluster.ClusterArn,
+		Task:        &taskArn,
+		Container:   container.Name,
 		Command:     &command,
 		Interactive: interactive,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	session, err := json.Marshal(executeCommand.Session)
+	if err != nil {
+		return nil, err
+	}
+
+	taskArnSlices := strings.Split(taskArn, "/")
+	if len(taskArnSlices) < 2 {
+		return nil, fmt.Errorf("unable to extract task name from '%s'", taskArn)
+	}
+
+	taskName := strings.Join(taskArnSlices[1:], "/")
+	target := fmt.Sprintf(
+		"ecs:%s_%s_%s",
+		*cluster.ClusterName,
+		taskName,
+		*container.RuntimeId,
+	)
+	startSessionInput, err := json.Marshal(ssm.StartSessionInput{
+		Target: &target,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	cmd := exec.Command(
+		"session-manager-plugin",
+		string(session),
+		c.region,
+		"StartSession",
+		"",
+		string(startSessionInput),
+		fmt.Sprintf("https://ssm.%s.amazonaws.com", c.region),
+	)
+
+	return cmd, nil
 }
 
 func (c *awsClient) DescribeTaskDefinition(

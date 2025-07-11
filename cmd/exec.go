@@ -2,18 +2,14 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
-	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
@@ -94,53 +90,18 @@ func runExec(
 	if err != nil {
 		return err
 	}
-	executeCommandOutput, err := client.ExecuteCommand(
+	cmd, err := client.ExecuteCommand(
 		ctx,
-		*selection.Cluster.ClusterArn,
+		selection.Cluster,
 		*selection.Task.TaskArn,
-		*selection.Container.Name,
+		selection.Container,
 		command,
 		interactive,
-	)
-	if err != nil {
-		return err
-	}
-	session, err := json.Marshal(executeCommandOutput.Session)
-	if err != nil {
-		return err
-	}
-	taskArnSlices := strings.Split(*selection.Task.TaskArn, "/")
-	if len(taskArnSlices) < 2 {
-		return fmt.Errorf("unable to extract task name from '%s'", *selection.Task.TaskArn)
-	}
-	taskName := strings.Join(taskArnSlices[1:], "/")
-	target := fmt.Sprintf(
-		"ecs:%s_%s_%s",
-		*selection.Cluster.ClusterName,
-		taskName,
-		*selection.Container.RuntimeId,
-	)
-	targetJSON, err := json.Marshal(ssm.StartSessionInput{
-		Target: &target,
-	})
-	if err != nil {
-		return err
-	}
-	// https://github.com/aws/aws-cli/blob/develop/awscli/customizations/ecs/executecommand.py
-	cmd := commandExecutor(smpPath,
-		string(session),
-		region,
-		"StartSession",
-		"",
-		string(targetJSON),
-		fmt.Sprintf("https://ssm.%s.amazonaws.com", region),
 	)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
-	err = cmd.Start()
-	if err != nil {
+	if err = cmd.Start(); err != nil {
 		return err
 	}
 
