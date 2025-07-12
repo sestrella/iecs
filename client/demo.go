@@ -5,11 +5,11 @@ package client
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 )
 
@@ -155,11 +155,12 @@ func (c DemoClient) StartLiveTail(
 
 func (c DemoClient) ExecuteCommand(
 	ctx context.Context,
-	cluster string,
-	task string,
-	container string,
+	cluster *ecsTypes.Cluster,
+	taskArn string,
+	container *ecsTypes.Container,
 	command string,
 	interactive bool,
-) (*ecs.ExecuteCommandOutput, error) {
-	return &ecs.ExecuteCommandOutput{}, nil
+) (*exec.Cmd, error) {
+	cmd := exec.Command(command)
+	return cmd, nil
 }

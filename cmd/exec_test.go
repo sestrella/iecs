@@ -7,16 +7,10 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
-
-// Helper function to create string pointers
-func stringPtr(s string) *string {
-	return &s
-}
 
 func TestRunExec_Success(t *testing.T) {
 	// Create mock objects
@@ -60,21 +54,15 @@ func TestRunExec_Success(t *testing.T) {
 	mockSel.On("Container", mock.Anything, task).Return(container, nil)
 
 	// Mock ExecuteCommand response
-	executeCommandOutput := &ecs.ExecuteCommandOutput{
-		Session: &types.Session{
-			SessionId:  stringPtr("session-id"),
-			StreamUrl:  stringPtr("wss://session.example.com"),
-			TokenValue: stringPtr("token-value"),
-		},
-	}
+
 	mockClient.On("ExecuteCommand",
 		mock.Anything,
-		clusterArn,
+		cluster,
 		taskArn,
-		containerName,
+		container,
 		"/bin/bash",
 		true,
-	).Return(executeCommandOutput, nil)
+	).Return(exec.Command("echo"), nil)
 
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
 		assert.Equal(t, "session-manager-plugin", name)
@@ -297,12 +285,12 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 	expectedErr := errors.New("execute command error")
 	mockClient.On("ExecuteCommand",
 		mock.Anything,
-		clusterArn,
+		cluster,
 		taskArn,
-		containerName,
+		container,
 		"/bin/bash",
 		true,
-	).Return(nil, expectedErr)
+	).Return(exec.Command("echo"), expectedErr)
 
 	// Mock command executor function - should not be called
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
