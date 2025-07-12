@@ -40,18 +40,16 @@ var execCmd = &cobra.Command{
 			return err
 		}
 
-		smpPath, err := exec.LookPath("session-manager-plugin")
-		if err != nil {
-			return err
-		}
 		command, err := cmd.Flags().GetString(execCommandFlag)
 		if err != nil {
 			return err
 		}
+
 		interactive, err := cmd.Flags().GetBool(execInteractiveFlag)
 		if err != nil {
 			return err
 		}
+
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
 			return err
@@ -60,7 +58,6 @@ var execCmd = &cobra.Command{
 		awsClient := client.NewClient(cfg)
 		err = runExec(
 			context.TODO(),
-			smpPath,
 			awsClient,
 			exec.Command,
 			selector.NewSelectors(awsClient, *theme),
@@ -78,7 +75,6 @@ var execCmd = &cobra.Command{
 
 func runExec(
 	ctx context.Context,
-	smpPath string,
 	client client.Client,
 	commandExecutor func(name string, arg ...string) *exec.Cmd,
 	selectors selector.Selectors,

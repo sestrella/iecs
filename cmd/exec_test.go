@@ -75,7 +75,6 @@ func TestRunExec_Success(t *testing.T) {
 	// Test the function
 	err := runExec(
 		context.Background(),
-		"session-manager-plugin",
 		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
@@ -108,7 +107,6 @@ func TestRunExec_ClusterSelectorError(t *testing.T) {
 	// Test the function
 	err := runExec(
 		context.Background(),
-		"/usr/local/bin/session-manager-plugin",
 		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
@@ -146,7 +144,6 @@ func TestRunExec_ServiceSelectorError(t *testing.T) {
 	// Test the function
 	err := runExec(
 		context.Background(),
-		"/usr/local/bin/session-manager-plugin",
 		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
@@ -185,7 +182,6 @@ func TestRunExec_TaskSelectorError(t *testing.T) {
 	// Test the function
 	err := runExec(
 		context.Background(),
-		"/usr/local/bin/session-manager-plugin",
 		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
@@ -226,7 +222,6 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 	// Test the function
 	err := runExec(
 		context.Background(),
-		"/usr/local/bin/session-manager-plugin",
 		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
@@ -307,7 +302,6 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 	// Test the function
 	err := runExec(
 		context.Background(),
-		"/usr/local/bin/session-manager-plugin",
 		mockClient,
 		mockCommandExecutorFn,
 		mockSel,

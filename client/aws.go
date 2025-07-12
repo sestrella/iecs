@@ -143,6 +143,11 @@ func (c *awsClient) ExecuteCommand(
 	command string,
 	interactive bool,
 ) (*exec.Cmd, error) {
+	smpPath, err := exec.LookPath("session-manager-plugin")
+	if err != nil {
+		return nil, err
+	}
+
 	executeCommand, err := c.ecsClient.ExecuteCommand(ctx, &ecs.ExecuteCommandInput{
 		Cluster:     cluster.ClusterArn,
 		Task:        &taskArn,
@@ -179,7 +184,7 @@ func (c *awsClient) ExecuteCommand(
 	}
 
 	cmd := exec.Command(
-		"session-manager-plugin",
+		smpPath,
 		string(session),
 		c.region,
 		"StartSession",
