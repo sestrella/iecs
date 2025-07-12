@@ -23,7 +23,7 @@ type Selectors interface {
 	Service(ctx context.Context, cluster *types.Cluster) (*types.Service, error)
 	Task(ctx context.Context, service *types.Service) (*types.Task, error)
 	Tasks(ctx context.Context, service *types.Service) ([]types.Task, error)
-	Container(ctx context.Context, task *types.Task) (*types.Container, error)
+	Container(ctx context.Context, containers []types.Container) (*types.Container, error)
 	ContainerDefinitions(
 		ctx context.Context,
 		taskDefinitionArn string,
@@ -217,10 +217,10 @@ func (cs ClientSelectors) Tasks(
 
 func (cs ClientSelectors) Container(
 	ctx context.Context,
-	task *types.Task,
+	containers []types.Container,
 ) (*types.Container, error) {
 	var containerNames []string
-	for _, container := range task.Containers {
+	for _, container := range containers {
 		containerNames = append(containerNames, *container.Name)
 	}
 
@@ -243,7 +243,7 @@ func (cs ClientSelectors) Container(
 		}
 	}
 
-	for _, container := range task.Containers {
+	for _, container := range containers {
 		if *container.Name == containerName {
 			fmt.Printf("%s %s\n", titleStyle.Render("Container:"), *container.Name)
 			return &container, nil

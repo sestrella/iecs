@@ -96,6 +96,16 @@ func (c DemoClient) DescribeTasks(
 			TaskDefinitionArn: aws.String(
 				"arn:aws:ecs:us-east-1:123456789012:task-definition/task-def-1:1",
 			),
+			Containers: []ecsTypes.Container{
+				{
+					Name:      aws.String("container-1"),
+					RuntimeId: aws.String("runtime-id-1"),
+				},
+				{
+					Name:      aws.String("container-2"),
+					RuntimeId: aws.String("runtime-id-2"),
+				},
+			},
 		})
 	}
 	return tasks, nil

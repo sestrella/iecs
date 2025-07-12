@@ -20,11 +20,11 @@ const (
 	execInteractiveFlag = "interactive"
 )
 
-type SelectedContainer struct {
-	Cluster   *types.Cluster
-	Service   *types.Service
-	Task      *types.Task
-	Container *types.Container
+type ExecSelection struct {
+	cluster   *types.Cluster
+	service   *types.Service
+	task      *types.Task
+	container *types.Container
 }
 
 var execCmd = &cobra.Command{
@@ -86,15 +86,15 @@ func runExec(
 	command string,
 	interactive bool,
 ) error {
-	selection, err := containerSelector(ctx, selectors)
+	selection, err := execSelector(ctx, selectors)
 	if err != nil {
 		return err
 	}
 	cmd, err := client.ExecuteCommand(
 		ctx,
-		selection.Cluster,
-		*selection.Task.TaskArn,
-		selection.Container,
+		selection.cluster,
+		*selection.task.TaskArn,
+		selection.container,
 		command,
 		interactive,
 	)
@@ -122,10 +122,10 @@ func runExec(
 	return cmd.Wait()
 }
 
-func containerSelector(
+func execSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
-) (*SelectedContainer, error) {
+) (*ExecSelection, error) {
 	cluster, err := selectors.Cluster(ctx)
 	if err != nil {
 		return nil, err
@@ -141,22 +141,22 @@ func containerSelector(
 		return nil, err
 	}
 
-	container, err := selectors.Container(ctx, task)
+	container, err := selectors.Container(ctx, task.Containers)
 	if err != nil {
 		return nil, err
 	}
 
-	return &SelectedContainer{
-		Cluster:   cluster,
-		Service:   service,
-		Task:      task,
-		Container: container,
+	return &ExecSelection{
+		cluster:   cluster,
+		service:   service,
+		task:      task,
+		container: container,
 	}, nil
 }
 
 func init() {
-	rootCmd.AddCommand(execCmd)
-
 	execCmd.Flags().StringP(execCommandFlag, "c", "/bin/bash", "command to run")
 	execCmd.Flags().BoolP(execInteractiveFlag, "i", true, "toggles interactive mode")
+
+	rootCmd.AddCommand(execCmd)
 }

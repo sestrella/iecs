@@ -159,8 +159,11 @@ func (m *MockSelectors) Tasks(
 	return args.Get(0).([]types.Task), args.Error(1)
 }
 
-func (m *MockSelectors) Container(ctx context.Context, task *types.Task) (*types.Container, error) {
-	args := m.Called(ctx, task)
+func (m *MockSelectors) Container(
+	ctx context.Context,
+	containers []types.Container,
+) (*types.Container, error) {
+	args := m.Called(ctx, containers)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
