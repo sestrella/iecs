@@ -2,9 +2,9 @@ package client
 
 import (
 	"context"
+	"os/exec"
 
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 )
 
@@ -47,12 +47,12 @@ type Client interface {
 	// ECS operations
 	ExecuteCommand(
 		ctx context.Context,
-		cluster string,
-		task string,
-		container string,
+		cluster *ecsTypes.Cluster,
+		taskArn string,
+		container *ecsTypes.Container,
 		command string,
 		interactive bool,
-	) (*ecs.ExecuteCommandOutput, error)
+	) (*exec.Cmd, error)
 
 	// Task Definitions
 	DescribeTaskDefinition(

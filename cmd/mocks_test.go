@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"context"
+	"os/exec"
 
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
 	"github.com/stretchr/testify/mock"
@@ -89,17 +89,17 @@ func (m *MockClient) StartLiveTail(
 
 func (m *MockClient) ExecuteCommand(
 	ctx context.Context,
-	cluster string,
-	task string,
-	container string,
+	cluster *types.Cluster,
+	taskArn string,
+	container *types.Container,
 	command string,
 	interactive bool,
-) (*ecs.ExecuteCommandOutput, error) {
-	args := m.Called(ctx, cluster, task, container, command, interactive)
+) (*exec.Cmd, error) {
+	args := m.Called(ctx, cluster, taskArn, container, command, interactive)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*ecs.ExecuteCommandOutput), args.Error(1)
+	return args.Get(0).(*exec.Cmd), args.Error(1)
 }
 
 func (m *MockClient) DescribeTaskDefinition(
@@ -126,7 +126,10 @@ func (m *MockSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
 	return args.Get(0).(*types.Cluster), args.Error(1)
 }
 
-func (m *MockSelectors) Service(ctx context.Context, cluster *types.Cluster) (*types.Service, error) {
+func (m *MockSelectors) Service(
+	ctx context.Context,
+	cluster *types.Cluster,
+) (*types.Service, error) {
 	args := m.Called(ctx, cluster)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -156,8 +159,11 @@ func (m *MockSelectors) Tasks(
 	return args.Get(0).([]types.Task), args.Error(1)
 }
 
-func (m *MockSelectors) Container(ctx context.Context, task *types.Task) (*types.Container, error) {
-	args := m.Called(ctx, task)
+func (m *MockSelectors) Container(
+	ctx context.Context,
+	containers []types.Container,
+) (*types.Container, error) {
+	args := m.Called(ctx, containers)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

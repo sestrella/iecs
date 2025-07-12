@@ -7,16 +7,10 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
-
-// Helper function to create string pointers
-func stringPtr(s string) *string {
-	return &s
-}
 
 func TestRunExec_Success(t *testing.T) {
 	// Create mock objects
@@ -42,39 +36,36 @@ func TestRunExec_Success(t *testing.T) {
 		ServiceArn: &serviceArn,
 	}
 
-	// Mock task
-	task := &types.Task{
-		TaskArn: &taskArn,
-	}
-
 	// Mock container
 	container := &types.Container{
 		Name:      &containerName,
 		RuntimeId: &containerRuntimeId,
 	}
 
+	// Mock task
+	task := &types.Task{
+		TaskArn: &taskArn,
+		Containers: []types.Container{
+			*container,
+		},
+	}
+
 	// Setup mock calls for selectors
 	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
 	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
 	mockSel.On("Task", mock.Anything, service).Return(task, nil)
-	mockSel.On("Container", mock.Anything, task).Return(container, nil)
+	mockSel.On("Container", mock.Anything, task.Containers).Return(container, nil)
 
 	// Mock ExecuteCommand response
-	executeCommandOutput := &ecs.ExecuteCommandOutput{
-		Session: &types.Session{
-			SessionId:  stringPtr("session-id"),
-			StreamUrl:  stringPtr("wss://session.example.com"),
-			TokenValue: stringPtr("token-value"),
-		},
-	}
+
 	mockClient.On("ExecuteCommand",
 		mock.Anything,
-		clusterArn,
+		cluster,
 		taskArn,
-		containerName,
+		container,
 		"/bin/bash",
 		true,
-	).Return(executeCommandOutput, nil)
+	).Return(exec.Command("echo"), nil)
 
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
 		assert.Equal(t, "session-manager-plugin", name)
@@ -84,7 +75,6 @@ func TestRunExec_Success(t *testing.T) {
 	// Test the function
 	err := runExec(
 		context.Background(),
-		"session-manager-plugin",
 		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
@@ -117,7 +107,6 @@ func TestRunExec_ClusterSelectorError(t *testing.T) {
 	// Test the function
 	err := runExec(
 		context.Background(),
-		"/usr/local/bin/session-manager-plugin",
 		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
@@ -155,7 +144,6 @@ func TestRunExec_ServiceSelectorError(t *testing.T) {
 	// Test the function
 	err := runExec(
 		context.Background(),
-		"/usr/local/bin/session-manager-plugin",
 		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
@@ -194,7 +182,6 @@ func TestRunExec_TaskSelectorError(t *testing.T) {
 	// Test the function
 	err := runExec(
 		context.Background(),
-		"/usr/local/bin/session-manager-plugin",
 		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
@@ -224,7 +211,7 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
 	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
 	mockSel.On("Task", mock.Anything, service).Return(task, nil)
-	mockSel.On("Container", mock.Anything, task).Return(nil, expectedErr)
+	mockSel.On("Container", mock.Anything, task.Containers).Return(nil, expectedErr)
 
 	// Mock command executor function - should not be called
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
@@ -235,7 +222,6 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 	// Test the function
 	err := runExec(
 		context.Background(),
-		"/usr/local/bin/session-manager-plugin",
 		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
@@ -276,33 +262,36 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 		ServiceArn: &serviceArn,
 	}
 
-	// Mock task
-	task := &types.Task{
-		TaskArn: &taskArn,
-	}
-
 	// Mock container
 	container := &types.Container{
 		Name:      &containerName,
 		RuntimeId: &containerRuntimeId,
 	}
 
+	// Mock task
+	task := &types.Task{
+		TaskArn: &taskArn,
+		Containers: []types.Container{
+			*container,
+		},
+	}
+
 	// Setup mock calls for selectors
 	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
 	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
 	mockSel.On("Task", mock.Anything, service).Return(task, nil)
-	mockSel.On("Container", mock.Anything, task).Return(container, nil)
+	mockSel.On("Container", mock.Anything, task.Containers).Return(container, nil)
 
 	// Mock ExecuteCommand error
 	expectedErr := errors.New("execute command error")
 	mockClient.On("ExecuteCommand",
 		mock.Anything,
-		clusterArn,
+		cluster,
 		taskArn,
-		containerName,
+		container,
 		"/bin/bash",
 		true,
-	).Return(nil, expectedErr)
+	).Return(exec.Command("echo"), expectedErr)
 
 	// Mock command executor function - should not be called
 	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
@@ -313,7 +302,6 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 	// Test the function
 	err := runExec(
 		context.Background(),
-		"/usr/local/bin/session-manager-plugin",
 		mockClient,
 		mockCommandExecutorFn,
 		mockSel,
