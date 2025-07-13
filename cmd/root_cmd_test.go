@@ -9,14 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestThemeByName(t *testing.T) {
+func TestRootCmdPersistentPreRunE(t *testing.T) {
 	t.Run("Valid Themes", func(t *testing.T) {
-		for name, themeFunc := range themes {
+		for name := range themes {
 			t.Run(name, func(t *testing.T) {
-				theme, err := themeByName(name)
+				themeName = name
+				err := rootCmd.PersistentPreRunE(rootCmd, []string{})
 				assert.NoError(t, err)
-				assert.NotNil(t, theme)
-				assert.Equal(t, themeFunc(), theme)
 			})
 		}
 	})
@@ -36,15 +35,15 @@ func TestThemeByName(t *testing.T) {
 		themeNames = names
 
 		invalidThemeName := "invalid-theme"
-		theme, err := themeByName(invalidThemeName)
+		themeName = invalidThemeName
+		err := rootCmd.PersistentPreRunE(rootCmd, []string{})
 
 		expectedError := fmt.Sprintf(
-			"unsupported theme '%s' expecting one of: %s",
+			"unsupported theme \"%s\" expecting one of: %s",
 			invalidThemeName,
 			strings.Join(themeNames, " "),
 		)
 
 		assert.EqualError(t, err, expectedError)
-		assert.Nil(t, theme)
 	})
 }

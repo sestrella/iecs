@@ -46,11 +46,6 @@ var logsCmd = &cobra.Command{
 			return err
 		}
 
-		theme, err := themeByName(themeName)
-		if err != nil {
-			return err
-		}
-
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
 			return err
