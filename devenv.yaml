@@ -6,5 +6,3 @@ inputs:
     url: github:nix-community/gomod2nix
     overlays:
       - default
-
-allowUnfree: true

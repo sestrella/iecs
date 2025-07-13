@@ -5,9 +5,8 @@
     pkgs.asciinema
     pkgs.aws-vault
     pkgs.awscli2
-    pkgs.claude-code
     pkgs.cobra-cli
-    pkgs.gomod2nix
+    pkgs.gemini-cli
     pkgs.ssm-session-manager-plugin
   ];
 
@@ -22,6 +21,7 @@
       pass_filenames = false;
       files = "go.mod";
     };
+    gotest.enable = true;
     nixpkgs-fmt.enable = true;
   };
 
