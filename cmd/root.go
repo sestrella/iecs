@@ -21,18 +21,31 @@ var (
 
 	themeNames []string
 	themeName  string
+	theme      *huh.Theme
 )
 
 var rootCmd = &cobra.Command{
-	Use:          "iecs",
-	Short:        "An interactive CLI for ECS",
-	Long:         "Performs commons tasks on ECS, such as getting remote access or viewing logs",
+	Use:   "iecs",
+	Short: "An interactive CLI for ECS",
+	Long:  "Performs commons tasks on ECS, such as getting remote access or viewing logs",
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if themeFunc, ok := themes[themeName]; ok {
+			theme = themeFunc()
+			return nil
+		}
+
+		return fmt.Errorf(
+			"unsupported theme \"%s\" expecting one of: %s",
+			themeName,
+			strings.Join(themeNames, " "),
+		)
+	},
 	SilenceUsage: true,
 }
 
 func Execute(version string) error {
-	for key := range themes {
-		themeNames = append(themeNames, key)
+	for name := range themes {
+		themeNames = append(themeNames, fmt.Sprintf("\"%s\"", name))
 	}
 	sort.Strings(themeNames)
 
@@ -55,16 +68,4 @@ func Execute(version string) error {
 	}
 
 	return nil
-}
-
-func themeByName(themeName string) (*huh.Theme, error) {
-	if themeFunc, ok := themes[themeName]; ok {
-		return themeFunc(), nil
-	}
-
-	return nil, fmt.Errorf(
-		"unsupported theme '%s' expecting one of: %s",
-		themeName,
-		strings.Join(themeNames, " "),
-	)
 }
