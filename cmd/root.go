@@ -19,9 +19,9 @@ var (
 		"dracula":    huh.ThemeDracula,
 	}
 
-	themeNames []string
-	themeName  string
-	theme      *huh.Theme
+	availableThemes string
+	themeName       string
+	theme           *huh.Theme
 )
 
 var rootCmd = &cobra.Command{
@@ -37,17 +37,19 @@ var rootCmd = &cobra.Command{
 		return fmt.Errorf(
 			"unsupported theme \"%s\" expecting one of: %s",
 			themeName,
-			strings.Join(themeNames, " "),
+			availableThemes,
 		)
 	},
 	SilenceUsage: true,
 }
 
 func Execute(version string) error {
+	var themeNames []string
 	for name := range themes {
 		themeNames = append(themeNames, fmt.Sprintf("\"%s\"", name))
 	}
 	sort.Strings(themeNames)
+	availableThemes = strings.Join(themeNames, ", ")
 
 	rootCmd.PersistentFlags().
 		StringVarP(
@@ -57,7 +59,7 @@ func Execute(version string) error {
 			"charm",
 			fmt.Sprintf(
 				"The theme to use. Available themes are: %s",
-				strings.Join(themeNames, " "),
+				availableThemes,
 			),
 		)
 	rootCmd.Version = version
