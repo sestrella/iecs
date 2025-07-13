@@ -196,6 +196,24 @@ func (c *awsClient) ExecuteCommand(
 	return cmd, nil
 }
 
+func (c *awsClient) ListTaskDefinitions(
+	ctx context.Context,
+	familyPrefix string,
+) ([]string, error) {
+	listTaskDefinitions, err := c.ecsClient.ListTaskDefinitions(
+		ctx,
+		&ecs.ListTaskDefinitionsInput{
+			FamilyPrefix: &familyPrefix,
+			Sort:         ecsTypes.SortOrderDesc,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return listTaskDefinitions.TaskDefinitionArns, nil
+}
+
 func (c *awsClient) DescribeTaskDefinition(
 	ctx context.Context,
 	taskDefinitionArn string,

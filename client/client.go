@@ -55,6 +55,11 @@ type Client interface {
 	) (*exec.Cmd, error)
 
 	// Task Definitions
+	ListTaskDefinitions(
+		ctx context.Context,
+		familyPrefix string,
+	) ([]string, error)
+
 	DescribeTaskDefinition(
 		ctx context.Context,
 		taskDefinitionArn string,

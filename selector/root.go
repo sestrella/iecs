@@ -23,6 +23,7 @@ type Selectors interface {
 	Service(ctx context.Context, cluster *types.Cluster) (*types.Service, error)
 	Task(ctx context.Context, service *types.Service) (*types.Task, error)
 	Tasks(ctx context.Context, service *types.Service) ([]types.Task, error)
+	TaskDefinition(ctx context.Context, serviceArn string) (*types.TaskDefinition, error)
 	Container(ctx context.Context, containers []types.Container) (*types.Container, error)
 	ContainerDefinitions(
 		ctx context.Context,
@@ -213,6 +214,50 @@ func (cs ClientSelectors) Tasks(
 	}
 
 	return tasks, nil
+}
+
+func (cs ClientSelectors) TaskDefinition(
+	ctx context.Context,
+	currentTaskDefinitionArn string,
+) (*types.TaskDefinition, error) {
+	currentTaskDefinition, err := cs.client.DescribeTaskDefinition(ctx, currentTaskDefinitionArn)
+	if err != nil {
+		return nil, err
+	}
+
+	taskDefinitionArns, err := cs.client.ListTaskDefinitions(ctx, *currentTaskDefinition.Family)
+	if err != nil {
+		return nil, err
+	}
+	if len(taskDefinitionArns) == 0 {
+		return nil, fmt.Errorf("no task definitions")
+	}
+
+	var taskDefinitionArn string
+	if len(taskDefinitionArns) == 1 {
+		log.Printf("Pre-selecting the only available task definition")
+		taskDefinitionArn = taskDefinitionArns[0]
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Select a task definition").
+					Options(huh.NewOptions(taskDefinitionArns...)...).
+					Value(&taskDefinitionArn).
+					WithHeight(5),
+			),
+		).WithTheme(&cs.theme)
+		if err := form.Run(); err != nil {
+			return nil, err
+		}
+	}
+
+	taskDefinition, err := cs.client.DescribeTaskDefinition(ctx, taskDefinitionArn)
+	if err != nil {
+		return nil, err
+	}
+
+	return taskDefinition, nil
 }
 
 func (cs ClientSelectors) Container(
