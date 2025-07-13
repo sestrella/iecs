@@ -102,6 +102,17 @@ func (m *MockClient) ExecuteCommand(
 	return args.Get(0).(*exec.Cmd), args.Error(1)
 }
 
+func (m *MockClient) ListTaskDefinitions(
+	ctx context.Context,
+	familyPrefix string,
+) ([]string, error) {
+	args := m.Called(ctx, familyPrefix)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
 func (m *MockClient) DescribeTaskDefinition(
 	ctx context.Context,
 	taskDefinitionArn string,
@@ -157,6 +168,17 @@ func (m *MockSelectors) Tasks(
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]types.Task), args.Error(1)
+}
+
+func (m *MockSelectors) TaskDefinition(
+	ctx context.Context,
+	serviceArn string,
+) (*types.TaskDefinition, error) {
+	args := m.Called(ctx, serviceArn)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*types.TaskDefinition), args.Error(1)
 }
 
 func (m *MockSelectors) Container(
