@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
@@ -11,15 +12,20 @@ import (
 )
 
 type UpdateSelection struct {
-	cluster        types.Cluster
-	service        types.Service
-	taskDefinition types.TaskDefinition
+	cluster       types.Cluster
+	service       types.Service
+	updateService client.UpdateServiceInput
 }
 
 var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "TODO",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		waitTimeout, err := cmd.Flags().GetDuration("wait-timeout")
+		if err != nil {
+			return err
+		}
+
 		cfg, err := config.LoadDefaultConfig(context.Background())
 		if err != nil {
 			return err
@@ -32,7 +38,7 @@ var updateCmd = &cobra.Command{
 			return err
 		}
 
-		err = runUpdate(context.Background(), *selection, client)
+		err = runUpdate(context.Background(), *selection, client, waitTimeout)
 		if err != nil {
 			return err
 		}
@@ -61,9 +67,12 @@ func updateSelector(
 	}
 
 	return &UpdateSelection{
-		cluster:        *cluster,
-		service:        *service,
-		taskDefinition: *taskDefinition,
+		cluster: *cluster,
+		service: *service,
+		updateService: client.UpdateServiceInput{
+			TaskDefinitionArn: *taskDefinition.TaskDefinitionArn,
+			DesiredCounts:     1,
+		},
 	}, nil
 }
 
@@ -71,7 +80,18 @@ func runUpdate(
 	ctx context.Context,
 	selection UpdateSelection,
 	client client.Client,
+	waitTimeout time.Duration,
 ) error {
+	_, err := client.UpdateService(
+		ctx,
+		selection.service,
+		selection.updateService,
+		waitTimeout,
+	)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

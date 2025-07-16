@@ -70,6 +70,15 @@ func (c DemoClient) DescribeServices(
 	return services, nil
 }
 
+func (c DemoClient) UpdateService(
+	ctx context.Context,
+	service ecsTypes.Service,
+	input UpdateServiceInput,
+	waitTimeout time.Duration,
+) (*ecsTypes.Service, error) {
+	return nil, nil
+}
+
 func (c DemoClient) ListTasks(
 	ctx context.Context,
 	clusterArn string,
@@ -109,6 +118,13 @@ func (c DemoClient) DescribeTasks(
 		})
 	}
 	return tasks, nil
+}
+
+func (c DemoClient) ListTaskDefinitions(
+	ctx context.Context,
+	familyPrefix string,
+) ([]string, error) {
+	return nil, nil
 }
 
 func (c DemoClient) DescribeTaskDefinition(

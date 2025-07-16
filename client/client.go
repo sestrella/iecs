@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"os/exec"
+	"time"
 
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
@@ -12,6 +13,11 @@ import (
 type LiveTailHandlers struct {
 	Start  func()
 	Update func(logsTypes.LiveTailSessionLogEvent)
+}
+
+type UpdateServiceInput struct {
+	TaskDefinitionArn string
+	DesiredCounts     int
 }
 
 // Client interface combines ECS and CloudWatch Logs operations.
@@ -27,6 +33,12 @@ type Client interface {
 		clusterArn string,
 		serviceArns []string,
 	) ([]ecsTypes.Service, error)
+	UpdateService(
+		ctx context.Context,
+		service ecsTypes.Service,
+		input UpdateServiceInput,
+		waitTimeout time.Duration,
+	) (*ecsTypes.Service, error)
 
 	// Tasks
 	ListTasks(ctx context.Context, clusterArn string, serviceArn string) ([]string, error)
@@ -36,15 +48,17 @@ type Client interface {
 		taskArns []string,
 	) ([]ecsTypes.Task, error)
 
-	// CloudWatch Logs operations
-	StartLiveTail(
+	// Task Definitions
+	ListTaskDefinitions(
 		ctx context.Context,
-		logGroupName string,
-		streamPrefix string,
-		handler LiveTailHandlers,
-	) error
+		familyPrefix string,
+	) ([]string, error)
+	DescribeTaskDefinition(
+		ctx context.Context,
+		taskDefinitionArn string,
+	) (*ecsTypes.TaskDefinition, error)
 
-	// ECS operations
+	// Others
 	ExecuteCommand(
 		ctx context.Context,
 		cluster *ecsTypes.Cluster,
@@ -53,15 +67,10 @@ type Client interface {
 		command string,
 		interactive bool,
 	) (*exec.Cmd, error)
-
-	// Task Definitions
-	ListTaskDefinitions(
+	StartLiveTail(
 		ctx context.Context,
-		familyPrefix string,
-	) ([]string, error)
-
-	DescribeTaskDefinition(
-		ctx context.Context,
-		taskDefinitionArn string,
-	) (*ecsTypes.TaskDefinition, error)
+		logGroupName string,
+		streamPrefix string,
+		handler LiveTailHandlers,
+	) error
 }

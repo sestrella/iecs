@@ -8,16 +8,17 @@ import (
 
 	logstypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
-	"github.com/sestrella/iecs/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	clientMock "github.com/sestrella/iecs/client"
 )
 
 // The MockClient implementation is now in mocks_test.go
 
 func TestRunLogs_Success(t *testing.T) {
 	// Create mock objects
-	mockClient := new(MockClient)
+	mockClient := new(clientMock.MockClient)
 	mockSel := new(MockSelectors)
 
 	// Setup mock responses
@@ -65,7 +66,7 @@ func TestRunLogs_Success(t *testing.T) {
 	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
 	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
 		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
-	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("client.LiveTailHandlers")).
+	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("clientMock.LiveTailHandlers")).
 		Return(nil)
 
 	// Test the function
@@ -79,7 +80,7 @@ func TestRunLogs_Success(t *testing.T) {
 
 func TestRunLogs_SelectorError(t *testing.T) {
 	// Create mock objects
-	mockClient := new(MockClient)
+	mockClient := new(clientMock.MockClient)
 	mockSel := new(MockSelectors)
 
 	// Setup mock responses with an error for cluster selector
@@ -99,7 +100,7 @@ func TestRunLogs_SelectorError(t *testing.T) {
 
 func TestRunLogs_MissingLogConfiguration(t *testing.T) {
 	// Create mock objects
-	mockClient := new(MockClient)
+	mockClient := new(clientMock.MockClient)
 	mockSel := new(MockSelectors)
 
 	// Setup mock responses
@@ -153,7 +154,7 @@ func TestRunLogs_MissingLogConfiguration(t *testing.T) {
 
 func TestRunLogs_MissingLogOptions(t *testing.T) {
 	// Create mock objects
-	mockClient := new(MockClient)
+	mockClient := new(clientMock.MockClient)
 	mockSel := new(MockSelectors)
 
 	// Setup mock responses
@@ -212,7 +213,7 @@ func TestRunLogs_MissingLogOptions(t *testing.T) {
 
 func TestRunLogs_StartLiveTailError(t *testing.T) {
 	// Create mock objects
-	mockClient := new(MockClient)
+	mockClient := new(clientMock.MockClient)
 	mockSel := new(MockSelectors)
 
 	// Setup mock responses
@@ -263,7 +264,7 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 
 	// Setup StartLiveTail to return an error
 	expectedErr := errors.New("failed to start live tail")
-	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("client.LiveTailHandlers")).
+	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("clientMock.LiveTailHandlers")).
 		Return(expectedErr)
 
 	// Test the function
@@ -278,7 +279,7 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 // Test handler function behavior
 func TestRunLogs_HandlerBehavior(t *testing.T) {
 	// Create mock objects
-	mockClient := new(MockClient)
+	mockClient := new(clientMock.MockClient)
 	mockSel := new(MockSelectors)
 
 	// Setup mock responses
@@ -328,10 +329,10 @@ func TestRunLogs_HandlerBehavior(t *testing.T) {
 		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
 
 	// Capture the handler function
-	var capturedHandler client.LiveTailHandlers
-	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("client.LiveTailHandlers")).
+	var capturedHandler clientMock.LiveTailHandlers
+	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("clientMock.LiveTailHandlers")).
 		Run(func(args mock.Arguments) {
-			capturedHandler = args.Get(3).(client.LiveTailHandlers)
+			capturedHandler = args.Get(3).(clientMock.LiveTailHandlers)
 		}).
 		Return(nil)
 

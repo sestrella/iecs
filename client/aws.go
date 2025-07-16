@@ -9,6 +9,7 @@ import (
 	"log"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	logs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
@@ -291,4 +292,32 @@ func (c *awsClient) StartLiveTail(
 			return fmt.Errorf("unknown event type: %T", e)
 		}
 	}
+}
+
+func (c *awsClient) UpdateService(
+	ctx context.Context,
+	service ecsTypes.Service,
+	input UpdateServiceInput,
+	waitTimeout time.Duration,
+) (*ecsTypes.Service, error) {
+	desiredCounts := int32(input.DesiredCounts)
+	updateService, err := c.ecsClient.UpdateService(ctx, &ecs.UpdateServiceInput{
+		Service:        service.ServiceArn,
+		TaskDefinition: &input.TaskDefinitionArn,
+		DesiredCount:   &desiredCounts,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	waiter := ecs.NewServicesStableWaiter(c.ecsClient)
+	err = waiter.Wait(ctx, &ecs.DescribeServicesInput{
+		Cluster:  updateService.Service.ClusterArn,
+		Services: []string{*updateService.Service.ServiceArn},
+	}, waitTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	return updateService.Service, nil
 }
