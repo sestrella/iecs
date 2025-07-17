@@ -15,7 +15,7 @@ import (
 func TestRunExec_Success(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
-	mockClient := new(client.MockClient)
+	mockClient := new(MockClient)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -92,7 +92,7 @@ func TestRunExec_Success(t *testing.T) {
 func TestRunExec_ClusterSelectorError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
-	mockClient := new(client.MockClient)
+	mockClient := new(MockClient)
 
 	// Setup mock responses with an error
 	expectedErr := errors.New("cluster selector error")
@@ -126,7 +126,7 @@ func TestRunExec_ClusterSelectorError(t *testing.T) {
 func TestRunExec_ServiceSelectorError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
-	mockClient := new(client.MockClient)
+	mockClient := new(MockClient)
 
 	// Setup mock responses
 	// Mock service selector error
@@ -163,7 +163,7 @@ func TestRunExec_ServiceSelectorError(t *testing.T) {
 func TestRunExec_TaskSelectorError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
-	mockClient := new(client.MockClient)
+	mockClient := new(MockClient)
 
 	// Setup mock responses with an error
 	cluster := &types.Cluster{}
@@ -201,7 +201,7 @@ func TestRunExec_TaskSelectorError(t *testing.T) {
 func TestRunExec_ContainerSelectorError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
-	mockClient := new(client.MockClient)
+	mockClient := new(MockClient)
 
 	// Setup mock responses with an error
 	cluster := &types.Cluster{}
@@ -241,7 +241,7 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 func TestRunExec_ExecuteCommandError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
-	mockClient := new(client.MockClient)
+	mockClient := new(MockClient)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
