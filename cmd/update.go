@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var waitTimeout time.Duration
+var waitTimeoutFlag time.Duration
 
 type UpdateSelection struct {
 	cluster       types.Cluster
@@ -35,7 +35,7 @@ var updateCmd = &cobra.Command{
 			return err
 		}
 
-		err = runUpdate(context.Background(), *selection, client, waitTimeout)
+		err = runUpdate(context.Background(), *selection, client, waitTimeoutFlag)
 		if err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ func runUpdate(
 }
 
 func init() {
-	updateCmd.Flags().DurationVarP(&waitTimeout, "wait-timeout", "w", 5*time.Minute, "TODO")
+	updateCmd.Flags().DurationVarP(&waitTimeoutFlag, "wait-timeout", "w", 5*time.Minute, "TODO")
 
 	rootCmd.AddCommand(updateCmd)
 }
