@@ -58,10 +58,11 @@ func (c DemoClient) DescribeServices(
 	services := []ecsTypes.Service{}
 	for _, arn := range serviceArns {
 		services = append(services, ecsTypes.Service{
-			ServiceArn:  aws.String(arn),
-			ServiceName: aws.String(fmt.Sprintf("service-%d", len(services)+1)),
-			ClusterArn:  aws.String(clusterArn),
-			Status:      aws.String("ACTIVE"),
+			ServiceArn:   aws.String(arn),
+			ServiceName:  aws.String(fmt.Sprintf("service-%d", len(services)+1)),
+			ClusterArn:   aws.String(clusterArn),
+			Status:       aws.String("ACTIVE"),
+			DesiredCount: 1,
 			TaskDefinition: aws.String(
 				"arn:aws:ecs:us-east-1:123456789012:task-definition/task-def-1:1",
 			),
@@ -76,7 +77,11 @@ func (c DemoClient) UpdateService(
 	input ServiceConfig,
 	waitTimeout time.Duration,
 ) (*ecsTypes.Service, error) {
-	return nil, nil
+	if input.TaskDefinitionArn != "" {
+		service.TaskDefinition = aws.String(input.TaskDefinitionArn)
+	}
+	service.DesiredCount = input.DesiredCount
+	return service, nil
 }
 
 func (c DemoClient) ListTasks(
