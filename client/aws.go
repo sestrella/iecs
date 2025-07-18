@@ -301,6 +301,7 @@ func (c *awsClient) UpdateService(
 	waitTimeout time.Duration,
 ) (*ecsTypes.Service, error) {
 	updateService, err := c.ecsClient.UpdateService(ctx, &ecs.UpdateServiceInput{
+		Cluster:        service.ClusterArn,
 		Service:        service.ServiceArn,
 		TaskDefinition: &config.TaskDefinitionArn,
 		DesiredCount:   &config.DesiredCount,
