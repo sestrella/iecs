@@ -297,7 +297,7 @@ func (c *awsClient) StartLiveTail(
 func (c *awsClient) UpdateService(
 	ctx context.Context,
 	service ecsTypes.Service,
-	input UpdateServiceInput,
+	input ServiceConfig,
 	waitTimeout time.Duration,
 ) (*ecsTypes.Service, error) {
 	desiredCounts := int32(input.DesiredCounts)

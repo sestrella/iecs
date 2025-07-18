@@ -15,7 +15,7 @@ type LiveTailHandlers struct {
 	Update func(logsTypes.LiveTailSessionLogEvent)
 }
 
-type UpdateServiceInput struct {
+type ServiceConfig struct {
 	TaskDefinitionArn string
 	DesiredCounts     int
 }
@@ -36,7 +36,7 @@ type Client interface {
 	UpdateService(
 		ctx context.Context,
 		service ecsTypes.Service,
-		input UpdateServiceInput,
+		config ServiceConfig,
 		waitTimeout time.Duration,
 	) (*ecsTypes.Service, error)
 

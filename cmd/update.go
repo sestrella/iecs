@@ -14,7 +14,7 @@ import (
 type UpdateSelection struct {
 	cluster       types.Cluster
 	service       types.Service
-	updateService client.UpdateServiceInput
+	serviceConfig client.ServiceConfig
 }
 
 var updateCmd = &cobra.Command{
@@ -69,7 +69,7 @@ func updateSelector(
 	return &UpdateSelection{
 		cluster: *cluster,
 		service: *service,
-		updateService: client.UpdateServiceInput{
+		serviceConfig: client.ServiceConfig{
 			TaskDefinitionArn: *taskDefinition.TaskDefinitionArn,
 			DesiredCounts:     1,
 		},
@@ -85,7 +85,7 @@ func runUpdate(
 	_, err := client.UpdateService(
 		ctx,
 		selection.service,
-		selection.updateService,
+		selection.serviceConfig,
 		waitTimeout,
 	)
 	if err != nil {
