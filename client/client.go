@@ -35,7 +35,7 @@ type Client interface {
 	) ([]ecsTypes.Service, error)
 	UpdateService(
 		ctx context.Context,
-		service ecsTypes.Service,
+		service *ecsTypes.Service,
 		config ServiceConfig,
 		waitTimeout time.Duration,
 	) (*ecsTypes.Service, error)

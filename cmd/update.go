@@ -78,7 +78,7 @@ func runUpdate(
 ) error {
 	_, err := client.UpdateService(
 		ctx,
-		selection.service,
+		&selection.service,
 		selection.serviceConfig,
 		waitTimeout,
 	)
