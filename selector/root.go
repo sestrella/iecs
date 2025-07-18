@@ -231,8 +231,8 @@ func (cs ClientSelectors) ServiceConfig(
 		return nil, fmt.Errorf("no task definitions")
 	}
 
-	taskDefinitionArn := currentTaskDefinition.TaskDefinitionArn
-	desiredCountStr := string(service.DesiredCount)
+	var taskDefinitionArn = currentTaskDefinition.TaskDefinitionArn
+	var desiredCountStr = strconv.FormatInt(int64(service.DesiredCount), 10)
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
@@ -249,7 +249,7 @@ func (cs ClientSelectors) ServiceConfig(
 						return fmt.Errorf("invalid number")
 					}
 					if val < 0 {
-						return fmt.Errorf("value must be greater or equal to 0")
+						return fmt.Errorf("must be greater or equal to 0")
 					}
 					return nil
 				}),
