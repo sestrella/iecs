@@ -56,7 +56,7 @@ func (m *MockClient) DescribeServices(
 
 func (m *MockClient) UpdateService(
 	ctx context.Context,
-	service types.Service,
+	service *types.Service,
 	input client.ServiceConfig,
 	waitTimeout time.Duration,
 ) (*types.Service, error) {
@@ -215,4 +215,15 @@ func (m *MockSelectors) ContainerDefinitions(
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]types.ContainerDefinition), args.Error(1)
+}
+
+func (m *MockSelectors) ServiceConfig(
+	ctx context.Context,
+	service *types.Service,
+) (*client.ServiceConfig, error) {
+	args := m.Called(ctx, service)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*client.ServiceConfig), args.Error(1)
 }
