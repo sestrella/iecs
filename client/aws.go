@@ -314,7 +314,10 @@ func (c *awsClient) UpdateService(
 	err = waiter.Wait(ctx, &ecs.DescribeServicesInput{
 		Cluster:  updateService.Service.ClusterArn,
 		Services: []string{*updateService.Service.ServiceArn},
-	}, waitTimeout)
+	}, waitTimeout, func(sswo *ecs.ServicesStableWaiterOptions) {
+		// TODO: make this value parameterizable
+		sswo.LogWaitAttempts = true
+	})
 	if err != nil {
 		return nil, err
 	}
