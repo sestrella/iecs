@@ -72,8 +72,8 @@ func (c DemoClient) DescribeServices(
 
 func (c DemoClient) UpdateService(
 	ctx context.Context,
-	service ecsTypes.Service,
-	input UpdateServiceInput,
+	service *ecsTypes.Service,
+	input ServiceConfig,
 	waitTimeout time.Duration,
 ) (*ecsTypes.Service, error) {
 	return nil, nil
