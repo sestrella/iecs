@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
@@ -13,17 +14,14 @@ import (
 	"github.com/sestrella/iecs/client"
 )
 
-var (
-	_          Selectors = ClientSelectors{}
-	titleStyle           = lipgloss.NewStyle().Bold(true)
-)
+var titleStyle = lipgloss.NewStyle().Bold(true)
 
 type Selectors interface {
 	Cluster(ctx context.Context) (*types.Cluster, error)
 	Service(ctx context.Context, cluster *types.Cluster) (*types.Service, error)
 	Task(ctx context.Context, service *types.Service) (*types.Task, error)
 	Tasks(ctx context.Context, service *types.Service) ([]types.Task, error)
-	TaskDefinition(ctx context.Context, serviceArn string) (*types.TaskDefinition, error)
+	ServiceConfig(ctx context.Context, service *types.Service) (*client.ServiceConfig, error)
 	Container(ctx context.Context, containers []types.Container) (*types.Container, error)
 	ContainerDefinitions(
 		ctx context.Context,
@@ -216,11 +214,11 @@ func (cs ClientSelectors) Tasks(
 	return tasks, nil
 }
 
-func (cs ClientSelectors) TaskDefinition(
+func (cs ClientSelectors) ServiceConfig(
 	ctx context.Context,
-	currentTaskDefinitionArn string,
-) (*types.TaskDefinition, error) {
-	currentTaskDefinition, err := cs.client.DescribeTaskDefinition(ctx, currentTaskDefinitionArn)
+	service *types.Service,
+) (*client.ServiceConfig, error) {
+	currentTaskDefinition, err := cs.client.DescribeTaskDefinition(ctx, *service.TaskDefinition)
 	if err != nil {
 		return nil, err
 	}
@@ -233,31 +231,43 @@ func (cs ClientSelectors) TaskDefinition(
 		return nil, fmt.Errorf("no task definitions")
 	}
 
-	var taskDefinitionArn string
-	if len(taskDefinitionArns) == 1 {
-		log.Printf("Pre-selecting the only available task definition")
-		taskDefinitionArn = taskDefinitionArns[0]
-	} else {
-		form := huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Title("Select a task definition").
-					Options(huh.NewOptions(taskDefinitionArns...)...).
-					Value(&taskDefinitionArn).
-					WithHeight(5),
-			),
-		).WithTheme(&cs.theme)
-		if err := form.Run(); err != nil {
-			return nil, err
-		}
+	taskDefinitionArn := currentTaskDefinition.TaskDefinitionArn
+	desiredCountStr := string(service.DesiredCount)
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Task definition").
+				Options(huh.NewOptions(taskDefinitionArns...)...).
+				Value(taskDefinitionArn).
+				WithHeight(5),
+			huh.NewInput().
+				Title("Desired count").
+				Value(&desiredCountStr).
+				Validate(func(s string) error {
+					val, err := strconv.ParseInt(s, 10, 32)
+					if err != nil {
+						return fmt.Errorf("invalid number")
+					}
+					if val < 0 {
+						return fmt.Errorf("value must be greater or equal to 0")
+					}
+					return nil
+				}),
+		),
+	).WithTheme(&cs.theme)
+	if err := form.Run(); err != nil {
+		return nil, err
 	}
 
-	taskDefinition, err := cs.client.DescribeTaskDefinition(ctx, taskDefinitionArn)
+	desiredCount, err := strconv.ParseInt(desiredCountStr, 10, 32)
 	if err != nil {
 		return nil, err
 	}
 
-	return taskDefinition, nil
+	return &client.ServiceConfig{
+		TaskDefinitionArn: *taskDefinitionArn,
+		DesiredCount:      int32(desiredCount),
+	}, nil
 }
 
 func (cs ClientSelectors) Container(

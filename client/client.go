@@ -17,7 +17,7 @@ type LiveTailHandlers struct {
 
 type ServiceConfig struct {
 	TaskDefinitionArn string
-	DesiredCounts     int
+	DesiredCount      int32
 }
 
 // Client interface combines ECS and CloudWatch Logs operations.

@@ -57,7 +57,7 @@ func (m *MockClient) DescribeServices(
 func (m *MockClient) UpdateService(
 	ctx context.Context,
 	service types.Service,
-	input client.UpdateServiceInput,
+	input client.ServiceConfig,
 	waitTimeout time.Duration,
 ) (*types.Service, error) {
 	args := m.Called(ctx, service, input, waitTimeout)

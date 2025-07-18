@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var waitTimeout time.Duration
+
 type UpdateSelection struct {
 	cluster       types.Cluster
 	service       types.Service
@@ -21,11 +23,6 @@ var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "TODO",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		waitTimeout, err := cmd.Flags().GetDuration("wait-timeout")
-		if err != nil {
-			return err
-		}
-
 		cfg, err := config.LoadDefaultConfig(context.Background())
 		if err != nil {
 			return err
@@ -61,18 +58,15 @@ func updateSelector(
 		return nil, err
 	}
 
-	taskDefinition, err := selectors.TaskDefinition(ctx, *service.TaskDefinition)
+	serviceConfig, err := selectors.ServiceConfig(ctx, service)
 	if err != nil {
 		return nil, err
 	}
 
 	return &UpdateSelection{
-		cluster: *cluster,
-		service: *service,
-		serviceConfig: client.ServiceConfig{
-			TaskDefinitionArn: *taskDefinition.TaskDefinitionArn,
-			DesiredCounts:     1,
-		},
+		cluster:       *cluster,
+		service:       *service,
+		serviceConfig: *serviceConfig,
 	}, nil
 }
 
@@ -96,5 +90,7 @@ func runUpdate(
 }
 
 func init() {
+	updateCmd.Flags().DurationVarP(&waitTimeout, "wait-timeout", "w", 5*time.Minute, "TODO")
+
 	rootCmd.AddCommand(updateCmd)
 }
