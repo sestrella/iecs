@@ -125,7 +125,10 @@ func (c DemoClient) ListTaskDefinitions(
 	ctx context.Context,
 	familyPrefix string,
 ) ([]string, error) {
-	return nil, nil
+	return []string{
+		fmt.Sprintf("arn:aws:ecs:us-east-1:123456789012:task-definition/%s:2", familyPrefix),
+		fmt.Sprintf("arn:aws:ecs:us-east-1:123456789012:task-definition/%s:1", familyPrefix),
+	}, nil
 }
 
 func (c DemoClient) DescribeTaskDefinition(
