@@ -9,6 +9,7 @@ import (
 	"log"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	logs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
@@ -196,6 +197,24 @@ func (c *awsClient) ExecuteCommand(
 	return cmd, nil
 }
 
+func (c *awsClient) ListTaskDefinitions(
+	ctx context.Context,
+	familyPrefix string,
+) ([]string, error) {
+	listTaskDefinitions, err := c.ecsClient.ListTaskDefinitions(
+		ctx,
+		&ecs.ListTaskDefinitionsInput{
+			FamilyPrefix: &familyPrefix,
+			Sort:         ecsTypes.SortOrderDesc,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return listTaskDefinitions.TaskDefinitionArns, nil
+}
+
 func (c *awsClient) DescribeTaskDefinition(
 	ctx context.Context,
 	taskDefinitionArn string,
@@ -273,4 +292,35 @@ func (c *awsClient) StartLiveTail(
 			return fmt.Errorf("unknown event type: %T", e)
 		}
 	}
+}
+
+func (c *awsClient) UpdateService(
+	ctx context.Context,
+	service *ecsTypes.Service,
+	config ServiceConfig,
+	waitTimeout time.Duration,
+) (*ecsTypes.Service, error) {
+	updateService, err := c.ecsClient.UpdateService(ctx, &ecs.UpdateServiceInput{
+		Cluster:        service.ClusterArn,
+		Service:        service.ServiceArn,
+		TaskDefinition: &config.TaskDefinitionArn,
+		DesiredCount:   &config.DesiredCount,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	waiter := ecs.NewServicesStableWaiter(c.ecsClient)
+	err = waiter.Wait(ctx, &ecs.DescribeServicesInput{
+		Cluster:  updateService.Service.ClusterArn,
+		Services: []string{*updateService.Service.ServiceArn},
+	}, waitTimeout, func(sswo *ecs.ServicesStableWaiterOptions) {
+		// TODO: make this value parameterizable
+		sswo.LogWaitAttempts = true
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return updateService.Service, nil
 }

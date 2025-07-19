@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"os/exec"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
@@ -53,6 +54,19 @@ func (m *MockClient) DescribeServices(
 	return args.Get(0).([]types.Service), args.Error(1)
 }
 
+func (m *MockClient) UpdateService(
+	ctx context.Context,
+	service *types.Service,
+	input client.ServiceConfig,
+	waitTimeout time.Duration,
+) (*types.Service, error) {
+	args := m.Called(ctx, service, input, waitTimeout)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*types.Service), args.Error(1)
+}
+
 func (m *MockClient) ListTasks(
 	ctx context.Context,
 	clusterArn string,
@@ -75,6 +89,17 @@ func (m *MockClient) DescribeTasks(
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]types.Task), args.Error(1)
+}
+
+func (m *MockClient) ListTaskDefinitions(
+	ctx context.Context,
+	familyPrefix string,
+) ([]string, error) {
+	args := m.Called(ctx, familyPrefix)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
 }
 
 func (m *MockClient) StartLiveTail(
@@ -159,6 +184,17 @@ func (m *MockSelectors) Tasks(
 	return args.Get(0).([]types.Task), args.Error(1)
 }
 
+func (m *MockSelectors) TaskDefinition(
+	ctx context.Context,
+	currentTaskDefinitionArn string,
+) (*types.TaskDefinition, error) {
+	args := m.Called(ctx, currentTaskDefinitionArn)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*types.TaskDefinition), args.Error(1)
+}
+
 func (m *MockSelectors) Container(
 	ctx context.Context,
 	containers []types.Container,
@@ -179,4 +215,15 @@ func (m *MockSelectors) ContainerDefinitions(
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]types.ContainerDefinition), args.Error(1)
+}
+
+func (m *MockSelectors) ServiceConfig(
+	ctx context.Context,
+	service *types.Service,
+) (*client.ServiceConfig, error) {
+	args := m.Called(ctx, service)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*client.ServiceConfig), args.Error(1)
 }
