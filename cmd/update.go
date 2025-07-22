@@ -21,7 +21,7 @@ type UpdateSelection struct {
 
 var updateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "TODO",
+	Short: "Updates a serice configuration",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.LoadDefaultConfig(context.Background())
 		if err != nil {
