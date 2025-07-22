@@ -58,16 +58,27 @@ func (c DemoClient) DescribeServices(
 	services := []ecsTypes.Service{}
 	for _, arn := range serviceArns {
 		services = append(services, ecsTypes.Service{
-			ServiceArn:  aws.String(arn),
-			ServiceName: aws.String(fmt.Sprintf("service-%d", len(services)+1)),
-			ClusterArn:  aws.String(clusterArn),
-			Status:      aws.String("ACTIVE"),
+			ServiceArn:   aws.String(arn),
+			ServiceName:  aws.String(fmt.Sprintf("service-%d", len(services)+1)),
+			ClusterArn:   aws.String(clusterArn),
+			Status:       aws.String("ACTIVE"),
+			DesiredCount: 1,
 			TaskDefinition: aws.String(
 				"arn:aws:ecs:us-east-1:123456789012:task-definition/task-def-1:1",
 			),
 		})
 	}
 	return services, nil
+}
+
+func (c DemoClient) UpdateService(
+	ctx context.Context,
+	service *ecsTypes.Service,
+	input ServiceConfig,
+	waitTimeout time.Duration,
+) (*ecsTypes.Service, error) {
+	time.Sleep(waitTimeout)
+	return service, nil
 }
 
 func (c DemoClient) ListTasks(
@@ -109,6 +120,16 @@ func (c DemoClient) DescribeTasks(
 		})
 	}
 	return tasks, nil
+}
+
+func (c DemoClient) ListTaskDefinitions(
+	ctx context.Context,
+	familyPrefix string,
+) ([]string, error) {
+	return []string{
+		fmt.Sprintf("arn:aws:ecs:us-east-1:123456789012:task-definition/%s:2", familyPrefix),
+		fmt.Sprintf("arn:aws:ecs:us-east-1:123456789012:task-definition/%s:1", familyPrefix),
+	}, nil
 }
 
 func (c DemoClient) DescribeTaskDefinition(
