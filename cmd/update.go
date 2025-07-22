@@ -90,7 +90,8 @@ func runUpdate(
 }
 
 func init() {
-	updateCmd.Flags().DurationVarP(&waitTimeoutFlag, "wait-timeout", "w", 5*time.Minute, "TODO")
+	updateCmd.Flags().
+		DurationVarP(&waitTimeoutFlag, "wait-timeout", "w", 5*time.Minute, "The wait time for the service to become available")
 
 	rootCmd.AddCommand(updateCmd)
 }
