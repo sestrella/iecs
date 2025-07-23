@@ -3,6 +3,7 @@
 {
   packages = [
     pkgs.asciinema
+    pkgs.asciinema-agg
     pkgs.aws-vault
     pkgs.awscli2
     pkgs.cobra-cli
