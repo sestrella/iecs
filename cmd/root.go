@@ -64,8 +64,7 @@ func Execute(version string) error {
 		)
 	rootCmd.Version = version
 
-	err := rootCmd.Execute()
-	if err != nil {
+	if err := rootCmd.Execute(); err != nil {
 		return err
 	}
 

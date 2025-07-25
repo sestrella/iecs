@@ -28,25 +28,32 @@
             inherit system;
             overlays = [ gomod2nix.overlays.default ];
           };
+          mkPackage =
+            { tags ? [ ]
+            ,
+            }:
+            pkgs.buildGoApplication {
+              inherit tags;
+              pname = "iecs";
+              version = nixpkgs.lib.trim (builtins.readFile ./version.txt);
+              src = nix-filter.lib {
+                root = ./.;
+                include = [
+                  "./go.mod"
+                  "./go.sum"
+                  "./main.go"
+                  "client"
+                  "cmd"
+                  "selector"
+                  "version.txt"
+                ];
+              };
+              modules = ./gomod2nix.toml;
+            };
         in
         {
-          default = pkgs.buildGoApplication {
-            pname = "iecs";
-            version = nixpkgs.lib.trim (builtins.readFile ./version.txt);
-            src = nix-filter.lib {
-              root = ./.;
-              include = [
-                "./go.mod"
-                "./go.sum"
-                "./main.go"
-                "client"
-                "cmd"
-                "selector"
-                "version.txt"
-              ];
-            };
-            modules = ./gomod2nix.toml;
-          };
+          default = mkPackage { };
+          demo = mkPackage { tags = [ "DEMO" ]; };
         }
       );
 

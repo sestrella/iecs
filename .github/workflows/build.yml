@@ -20,14 +20,12 @@ jobs:
         with:
           name: sestrella
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          skipPush: ${{ github.ref_name != 'main' }}
-      - name: Build package
-        run: nix build
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+      - run: nix build
 
   demo:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-      - name: Build demo
-        run: go build --tags DEMO ./...
+      - uses: cachix/install-nix-action@v30
+      - run: nix build .#demo
