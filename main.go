@@ -11,8 +11,7 @@ import (
 var version string
 
 func main() {
-	err := cmd.Execute(version)
-	if err != nil {
+	if err := cmd.Execute(version); err != nil {
 		log.Fatal(err)
 	}
 }
