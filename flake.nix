@@ -29,13 +29,14 @@
             overlays = [ gomod2nix.overlays.default ];
           };
           mkPackage =
-            { tags ? [ ]
+            { versionFunc ? version: version
+            , tags ? [ ]
             ,
             }:
             pkgs.buildGoApplication {
               inherit tags;
               pname = "iecs";
-              version = nixpkgs.lib.trim (builtins.readFile ./version.txt);
+              version = versionFunc (nixpkgs.lib.trim (builtins.readFile ./version.txt));
               src = nix-filter.lib {
                 root = ./.;
                 include = [
@@ -53,7 +54,10 @@
         in
         {
           default = mkPackage { };
-          demo = mkPackage { tags = [ "DEMO" ]; };
+          demo = mkPackage {
+            versionFunc = version: "${version}-demo";
+            tags = [ "DEMO" ];
+          };
         }
       );
 
