@@ -1,4 +1,4 @@
-package cmd
+package update
 
 import (
 	"context"
@@ -19,7 +19,7 @@ type UpdateSelection struct {
 	serviceConfig client.ServiceConfig
 }
 
-var updateCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "update",
 	Short: "Updates a serice configuration",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -29,7 +29,7 @@ var updateCmd = &cobra.Command{
 		}
 
 		client := client.NewClient(cfg)
-		selectors := selector.NewSelectors(client, *theme)
+		selectors := selector.NewSelectors(client, cmd.Flag("theme").Value.String())
 		selection, err := updateSelector(context.Background(), selectors)
 		if err != nil {
 			return err
@@ -90,8 +90,6 @@ func runUpdate(
 }
 
 func init() {
-	updateCmd.Flags().
+	Cmd.Flags().
 		DurationVarP(&waitTimeoutFlag, "wait-timeout", "w", 5*time.Minute, "The wait time for the service to become available")
-
-	rootCmd.AddCommand(updateCmd)
 }

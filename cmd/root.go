@@ -6,22 +6,16 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/huh"
+	"github.com/sestrella/iecs/cmd/exec"
+	"github.com/sestrella/iecs/cmd/logs"
+	"github.com/sestrella/iecs/cmd/update"
+	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
 
 var (
-	themes = map[string]func() *huh.Theme{
-		"base":       huh.ThemeBase,
-		"base16":     huh.ThemeBase16,
-		"catppuccin": huh.ThemeCatppuccin,
-		"charm":      huh.ThemeCharm,
-		"dracula":    huh.ThemeDracula,
-	}
-
 	availableThemes string
-	themeName       string
-	theme           *huh.Theme
+	theme           string
 )
 
 var rootCmd = &cobra.Command{
@@ -29,14 +23,13 @@ var rootCmd = &cobra.Command{
 	Short: "An interactive CLI for ECS",
 	Long:  "Performs commons tasks on ECS, such as getting remote access or viewing logs",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if themeFunc, ok := themes[themeName]; ok {
-			theme = themeFunc()
+		if _, ok := selector.Themes[theme]; ok {
 			return nil
 		}
 
 		return fmt.Errorf(
 			"unsupported theme \"%s\" expecting one of: %s",
-			themeName,
+			theme,
 			availableThemes,
 		)
 	},
@@ -45,7 +38,7 @@ var rootCmd = &cobra.Command{
 
 func Execute(version string) error {
 	var themeNames []string
-	for name := range themes {
+	for name := range selector.Themes {
 		themeNames = append(themeNames, fmt.Sprintf("\"%s\"", name))
 	}
 	sort.Strings(themeNames)
@@ -53,7 +46,7 @@ func Execute(version string) error {
 
 	rootCmd.PersistentFlags().
 		StringVarP(
-			&themeName,
+			&theme,
 			"theme",
 			"t",
 			"charm",
@@ -63,6 +56,10 @@ func Execute(version string) error {
 			),
 		)
 	rootCmd.Version = version
+
+	rootCmd.AddCommand(exec.Cmd)
+	rootCmd.AddCommand(logs.Cmd)
+	rootCmd.AddCommand(update.Cmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		return err

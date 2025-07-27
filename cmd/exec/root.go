@@ -1,4 +1,4 @@
-package cmd
+package exec
 
 import (
 	"context"
@@ -27,7 +27,7 @@ type ExecSelection struct {
 	container *types.Container
 }
 
-var execCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "exec",
 	Short: "Run a remote command on a container",
 	Example: `
@@ -55,7 +55,7 @@ var execCmd = &cobra.Command{
 			context.TODO(),
 			awsClient,
 			exec.Command,
-			selector.NewSelectors(awsClient, *theme),
+			selector.NewSelectors(awsClient, cmd.Flag("theme").Value.String()),
 			cfg.Region,
 			command,
 			interactive,
@@ -146,8 +146,6 @@ func execSelector(
 }
 
 func init() {
-	execCmd.Flags().StringP(execCommandFlag, "c", "/bin/bash", "command to run")
-	execCmd.Flags().BoolP(execInteractiveFlag, "i", true, "toggles interactive mode")
-
-	rootCmd.AddCommand(execCmd)
+	Cmd.Flags().StringP(execCommandFlag, "c", "/bin/bash", "command to run")
+	Cmd.Flags().BoolP(execInteractiveFlag, "i", true, "toggles interactive mode")
 }
