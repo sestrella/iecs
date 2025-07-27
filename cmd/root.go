@@ -7,6 +7,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
+	"github.com/sestrella/iecs/cmd/exec"
+	"github.com/sestrella/iecs/cmd/logs"
+	"github.com/sestrella/iecs/cmd/update"
 	"github.com/spf13/cobra"
 )
 
@@ -63,6 +66,10 @@ func Execute(version string) error {
 			),
 		)
 	rootCmd.Version = version
+
+	rootCmd.AddCommand(exec.Cmd)
+	rootCmd.AddCommand(logs.Cmd)
+	rootCmd.AddCommand(update.Cmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		return err

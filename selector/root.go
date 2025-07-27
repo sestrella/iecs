@@ -34,8 +34,17 @@ type ClientSelectors struct {
 	theme  huh.Theme
 }
 
-func NewSelectors(client client.Client, theme huh.Theme) Selectors {
-	return ClientSelectors{client: client, theme: theme}
+var themes = map[string]func() *huh.Theme{
+	"base":       huh.ThemeBase,
+	"base16":     huh.ThemeBase16,
+	"catppuccin": huh.ThemeCatppuccin,
+	"charm":      huh.ThemeCharm,
+	"dracula":    huh.ThemeDracula,
+}
+
+func NewSelectors(client client.Client, themeName string) Selectors {
+	theme := themes[themeName]()
+	return ClientSelectors{client: client, theme: *theme}
 }
 
 func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {

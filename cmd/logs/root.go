@@ -1,4 +1,4 @@
-package cmd
+package logs
 
 import (
 	"context"
@@ -33,7 +33,7 @@ type LogsSelection struct {
 	containers []types.ContainerDefinition
 }
 
-var logsCmd = &cobra.Command{
+var Cmd = &cobra.Command{
 	Use:   "logs",
 	Short: "View the logs of a container",
 	Example: `
@@ -56,7 +56,7 @@ var logsCmd = &cobra.Command{
 			context.TODO(),
 			noColors,
 			client,
-			selector.NewSelectors(client, *theme),
+			selector.NewSelectors(client, cmd.Flag("theme").Value.String()),
 		)
 		if err != nil {
 			return err
@@ -212,7 +212,5 @@ func printerByIndex(noColors bool, index int) Printer {
 }
 
 func init() {
-	logsCmd.Flags().BoolP("no-colors", "", false, "Disable log coloring")
-
-	rootCmd.AddCommand(logsCmd)
+	Cmd.Flags().BoolP("no-colors", "", false, "Disable log coloring")
 }
