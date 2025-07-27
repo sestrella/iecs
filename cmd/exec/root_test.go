@@ -61,24 +61,17 @@ func TestRunExec_Success(t *testing.T) {
 	mockClient.On("ExecuteCommand",
 		mock.Anything,
 		cluster,
-		taskArn,
+		*task.TaskArn,
 		container,
 		"/bin/bash",
 		true,
 	).Return(exec.Command("echo"), nil)
 
-	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
-		assert.Equal(t, "session-manager-plugin", name)
-		return exec.Command("echo", "test") // Use a real command that exists
-	}
-
 	// Test the function
 	err := runExec(
 		context.Background(),
 		mockClient,
-		mockCommandExecutorFn,
 		mockSel,
-		"us-east-1",
 		"/bin/bash",
 		true,
 	)
@@ -98,19 +91,11 @@ func TestRunExec_ClusterSelectorError(t *testing.T) {
 	expectedErr := errors.New("cluster selector error")
 	mockSel.On("Cluster", mock.Anything).Return(nil, expectedErr)
 
-	// Mock command executor function - should not be called
-	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
-		t.Fatal("Command should not be called")
-		return nil
-	}
-
 	// Test the function
 	err := runExec(
 		context.Background(),
 		mockClient,
-		mockCommandExecutorFn,
 		mockSel,
-		"us-east-1",
 		"/bin/bash",
 		true,
 	)
@@ -120,7 +105,16 @@ func TestRunExec_ClusterSelectorError(t *testing.T) {
 	assert.Equal(t, expectedErr, err)
 	mockSel.AssertExpectations(t)
 	// mockClient's ExecuteCommand should not be called
-	mockClient.AssertNotCalled(t, "ExecuteCommand")
+	mockClient.AssertNotCalled(
+		t,
+		"ExecuteCommand",
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+	)
 }
 
 func TestRunExec_ServiceSelectorError(t *testing.T) {
@@ -135,19 +129,11 @@ func TestRunExec_ServiceSelectorError(t *testing.T) {
 	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
 	mockSel.On("Service", mock.Anything, cluster).Return(nil, expectedErr)
 
-	// Mock command executor function - should not be called
-	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
-		t.Fatal("Command should not be called")
-		return nil
-	}
-
 	// Test the function
 	err := runExec(
 		context.Background(),
 		mockClient,
-		mockCommandExecutorFn,
 		mockSel,
-		"us-east-1",
 		"/bin/bash",
 		true,
 	)
@@ -157,7 +143,16 @@ func TestRunExec_ServiceSelectorError(t *testing.T) {
 	assert.Equal(t, expectedErr, err)
 	mockSel.AssertExpectations(t)
 	// mockClient's ExecuteCommand should not be called
-	mockClient.AssertNotCalled(t, "ExecuteCommand")
+	mockClient.AssertNotCalled(
+		t,
+		"ExecuteCommand",
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+	)
 }
 
 func TestRunExec_TaskSelectorError(t *testing.T) {
@@ -173,19 +168,11 @@ func TestRunExec_TaskSelectorError(t *testing.T) {
 	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
 	mockSel.On("Task", mock.Anything, service).Return(nil, expectedErr)
 
-	// Mock command executor function - should not be called
-	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
-		t.Fatal("Command should not be called")
-		return nil
-	}
-
 	// Test the function
 	err := runExec(
 		context.Background(),
 		mockClient,
-		mockCommandExecutorFn,
 		mockSel,
-		"us-east-1",
 		"/bin/bash",
 		true,
 	)
@@ -195,7 +182,16 @@ func TestRunExec_TaskSelectorError(t *testing.T) {
 	assert.Equal(t, expectedErr, err)
 	mockSel.AssertExpectations(t)
 	// mockClient's ExecuteCommand should not be called
-	mockClient.AssertNotCalled(t, "ExecuteCommand")
+	mockClient.AssertNotCalled(
+		t,
+		"ExecuteCommand",
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+	)
 }
 
 func TestRunExec_ContainerSelectorError(t *testing.T) {
@@ -213,19 +209,11 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 	mockSel.On("Task", mock.Anything, service).Return(task, nil)
 	mockSel.On("Container", mock.Anything, task.Containers).Return(nil, expectedErr)
 
-	// Mock command executor function - should not be called
-	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
-		t.Fatal("Command should not be called")
-		return nil
-	}
-
 	// Test the function
 	err := runExec(
 		context.Background(),
 		mockClient,
-		mockCommandExecutorFn,
 		mockSel,
-		"us-east-1",
 		"/bin/bash",
 		true,
 	)
@@ -235,7 +223,16 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 	assert.Equal(t, expectedErr, err)
 	mockSel.AssertExpectations(t)
 	// mockClient's ExecuteCommand should not be called
-	mockClient.AssertNotCalled(t, "ExecuteCommand")
+	mockClient.AssertNotCalled(
+		t,
+		"ExecuteCommand",
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+	)
 }
 
 func TestRunExec_ExecuteCommandError(t *testing.T) {
@@ -287,25 +284,17 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 	mockClient.On("ExecuteCommand",
 		mock.Anything,
 		cluster,
-		taskArn,
+		*task.TaskArn,
 		container,
 		"/bin/bash",
 		true,
 	).Return(exec.Command("echo"), expectedErr)
 
-	// Mock command executor function - should not be called
-	mockCommandExecutorFn := func(name string, args ...string) *exec.Cmd {
-		t.Fatal("Command should not be called")
-		return nil
-	}
-
 	// Test the function
 	err := runExec(
 		context.Background(),
 		mockClient,
-		mockCommandExecutorFn,
 		mockSel,
-		"us-east-1",
 		"/bin/bash",
 		true,
 	)
