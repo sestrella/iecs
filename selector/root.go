@@ -34,7 +34,7 @@ type ClientSelectors struct {
 	theme  huh.Theme
 }
 
-var themes = map[string]func() *huh.Theme{
+var Themes = map[string]func() *huh.Theme{
 	"base":       huh.ThemeBase,
 	"base16":     huh.ThemeBase16,
 	"catppuccin": huh.ThemeCatppuccin,
@@ -43,7 +43,7 @@ var themes = map[string]func() *huh.Theme{
 }
 
 func NewSelectors(client client.Client, themeName string) Selectors {
-	theme := themes[themeName]()
+	theme := Themes[themeName]()
 	return ClientSelectors{client: client, theme: *theme}
 }
 
