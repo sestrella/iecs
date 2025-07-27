@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -54,9 +53,7 @@ var Cmd = &cobra.Command{
 		err = runExec(
 			context.TODO(),
 			awsClient,
-			exec.Command,
 			selector.NewSelectors(awsClient, cmd.Flag("theme").Value.String()),
-			cfg.Region,
 			command,
 			interactive,
 		)
@@ -71,9 +68,7 @@ var Cmd = &cobra.Command{
 func runExec(
 	ctx context.Context,
 	client client.Client,
-	commandExecutor func(name string, arg ...string) *exec.Cmd,
 	selectors selector.Selectors,
-	region string,
 	command string,
 	interactive bool,
 ) error {
