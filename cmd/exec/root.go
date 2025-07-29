@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
-	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
 
@@ -44,16 +43,22 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		cfg, err := config.LoadDefaultConfig(context.TODO())
+		cfg, err := config.LoadDefaultConfig(context.Background())
 		if err != nil {
 			return err
 		}
 
 		awsClient := client.NewClient(cfg)
+
+		selector, err := runSelector(context.Background(), awsClient)
+		if err != nil {
+			return err
+		}
+
 		err = runExec(
-			context.TODO(),
+			context.Background(),
 			awsClient,
-			selector.NewSelectors(awsClient, cmd.Flag("theme").Value.String()),
+			selector,
 			command,
 			interactive,
 		)
@@ -65,22 +70,28 @@ var Cmd = &cobra.Command{
 	Aliases: []string{"ssh"},
 }
 
+// TODO: Remove this code indirection
+func runSelector(ctx context.Context, client client.Client) (*Selector, error) {
+	selector, err := newSelector(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return selector, nil
+}
+
 func runExec(
 	ctx context.Context,
 	client client.Client,
-	selectors selector.Selectors,
+	selector *Selector,
 	command string,
 	interactive bool,
 ) error {
-	selection, err := execSelector(ctx, selectors)
-	if err != nil {
-		return err
-	}
 	cmd, err := client.ExecuteCommand(
 		ctx,
-		selection.cluster,
-		*selection.task.TaskArn,
-		selection.container,
+		selector.cluster,
+		*selector.task.TaskArn,
+		selector.container,
 		command,
 		interactive,
 	)
@@ -106,38 +117,6 @@ func runExec(
 	}()
 
 	return cmd.Wait()
-}
-
-func execSelector(
-	ctx context.Context,
-	selectors selector.Selectors,
-) (*ExecSelection, error) {
-	cluster, err := selectors.Cluster(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := selectors.Service(ctx, cluster)
-	if err != nil {
-		return nil, err
-	}
-
-	task, err := selectors.Task(ctx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	container, err := selectors.Container(ctx, task.Containers)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ExecSelection{
-		cluster:   cluster,
-		service:   service,
-		task:      task,
-		container: container,
-	}, nil
 }
 
 func init() {
