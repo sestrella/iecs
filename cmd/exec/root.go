@@ -50,7 +50,7 @@ var Cmd = &cobra.Command{
 
 		awsClient := client.NewClient(cfg)
 
-		selector, err := runSelector(context.Background(), awsClient)
+		selector, err := newSelector(context.Background(), awsClient)
 		if err != nil {
 			return err
 		}
@@ -68,16 +68,6 @@ var Cmd = &cobra.Command{
 		return nil
 	},
 	Aliases: []string{"ssh"},
-}
-
-// TODO: Remove this code indirection
-func runSelector(ctx context.Context, client client.Client) (*Selector, error) {
-	selector, err := newSelector(ctx, client)
-	if err != nil {
-		return nil, err
-	}
-
-	return selector, nil
 }
 
 func runExec(

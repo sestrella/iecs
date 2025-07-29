@@ -5,60 +5,15 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/sestrella/iecs/client"
 )
 
 type Selector struct {
-	form      *huh.Form
 	cluster   *types.Cluster
 	service   *types.Service
 	task      *types.Task
 	container *types.Container
-}
-
-func (model Selector) Init() tea.Cmd {
-	return model.form.Init()
-}
-
-func (model Selector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
-			return model, tea.Interrupt
-		case "esc", "q":
-			return model, tea.Quit
-		}
-	}
-
-	var cmds []tea.Cmd
-	form, cmd := model.form.Update(msg)
-	if form, ok := form.(*huh.Form); ok {
-		model.form = form
-		cmds = append(cmds, cmd)
-	}
-
-	if model.form.State == huh.StateCompleted {
-		cmds = append(cmds, tea.Quit)
-	}
-
-	return model, tea.Batch(cmds...)
-}
-
-func (model Selector) View() string {
-	if model.form.State == huh.StateCompleted {
-		return fmt.Sprintf(
-			"Cluster: %s\nService: %s\nTask: %s\nContainer: %s",
-			*model.cluster.ClusterName,
-			*model.service.ServiceName,
-			*model.task.TaskArn,
-			*model.container.Name,
-		)
-	}
-
-	return model.form.View()
 }
 
 func newSelector(ctx context.Context, client client.Client) (*Selector, error) {
@@ -73,10 +28,12 @@ func newSelector(ctx context.Context, client client.Client) (*Selector, error) {
 	var containerName string
 	form := huh.NewForm(
 		huh.NewGroup(
-			huh.NewSelect[string]().Title("Cluster").
+			huh.NewSelect[string]().
+				Title("Cluster").
 				Options(huh.NewOptions(clusterArns...)...).
 				Value(&clusterArn),
-			huh.NewSelect[string]().Title("Service").
+			huh.NewSelect[string]().
+				Title("Service").
 				OptionsFunc(func() []huh.Option[string] {
 					serviceArns, err := client.ListServices(ctx, clusterArn)
 					if err != nil {
@@ -88,7 +45,8 @@ func newSelector(ctx context.Context, client client.Client) (*Selector, error) {
 				Value(&serviceArn),
 		),
 		huh.NewGroup(
-			huh.NewSelect[string]().Title("Task").
+			huh.NewSelect[string]().
+				Title("Task").
 				OptionsFunc(func() []huh.Option[string] {
 					taskArns, err := client.ListTasks(ctx, clusterArn, serviceArn)
 					if err != nil {
@@ -98,7 +56,8 @@ func newSelector(ctx context.Context, client client.Client) (*Selector, error) {
 					return huh.NewOptions(taskArns...)
 				}, &serviceArn).
 				Value(&taskArn),
-			huh.NewSelect[string]().Title("Container").
+			huh.NewSelect[string]().
+				Title("Container").
 				OptionsFunc(func() []huh.Option[string] {
 					tasks, err := client.DescribeTasks(ctx, clusterArn, []string{taskArn})
 					if err != nil {
@@ -118,9 +77,14 @@ func newSelector(ctx context.Context, client client.Client) (*Selector, error) {
 		),
 	)
 
-	if _, err := tea.NewProgram(form).Run(); err != nil {
+	if err := form.Run(); err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("Cluster: %s\n", clusterArn)
+	fmt.Printf("Service: %s\n", serviceArn)
+	fmt.Printf("Task: %s\n", taskArn)
+	fmt.Printf("Container: %s\n", containerName)
 
 	clusters, err := client.DescribeClusters(ctx, []string{clusterArn})
 	if err != nil {
@@ -143,18 +107,18 @@ func newSelector(ctx context.Context, client client.Client) (*Selector, error) {
 
 	task := tasks[0]
 
-	var container types.Container
-	for _, c := range task.Containers {
-		if c.Name == &containerName {
-			container = c
+	var selectedContainer types.Container
+	for _, container := range task.Containers {
+		if *container.Name == containerName {
+			selectedContainer = container
+			break
 		}
 	}
 
 	return &Selector{
-		form:      form,
 		cluster:   &cluster,
 		service:   &service,
 		task:      &task,
-		container: &container,
+		container: &selectedContainer,
 	}, nil
 }
