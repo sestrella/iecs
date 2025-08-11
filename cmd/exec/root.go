@@ -76,6 +76,12 @@ func runExec(
 	if err != nil {
 		return err
 	}
+
+	// Ensure /bin/sh works properly in interactive mode
+	if interactive && command == "/bin/sh" {
+		command = "/bin/sh -i"
+	}
+
 	cmd, err := client.ExecuteCommand(
 		ctx,
 		selection.cluster,
