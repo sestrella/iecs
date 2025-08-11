@@ -82,6 +82,53 @@ func TestRunExec_Success(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestPrepareShellCommand(t *testing.T) {
+	tests := []struct {
+		name        string
+		command     string
+		interactive bool
+		expected    string
+	}{
+		{
+			name:        "non-interactive sh command",
+			command:     "/bin/sh",
+			interactive: false,
+			expected:    "/bin/sh",
+		},
+		{
+			name:        "interactive sh command",
+			command:     "/bin/sh",
+			interactive: true,
+			expected:    "/bin/sh -i",
+		},
+		{
+			name:        "interactive dash command",
+			command:     "/bin/dash",
+			interactive: true,
+			expected:    "/bin/dash -i",
+		},
+		{
+			name:        "interactive bash command (not in config)",
+			command:     "/bin/bash",
+			interactive: true,
+			expected:    "/bin/bash",
+		},
+		{
+			name:        "interactive custom command",
+			command:     "my-shell",
+			interactive: true,
+			expected:    "my-shell",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := prepareShellCommand(tt.command, tt.interactive)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestRunExec_SuccessSh(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)
