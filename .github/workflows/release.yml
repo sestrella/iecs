@@ -1,45 +1,26 @@
 name: Release
 
-on:
-  push:
-    tags: ["v*"]
+on: push
+  # push:
+  #   tags: ["v*"]
 
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
-          go-version: "1.22"
-      - name: Build static binaries
-        run: |
-          GOOS=darwin GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-darwin-amd64-bin
-          GOOS=darwin GOARCH=arm64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-darwin-arm64-bin
-          GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-linux-amd64-bin
-          GOOS=linux GOARCH=arm64 go build -a -ldflags '-extldflags "-static"' -o iecs-${{ github.ref_name }}-linux-arm64-bin
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          args: release --snapshot --clean
         env:
-          CGO_ENABLED: 0
-      - name: Package binaries with LICENSE
-        run: |
-          for platform in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64; do
-            mkdir -p iecs-${{ github.ref_name }}-${platform}
-            cp iecs-${{ github.ref_name }}-${platform}-bin iecs-${{ github.ref_name }}-${platform}/iecs
-            cp LICENSE iecs-${{ github.ref_name }}-${platform}/
-            zip -j iecs-${{ github.ref_name }}-${platform}.zip iecs-${{ github.ref_name }}-${platform}/*
-          done
-      - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            iecs-${{ github.ref_name }}-darwin-amd64.zip
-            iecs-${{ github.ref_name }}-darwin-arm64.zip
-            iecs-${{ github.ref_name }}-linux-amd64.zip
-            iecs-${{ github.ref_name }}-linux-arm64.zip
-          generate_release_notes: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

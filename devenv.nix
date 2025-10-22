@@ -14,6 +14,7 @@
     pkgs.awscli2
     pkgs.cobra-cli
     pkgs.gemini-cli
+    pkgs.goreleaser
     pkgs.ssm-session-manager-plugin
   ];
 
@@ -30,13 +31,11 @@
     golines.enable = true;
     gomod2nix = {
       enable = true;
-      entry = "${pkgs.gomod2nix}/bin/gomod2nix";
+      entry = lib.getExe pkgs.gomod2nix;
       pass_filenames = false;
       files = "go.mod";
     };
     gotest.enable = true;
     nixpkgs-fmt.enable = true;
   };
-
-  # See full reference at https://devenv.sh/reference/options/
 }

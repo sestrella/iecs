@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.55.5
 	github.com/charmbracelet/huh v0.6.0
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/fatih/color v1.18.0
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.10.0
 )
@@ -40,7 +41,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
-	github.com/fatih/color v1.18.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
