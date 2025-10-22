@@ -2,60 +2,40 @@
   description = "Interactive CLI for ECS";
 
   inputs = {
-    gomod2nix.url = "github:nix-community/gomod2nix";
-    gomod2nix.inputs.nixpkgs.follows = "nixpkgs";
+    gomod2nix = {
+      url = "github:nix-community/gomod2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nix-filter.url = "github:numtide/nix-filter";
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default";
   };
 
   outputs =
-    { self
-    , gomod2nix
+    { gomod2nix
     , nix-filter
     , nixpkgs
+    , self
     , systems
     , ...
     }:
-    let
-      forAllSystems = nixpkgs.lib.genAttrs (import systems);
-    in
+
     {
-      packages = forAllSystems (
+      packages = nixpkgs.lib.genAttrs (import systems) (
         system:
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [ gomod2nix.overlays.default ];
+            overlays = [
+              gomod2nix.overlays.default
+              nix-filter.overlays.default
+            ];
           };
-          mkPackage =
-            { versionFunc ? version: version
-            , tags ? [ ]
-            ,
-            }:
-            pkgs.buildGoApplication {
-              inherit tags;
-              pname = "iecs";
-              version = versionFunc (nixpkgs.lib.trim (builtins.readFile ./version.txt));
-              src = nix-filter.lib {
-                root = ./.;
-                include = [
-                  "./go.mod"
-                  "./go.sum"
-                  "./main.go"
-                  "client"
-                  "cmd"
-                  "selector"
-                  "version.txt"
-                ];
-              };
-              modules = ./gomod2nix.toml;
-            };
         in
         {
-          default = mkPackage { };
-          demo = mkPackage {
-            versionFunc = version: "${version}-demo";
+          default = pkgs.callPackage ./default.nix { };
+          demo = pkgs.callPackage ./default.nix {
+            pname = "iecs-demo";
             tags = [ "DEMO" ];
           };
         }

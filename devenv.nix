@@ -1,6 +1,12 @@
-{ pkgs, ... }:
+{ config
+, lib
+, pkgs
+, ...
+}:
 
 {
+  env.GEMINI_API_KEY = config.secretspec.secrets.GEMINI_API_KEY or "";
+
   packages = [
     pkgs.asciinema
     pkgs.asciinema-agg
@@ -14,6 +20,12 @@
   languages.go.enable = true;
 
   git-hooks.hooks = {
+    auto-commit-msg = {
+      enable = true;
+      entry = lib.getExe pkgs.auto-commit-msg;
+      stages = [ "prepare-commit-msg" ];
+      verbose = true;
+    };
     golangci-lint.enable = true;
     golines.enable = true;
     gomod2nix = {
