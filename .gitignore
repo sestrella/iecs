@@ -37,3 +37,6 @@ result
 
 # asciinema
 demo.cast
+
+# Added by goreleaser init:
+dist/
