@@ -1,8 +1,8 @@
 name: Release
 
-on: push
-  # push:
-  #   tags: ["v*"]
+on:
+  push:
+    tags: ["v*"]
 
 concurrency:
   group: ${{ github.workflow }}
@@ -21,6 +21,6 @@ jobs:
           go-version-file: go.mod
       - uses: goreleaser/goreleaser-action@v6
         with:
-          args: release --snapshot --clean
+          args: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
