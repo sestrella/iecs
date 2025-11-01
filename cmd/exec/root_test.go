@@ -82,6 +82,123 @@ func TestRunExec_Success(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestPrepareShellCommand(t *testing.T) {
+	tests := []struct {
+		name        string
+		command     string
+		interactive bool
+		expected    string
+	}{
+		{
+			name:        "non-interactive sh command",
+			command:     "/bin/sh",
+			interactive: false,
+			expected:    "/bin/sh",
+		},
+		{
+			name:        "interactive sh command",
+			command:     "/bin/sh",
+			interactive: true,
+			expected:    "/bin/sh -i",
+		},
+		{
+			name:        "interactive dash command",
+			command:     "/bin/dash",
+			interactive: true,
+			expected:    "/bin/dash -i",
+		},
+		{
+			name:        "interactive bash command (not in config)",
+			command:     "/bin/bash",
+			interactive: true,
+			expected:    "/bin/bash",
+		},
+		{
+			name:        "interactive custom command",
+			command:     "my-shell",
+			interactive: true,
+			expected:    "my-shell",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := prepareShellCommand(tt.command, tt.interactive)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestRunExec_SuccessSh(t *testing.T) {
+	// Create mock objects
+	mockSel := new(MockSelectors)
+	mockClient := new(MockClient)
+
+	// Setup mock responses
+	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
+	clusterName := "my-cluster"
+	serviceArn := "arn:aws:ecs:us-east-1:123456789012:service/my-cluster/my-service"
+	taskArn := "arn:aws:ecs:us-east-1:123456789012:task/my-cluster/12345678-1234-1234-1234-123456789012"
+	containerName := "my-container"
+	containerRuntimeId := "12345678abcdef"
+
+	// Mock cluster
+	cluster := &types.Cluster{
+		ClusterArn:  &clusterArn,
+		ClusterName: &clusterName,
+	}
+
+	// Mock service
+	service := &types.Service{
+		ServiceArn: &serviceArn,
+	}
+
+	// Mock container
+	container := &types.Container{
+		Name:      &containerName,
+		RuntimeId: &containerRuntimeId,
+	}
+
+	// Mock task
+	task := &types.Task{
+		TaskArn: &taskArn,
+		Containers: []types.Container{
+			*container,
+		},
+	}
+
+	// Setup mock calls for selectors
+	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("Task", mock.Anything, service).Return(task, nil)
+	mockSel.On("Container", mock.Anything, task.Containers).Return(container, nil)
+
+	// Mock ExecuteCommand response
+
+	mockClient.On("ExecuteCommand",
+		mock.Anything,
+		cluster,
+		*task.TaskArn,
+		container,
+		"/bin/sh -i",
+		true,
+	).Return(exec.Command("echo"), nil)
+
+	// Test the function
+	err := runExec(
+		context.Background(),
+		mockClient,
+		mockSel,
+		"/bin/sh",
+		true,
+	)
+
+	// Check assertions
+	assert.NoError(t, err)
+	mockSel.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
 func TestRunExec_ClusterSelectorError(t *testing.T) {
 	// Create mock objects
 	mockSel := new(MockSelectors)

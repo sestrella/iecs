@@ -14,6 +14,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var shellConfigs = map[string]string{
+	"/bin/sh":   "/bin/sh -i",
+	"/bin/dash": "/bin/dash -i",
+	"sh":        "sh -i",
+	"dash":      "dash -i",
+}
+
 const (
 	execCommandFlag     = "command"
 	execInteractiveFlag = "interactive"
@@ -76,6 +83,9 @@ func runExec(
 	if err != nil {
 		return err
 	}
+
+	command = prepareShellCommand(command, interactive)
+
 	cmd, err := client.ExecuteCommand(
 		ctx,
 		selection.cluster,
@@ -106,6 +116,18 @@ func runExec(
 	}()
 
 	return cmd.Wait()
+}
+
+func prepareShellCommand(command string, interactive bool) string {
+	if !interactive {
+		return command
+	}
+
+	if interactiveCommand, exists := shellConfigs[command]; exists {
+		return interactiveCommand
+	}
+
+	return command
 }
 
 func execSelector(
