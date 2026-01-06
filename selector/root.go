@@ -17,8 +17,8 @@ import (
 var titleStyle = lipgloss.NewStyle().Bold(true)
 
 type Selectors interface {
-	Cluster(ctx context.Context) (*types.Cluster, error)
-	Service(ctx context.Context, cluster *types.Cluster) (*types.Service, error)
+	Cluster(ctx context.Context, clusterName string) (*types.Cluster, error)
+	Service(ctx context.Context, cluster *types.Cluster, serviceName string) (*types.Service, error)
 	Task(ctx context.Context, service *types.Service) (*types.Task, error)
 	Tasks(ctx context.Context, service *types.Service) ([]types.Task, error)
 	ServiceConfig(ctx context.Context, service *types.Service) (*client.ServiceConfig, error)
@@ -47,10 +47,20 @@ func NewSelectors(client client.Client, themeName string) Selectors {
 	return ClientSelectors{client: client, theme: *theme}
 }
 
-func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
+func (cs ClientSelectors) Cluster(ctx context.Context, clusterName string) (*types.Cluster, error) {
 	clusterArns, err := cs.client.ListClusters(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	if clusterName != "" {
+		clusterArns = slices.DeleteFunc(clusterArns, func(clusterArn string) bool {
+			return !strings.Contains(clusterArn, clusterName)
+		})
+	}
+
+	if len(clusterArns) == 0 {
+		return nil, fmt.Errorf("no clusters matching pattern: %s", clusterName)
 	}
 
 	var selectedClusterArn string
@@ -91,10 +101,21 @@ func (cs ClientSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
 func (cs ClientSelectors) Service(
 	ctx context.Context,
 	cluster *types.Cluster,
+	serviceName string,
 ) (*types.Service, error) {
 	serviceArns, err := cs.client.ListServices(ctx, *cluster.ClusterArn)
 	if err != nil {
 		return nil, err
+	}
+
+	if serviceName != "" {
+		serviceArns = slices.DeleteFunc(serviceArns, func(serviceArn string) bool {
+			return !strings.Contains(serviceArn, serviceName)
+		})
+	}
+
+	if len(serviceArns) == 0 {
+		return nil, fmt.Errorf("no services matching pattern: %s", serviceName)
 	}
 
 	var selectedServiceArn string
@@ -105,7 +126,7 @@ func (cs ClientSelectors) Service(
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
-					Title("Select a cluster").
+					Title("Select a service").
 					Options(huh.NewOptions(serviceArns...)...).
 					Value(&selectedServiceArn).
 					WithHeight(5),
