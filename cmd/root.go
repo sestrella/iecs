@@ -55,8 +55,8 @@ func Execute(version string) error {
 				availableThemes,
 			),
 		)
-	rootCmd.PersistentFlags().String("cluster", "", "TODO")
-	rootCmd.PersistentFlags().String("service", "", "TODO")
+	rootCmd.PersistentFlags().String("cluster", "", "A regex pattern for filtering clusters")
+	rootCmd.PersistentFlags().String("service", "", "A regex pattern for filtering services")
 	rootCmd.Version = version
 
 	rootCmd.AddCommand(exec.Cmd)
