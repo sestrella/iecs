@@ -42,7 +42,7 @@
       );
 
       overlays.default = final: prev: {
-        iecs = self.packages.${prev.system}.default;
+        iecs = self.packages.${prev.stdenv.hostPlatform.system}.default;
       };
 
       templates = {
