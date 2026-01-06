@@ -31,17 +31,22 @@ var Cmd = &cobra.Command{
 		client := client.NewClient(cfg)
 		selectors := selector.NewSelectors(client, cmd.Flag("theme").Value.String())
 
-		clusterName, err := cmd.Flags().GetString("cluster")
+		clusterPattern, err := cmd.Flags().GetString("cluster")
 		if err != nil {
 			return err
 		}
 
-		serviceName, err := cmd.Flags().GetString("service")
+		servicePattern, err := cmd.Flags().GetString("service")
 		if err != nil {
 			return err
 		}
 
-		selection, err := updateSelector(context.Background(), selectors, clusterName, serviceName)
+		selection, err := updateSelector(
+			context.Background(),
+			selectors,
+			clusterPattern,
+			servicePattern,
+		)
 		if err != nil {
 			return err
 		}
@@ -58,15 +63,15 @@ var Cmd = &cobra.Command{
 func updateSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
-	clusterName string,
-	serviceName string,
+	clusterPattern string,
+	servicePattern string,
 ) (*UpdateSelection, error) {
-	cluster, err := selectors.Cluster(ctx, clusterName)
+	cluster, err := selectors.Cluster(ctx, clusterPattern)
 	if err != nil {
 		return nil, err
 	}
 
-	service, err := selectors.Service(ctx, cluster, serviceName)
+	service, err := selectors.Service(ctx, cluster, servicePattern)
 	if err != nil {
 		return nil, err
 	}

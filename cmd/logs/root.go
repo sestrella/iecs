@@ -53,12 +53,12 @@ var Cmd = &cobra.Command{
 
 		client := client.NewClient(cfg)
 
-		clusterName, err := cmd.Flags().GetString("cluster")
+		clusterPattern, err := cmd.Flags().GetString("cluster")
 		if err != nil {
 			return err
 		}
 
-		serviceName, err := cmd.Flags().GetString("service")
+		servicePattern, err := cmd.Flags().GetString("service")
 		if err != nil {
 			return err
 		}
@@ -68,8 +68,8 @@ var Cmd = &cobra.Command{
 			noColors,
 			client,
 			selector.NewSelectors(client, cmd.Flag("theme").Value.String()),
-			clusterName,
-			serviceName,
+			clusterPattern,
+			servicePattern,
 		)
 		if err != nil {
 			return err
@@ -85,8 +85,8 @@ func runLogs(
 	noColors bool,
 	clients client.Client,
 	selectors selector.Selectors,
-	clusterName string,
-	serviceName string,
+	clusterPattern string,
+	servicePattern string,
 ) error {
 	type LogOptions struct {
 		containerName string
@@ -95,7 +95,7 @@ func runLogs(
 		printer       Printer
 	}
 
-	selection, err := logsSelector(ctx, selectors, clusterName, serviceName)
+	selection, err := logsSelector(ctx, selectors, clusterPattern, servicePattern)
 	if err != nil {
 		return err
 	}
@@ -187,15 +187,15 @@ func runLogs(
 func logsSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
-	clusterName string,
-	serviceName string,
+	clusterPattern string,
+	servicePattern string,
 ) (*LogsSelection, error) {
-	cluster, err := selectors.Cluster(ctx, clusterName)
+	cluster, err := selectors.Cluster(ctx, clusterPattern)
 	if err != nil {
 		return nil, err
 	}
 
-	service, err := selectors.Service(ctx, cluster, serviceName)
+	service, err := selectors.Service(ctx, cluster, servicePattern)
 	if err != nil {
 		return nil, err
 	}
