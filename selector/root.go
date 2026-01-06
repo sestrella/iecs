@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,8 +18,12 @@ import (
 var titleStyle = lipgloss.NewStyle().Bold(true)
 
 type Selectors interface {
-	Cluster(ctx context.Context, clusterName string) (*types.Cluster, error)
-	Service(ctx context.Context, cluster *types.Cluster, serviceName string) (*types.Service, error)
+	Cluster(ctx context.Context, clusterPattern string) (*types.Cluster, error)
+	Service(
+		ctx context.Context,
+		cluster *types.Cluster,
+		servicePattern string,
+	) (*types.Service, error)
 	Task(ctx context.Context, service *types.Service) (*types.Task, error)
 	Tasks(ctx context.Context, service *types.Service) ([]types.Task, error)
 	ServiceConfig(ctx context.Context, service *types.Service) (*client.ServiceConfig, error)
@@ -47,20 +52,24 @@ func NewSelectors(client client.Client, themeName string) Selectors {
 	return ClientSelectors{client: client, theme: *theme}
 }
 
-func (cs ClientSelectors) Cluster(ctx context.Context, clusterName string) (*types.Cluster, error) {
+func (cs ClientSelectors) Cluster(
+	ctx context.Context,
+	clusterPattern string,
+) (*types.Cluster, error) {
 	clusterArns, err := cs.client.ListClusters(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if clusterName != "" {
+	if clusterPattern != "" {
+		clusterRegex := regexp.MustCompile(clusterPattern)
 		clusterArns = slices.DeleteFunc(clusterArns, func(clusterArn string) bool {
-			return !strings.Contains(clusterArn, clusterName)
+			return !clusterRegex.MatchString(clusterArn)
 		})
 	}
 
 	if len(clusterArns) == 0 {
-		return nil, fmt.Errorf("no clusters matching pattern: %s", clusterName)
+		return nil, fmt.Errorf("no clusters matching pattern: %s", clusterPattern)
 	}
 
 	var selectedClusterArn string
@@ -101,21 +110,22 @@ func (cs ClientSelectors) Cluster(ctx context.Context, clusterName string) (*typ
 func (cs ClientSelectors) Service(
 	ctx context.Context,
 	cluster *types.Cluster,
-	serviceName string,
+	servicePattern string,
 ) (*types.Service, error) {
 	serviceArns, err := cs.client.ListServices(ctx, *cluster.ClusterArn)
 	if err != nil {
 		return nil, err
 	}
 
-	if serviceName != "" {
+	if servicePattern != "" {
+		serviceRegex := regexp.MustCompile(servicePattern)
 		serviceArns = slices.DeleteFunc(serviceArns, func(serviceArn string) bool {
-			return !strings.Contains(serviceArn, serviceName)
+			return !serviceRegex.MatchString(serviceArn)
 		})
 	}
 
 	if len(serviceArns) == 0 {
-		return nil, fmt.Errorf("no services matching pattern: %s", serviceName)
+		return nil, fmt.Errorf("no services matching pattern: %s", servicePattern)
 	}
 
 	var selectedServiceArn string
