@@ -109,6 +109,13 @@ cp iecs ~/.local/bin/iecs
 
 </details>
 
+## Global Flags
+
+The following global flags are available for all commands:
+
+- `--cluster <cluster_pattern>`: Filters the cluster list using the specified regex pattern.
+- `--service <service_pattern>`: Filters the service list using the specified regex pattern.
+
 ## References
 
 - https://aws.github.io/aws-sdk-go-v2/docs/getting-started/
