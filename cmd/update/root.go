@@ -19,7 +19,7 @@ type UpdateSelection struct {
 	serviceConfig client.ServiceConfig
 }
 
-var Cmd = &cobra.Command{
+var UpdateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Updates a serice configuration",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -108,6 +108,6 @@ func runUpdate(
 }
 
 func init() {
-	Cmd.Flags().
+	UpdateCmd.Flags().
 		DurationVarP(&waitTimeoutFlag, "wait-timeout", "w", 5*time.Minute, "The wait time for the service to become available")
 }

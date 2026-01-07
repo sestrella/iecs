@@ -59,9 +59,9 @@ func Execute(version string) error {
 	rootCmd.PersistentFlags().String("service", "", "A regex pattern for filtering services")
 	rootCmd.Version = version
 
-	rootCmd.AddCommand(exec.Cmd)
-	rootCmd.AddCommand(logs.Cmd)
-	rootCmd.AddCommand(update.Cmd)
+	rootCmd.AddCommand(exec.ExecCmd)
+	rootCmd.AddCommand(logs.LogsCmd)
+	rootCmd.AddCommand(update.UpdateCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		return err

@@ -33,7 +33,7 @@ type LogsSelection struct {
 	containers []types.ContainerDefinition
 }
 
-var Cmd = &cobra.Command{
+var LogsCmd = &cobra.Command{
 	Use:   "logs",
 	Short: "View the logs of a container",
 	Example: `
@@ -229,5 +229,5 @@ func printerByIndex(noColors bool, index int) Printer {
 }
 
 func init() {
-	Cmd.Flags().BoolP("no-colors", "", false, "Disable log coloring")
+	LogsCmd.Flags().BoolP("no-colors", "", false, "Disable log coloring")
 }

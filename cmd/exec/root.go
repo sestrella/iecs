@@ -26,7 +26,7 @@ type ExecSelection struct {
 	container *types.Container
 }
 
-var Cmd = &cobra.Command{
+var ExecCmd = &cobra.Command{
 	Use:   "exec",
 	Short: "Run a remote command on a container",
 	Example: `
@@ -157,6 +157,6 @@ func execSelector(
 }
 
 func init() {
-	Cmd.Flags().StringP(execCommandFlag, "c", "/bin/bash", "command to run")
-	Cmd.Flags().BoolP(execInteractiveFlag, "i", true, "toggles interactive mode")
+	ExecCmd.Flags().StringP(execCommandFlag, "c", "/bin/bash", "command to run")
+	ExecCmd.Flags().BoolP(execInteractiveFlag, "i", true, "toggles interactive mode")
 }
