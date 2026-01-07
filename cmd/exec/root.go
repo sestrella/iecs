@@ -49,6 +49,16 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
+		clusterPattern, err := cmd.Flags().GetString("cluster")
+		if err != nil {
+			return err
+		}
+
+		servicePattern, err := cmd.Flags().GetString("service")
+		if err != nil {
+			return err
+		}
+
 		awsClient := client.NewClient(cfg)
 		err = runExec(
 			context.TODO(),
@@ -56,6 +66,8 @@ var Cmd = &cobra.Command{
 			selector.NewSelectors(awsClient, cmd.Flag("theme").Value.String()),
 			command,
 			interactive,
+			clusterPattern,
+			servicePattern,
 		)
 		if err != nil {
 			return err
@@ -71,8 +83,10 @@ func runExec(
 	selectors selector.Selectors,
 	command string,
 	interactive bool,
+	clusterPattern string,
+	servicePattern string,
 ) error {
-	selection, err := execSelector(ctx, selectors)
+	selection, err := execSelector(ctx, selectors, clusterPattern, servicePattern)
 	if err != nil {
 		return err
 	}
@@ -111,13 +125,15 @@ func runExec(
 func execSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
+	clusterPattern string,
+	servicePattern string,
 ) (*ExecSelection, error) {
-	cluster, err := selectors.Cluster(ctx)
+	cluster, err := selectors.Cluster(ctx, clusterPattern)
 	if err != nil {
 		return nil, err
 	}
 
-	service, err := selectors.Service(ctx, cluster)
+	service, err := selectors.Service(ctx, cluster, servicePattern)
 	if err != nil {
 		return nil, err
 	}

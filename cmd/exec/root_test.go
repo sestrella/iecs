@@ -51,8 +51,8 @@ func TestRunExec_Success(t *testing.T) {
 	}
 
 	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("Cluster", mock.Anything, "").Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster, "").Return(service, nil)
 	mockSel.On("Task", mock.Anything, service).Return(task, nil)
 	mockSel.On("Container", mock.Anything, task.Containers).Return(container, nil)
 
@@ -74,6 +74,8 @@ func TestRunExec_Success(t *testing.T) {
 		mockSel,
 		"/bin/bash",
 		true,
+		"",
+		"",
 	)
 
 	// Check assertions
@@ -89,7 +91,7 @@ func TestRunExec_ClusterSelectorError(t *testing.T) {
 
 	// Setup mock responses with an error
 	expectedErr := errors.New("cluster selector error")
-	mockSel.On("Cluster", mock.Anything).Return(nil, expectedErr)
+	mockSel.On("Cluster", mock.Anything, "").Return(nil, expectedErr)
 
 	// Test the function
 	err := runExec(
@@ -98,6 +100,8 @@ func TestRunExec_ClusterSelectorError(t *testing.T) {
 		mockSel,
 		"/bin/bash",
 		true,
+		"",
+		"",
 	)
 
 	// Check assertions
@@ -126,8 +130,8 @@ func TestRunExec_ServiceSelectorError(t *testing.T) {
 	// Mock service selector error
 	cluster := &types.Cluster{}
 	expectedErr := errors.New("service selector error")
-	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster).Return(nil, expectedErr)
+	mockSel.On("Cluster", mock.Anything, "").Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster, "").Return(nil, expectedErr)
 
 	// Test the function
 	err := runExec(
@@ -136,6 +140,8 @@ func TestRunExec_ServiceSelectorError(t *testing.T) {
 		mockSel,
 		"/bin/bash",
 		true,
+		"",
+		"",
 	)
 
 	// Check assertions
@@ -164,8 +170,8 @@ func TestRunExec_TaskSelectorError(t *testing.T) {
 	cluster := &types.Cluster{}
 	service := &types.Service{}
 	expectedErr := errors.New("task selector error")
-	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("Cluster", mock.Anything, "").Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster, "").Return(service, nil)
 	mockSel.On("Task", mock.Anything, service).Return(nil, expectedErr)
 
 	// Test the function
@@ -175,6 +181,8 @@ func TestRunExec_TaskSelectorError(t *testing.T) {
 		mockSel,
 		"/bin/bash",
 		true,
+		"",
+		"",
 	)
 
 	// Check assertions
@@ -204,8 +212,8 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 	service := &types.Service{}
 	task := &types.Task{}
 	expectedErr := errors.New("container selector error")
-	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("Cluster", mock.Anything, "").Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster, "").Return(service, nil)
 	mockSel.On("Task", mock.Anything, service).Return(task, nil)
 	mockSel.On("Container", mock.Anything, task.Containers).Return(nil, expectedErr)
 
@@ -216,6 +224,8 @@ func TestRunExec_ContainerSelectorError(t *testing.T) {
 		mockSel,
 		"/bin/bash",
 		true,
+		"",
+		"",
 	)
 
 	// Check assertions
@@ -274,8 +284,8 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 	}
 
 	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything).Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster).Return(service, nil)
+	mockSel.On("Cluster", mock.Anything, "").Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster, "").Return(service, nil)
 	mockSel.On("Task", mock.Anything, service).Return(task, nil)
 	mockSel.On("Container", mock.Anything, task.Containers).Return(container, nil)
 
@@ -297,6 +307,8 @@ func TestRunExec_ExecuteCommandError(t *testing.T) {
 		mockSel,
 		"/bin/bash",
 		true,
+		"",
+		"",
 	)
 
 	// Check assertions
