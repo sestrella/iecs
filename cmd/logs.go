@@ -57,7 +57,7 @@ var logsCmd = &cobra.Command{
 			context.TODO(),
 			noColors,
 			client,
-			selector.NewSelectors(client, cmd.Flag("theme").Value.String()),
+			selector.NewSelectors(client, theme),
 		)
 		if err != nil {
 			return err

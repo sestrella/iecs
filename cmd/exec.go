@@ -53,7 +53,7 @@ var execCmd = &cobra.Command{
 		err = runExec(
 			context.TODO(),
 			awsClient,
-			selector.NewSelectors(awsClient, cmd.Flag("theme").Value.String()),
+			selector.NewSelectors(awsClient, theme),
 			command,
 			interactive,
 		)
