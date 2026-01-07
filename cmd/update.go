@@ -1,4 +1,4 @@
-package update
+package cmd
 
 import (
 	"context"
@@ -19,7 +19,7 @@ type UpdateSelection struct {
 	serviceConfig client.ServiceConfig
 }
 
-var Cmd = &cobra.Command{
+var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Updates a serice configuration",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -29,23 +29,11 @@ var Cmd = &cobra.Command{
 		}
 
 		client := client.NewClient(cfg)
-		selectors := selector.NewSelectors(client, cmd.Flag("theme").Value.String())
-
-		clusterPattern, err := cmd.Flags().GetString("cluster")
-		if err != nil {
-			return err
-		}
-
-		servicePattern, err := cmd.Flags().GetString("service")
-		if err != nil {
-			return err
-		}
+		selectors := selector.NewSelectors(client, theme)
 
 		selection, err := updateSelector(
 			context.Background(),
 			selectors,
-			clusterPattern,
-			servicePattern,
 		)
 		if err != nil {
 			return err
@@ -63,15 +51,13 @@ var Cmd = &cobra.Command{
 func updateSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
-	clusterPattern string,
-	servicePattern string,
 ) (*UpdateSelection, error) {
-	cluster, err := selectors.Cluster(ctx, clusterPattern)
+	cluster, err := selectors.Cluster(ctx, clusterRegex)
 	if err != nil {
 		return nil, err
 	}
 
-	service, err := selectors.Service(ctx, cluster, servicePattern)
+	service, err := selectors.Service(ctx, cluster, serviceRegex)
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +94,8 @@ func runUpdate(
 }
 
 func init() {
-	Cmd.Flags().
+	rootCmd.AddCommand(updateCmd)
+
+	updateCmd.Flags().
 		DurationVarP(&waitTimeoutFlag, "wait-timeout", "w", 5*time.Minute, "The wait time for the service to become available")
 }

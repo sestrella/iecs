@@ -1,4 +1,4 @@
-package exec
+package cmd
 
 import (
 	"context"
@@ -26,7 +26,7 @@ type ExecSelection struct {
 	container *types.Container
 }
 
-var Cmd = &cobra.Command{
+var execCmd = &cobra.Command{
 	Use:   "exec",
 	Short: "Run a remote command on a container",
 	Example: `
@@ -49,25 +49,13 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		clusterPattern, err := cmd.Flags().GetString("cluster")
-		if err != nil {
-			return err
-		}
-
-		servicePattern, err := cmd.Flags().GetString("service")
-		if err != nil {
-			return err
-		}
-
 		awsClient := client.NewClient(cfg)
 		err = runExec(
 			context.TODO(),
 			awsClient,
-			selector.NewSelectors(awsClient, cmd.Flag("theme").Value.String()),
+			selector.NewSelectors(awsClient, theme),
 			command,
 			interactive,
-			clusterPattern,
-			servicePattern,
 		)
 		if err != nil {
 			return err
@@ -83,10 +71,8 @@ func runExec(
 	selectors selector.Selectors,
 	command string,
 	interactive bool,
-	clusterPattern string,
-	servicePattern string,
 ) error {
-	selection, err := execSelector(ctx, selectors, clusterPattern, servicePattern)
+	selection, err := execSelector(ctx, selectors)
 	if err != nil {
 		return err
 	}
@@ -108,10 +94,11 @@ func runExec(
 		return err
 	}
 
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
+
 	// Reference: https://github.com/kubernetes/kubectl/blob/master/pkg/util/interrupt/interrupt.go
 	go func() {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
 		sig := <-sigs
 		err = cmd.Process.Signal(sig)
 		if err != nil {
@@ -125,15 +112,13 @@ func runExec(
 func execSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
-	clusterPattern string,
-	servicePattern string,
 ) (*ExecSelection, error) {
-	cluster, err := selectors.Cluster(ctx, clusterPattern)
+	cluster, err := selectors.Cluster(ctx, clusterRegex)
 	if err != nil {
 		return nil, err
 	}
 
-	service, err := selectors.Service(ctx, cluster, servicePattern)
+	service, err := selectors.Service(ctx, cluster, serviceRegex)
 	if err != nil {
 		return nil, err
 	}
@@ -157,6 +142,8 @@ func execSelector(
 }
 
 func init() {
-	Cmd.Flags().StringP(execCommandFlag, "c", "/bin/bash", "command to run")
-	Cmd.Flags().BoolP(execInteractiveFlag, "i", true, "toggles interactive mode")
+	rootCmd.AddCommand(execCmd)
+
+	execCmd.Flags().StringP(execCommandFlag, "c", "/bin/bash", "command to run")
+	execCmd.Flags().BoolP(execInteractiveFlag, "i", true, "toggles interactive mode")
 }

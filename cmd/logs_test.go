@@ -1,4 +1,4 @@
-package logs
+package cmd
 
 import (
 	"context"
@@ -60,8 +60,8 @@ func TestRunLogs_Success(t *testing.T) {
 	}
 
 	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything, "").Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster, "").Return(service, nil)
+	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster, mock.Anything).Return(service, nil)
 	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
 	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
 		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
@@ -69,7 +69,7 @@ func TestRunLogs_Success(t *testing.T) {
 		Return(nil)
 
 	// Test the function
-	err := runLogs(context.Background(), false, mockClient, mockSel, "", "")
+	err := runLogs(context.Background(), false, mockClient, mockSel)
 
 	// Check assertions
 	assert.NoError(t, err)
@@ -84,10 +84,10 @@ func TestRunLogs_SelectorError(t *testing.T) {
 
 	// Setup mock responses with an error for cluster selector
 	expectedErr := errors.New("cluster selector error")
-	mockSel.On("Cluster", mock.Anything, "").Return(nil, expectedErr)
+	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(nil, expectedErr)
 
 	// Test the function
-	err := runLogs(context.Background(), false, mockClient, mockSel, "", "")
+	err := runLogs(context.Background(), false, mockClient, mockSel)
 
 	// Check assertions
 	assert.Error(t, err)
@@ -134,14 +134,14 @@ func TestRunLogs_MissingLogConfiguration(t *testing.T) {
 	}
 
 	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything, "").Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster, "").Return(service, nil)
+	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster, mock.Anything).Return(service, nil)
 	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
 	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
 		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
 
 	// Test the function
-	err := runLogs(context.Background(), false, mockClient, mockSel, "", "")
+	err := runLogs(context.Background(), false, mockClient, mockSel)
 
 	// Check assertions
 	assert.Error(t, err)
@@ -193,14 +193,14 @@ func TestRunLogs_MissingLogOptions(t *testing.T) {
 	}
 
 	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything, "").Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster, "").Return(service, nil)
+	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster, mock.Anything).Return(service, nil)
 	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
 	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
 		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
 
 	// Test the function
-	err := runLogs(context.Background(), false, mockClient, mockSel, "", "")
+	err := runLogs(context.Background(), false, mockClient, mockSel)
 
 	// Check assertions
 	assert.Error(t, err)
@@ -255,8 +255,8 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 	}
 
 	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything, "").Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster, "").Return(service, nil)
+	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster, mock.Anything).Return(service, nil)
 	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
 	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
 		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
@@ -267,7 +267,7 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 		Return(expectedErr)
 
 	// Test the function
-	err := runLogs(context.Background(), false, mockClient, mockSel, "", "")
+	err := runLogs(context.Background(), false, mockClient, mockSel)
 
 	// Check assertions
 	assert.NoError(t, err)
@@ -321,8 +321,8 @@ func TestRunLogs_HandlerBehavior(t *testing.T) {
 	}
 
 	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything, "").Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster, "").Return(service, nil)
+	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(cluster, nil)
+	mockSel.On("Service", mock.Anything, cluster, mock.Anything).Return(service, nil)
 	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
 	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
 		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
@@ -336,7 +336,7 @@ func TestRunLogs_HandlerBehavior(t *testing.T) {
 		Return(nil)
 
 	// Start the logs function
-	err := runLogs(context.Background(), false, mockClient, mockSel, "", "")
+	err := runLogs(context.Background(), false, mockClient, mockSel)
 	assert.NoError(t, err)
 
 	// Test that the function was called

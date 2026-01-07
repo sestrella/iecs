@@ -1,8 +1,9 @@
-package logs
+package cmd
 
 import (
 	"context"
 	"os/exec"
+	"regexp"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
@@ -145,9 +146,9 @@ type MockSelectors struct {
 
 func (m *MockSelectors) Cluster(
 	ctx context.Context,
-	clusterPattern string,
+	clusterRegex *regexp.Regexp,
 ) (*types.Cluster, error) {
-	args := m.Called(ctx, clusterPattern)
+	args := m.Called(ctx, clusterRegex)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -157,9 +158,9 @@ func (m *MockSelectors) Cluster(
 func (m *MockSelectors) Service(
 	ctx context.Context,
 	cluster *types.Cluster,
-	servicePattern string,
+	serviceRegex *regexp.Regexp,
 ) (*types.Service, error) {
-	args := m.Called(ctx, cluster, servicePattern)
+	args := m.Called(ctx, cluster, serviceRegex)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

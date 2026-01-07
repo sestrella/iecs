@@ -18,11 +18,11 @@ import (
 var titleStyle = lipgloss.NewStyle().Bold(true)
 
 type Selectors interface {
-	Cluster(ctx context.Context, clusterPattern string) (*types.Cluster, error)
+	Cluster(ctx context.Context, clusterRegex *regexp.Regexp) (*types.Cluster, error)
 	Service(
 		ctx context.Context,
 		cluster *types.Cluster,
-		servicePattern string,
+		serviceRegex *regexp.Regexp,
 	) (*types.Service, error)
 	Task(ctx context.Context, service *types.Service) (*types.Task, error)
 	Tasks(ctx context.Context, service *types.Service) ([]types.Task, error)
@@ -54,22 +54,21 @@ func NewSelectors(client client.Client, themeName string) Selectors {
 
 func (cs ClientSelectors) Cluster(
 	ctx context.Context,
-	clusterPattern string,
+	clusterRegex *regexp.Regexp,
 ) (*types.Cluster, error) {
 	clusterArns, err := cs.client.ListClusters(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if clusterPattern != "" {
-		clusterRegex := regexp.MustCompile(clusterPattern)
+	if clusterRegex != nil {
 		clusterArns = slices.DeleteFunc(clusterArns, func(clusterArn string) bool {
 			return !clusterRegex.MatchString(clusterArn)
 		})
 	}
 
 	if len(clusterArns) == 0 {
-		return nil, fmt.Errorf("no clusters matching pattern: %s", clusterPattern)
+		return nil, fmt.Errorf("no clusters available")
 	}
 
 	var selectedClusterArn string
@@ -110,22 +109,20 @@ func (cs ClientSelectors) Cluster(
 func (cs ClientSelectors) Service(
 	ctx context.Context,
 	cluster *types.Cluster,
-	servicePattern string,
+	serviceRegex *regexp.Regexp,
 ) (*types.Service, error) {
 	serviceArns, err := cs.client.ListServices(ctx, *cluster.ClusterArn)
 	if err != nil {
 		return nil, err
 	}
 
-	if servicePattern != "" {
-		serviceRegex := regexp.MustCompile(servicePattern)
+	if serviceRegex != nil {
 		serviceArns = slices.DeleteFunc(serviceArns, func(serviceArn string) bool {
 			return !serviceRegex.MatchString(serviceArn)
 		})
 	}
-
 	if len(serviceArns) == 0 {
-		return nil, fmt.Errorf("no services matching pattern: %s", servicePattern)
+		return nil, fmt.Errorf("no services available")
 	}
 
 	var selectedServiceArn string
