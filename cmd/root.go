@@ -6,9 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sestrella/iecs/cmd/exec"
-	"github.com/sestrella/iecs/cmd/logs"
-	"github.com/sestrella/iecs/cmd/update"
 	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
@@ -58,10 +55,6 @@ func Execute(version string) error {
 	rootCmd.PersistentFlags().String("cluster", "", "A regex pattern for filtering clusters")
 	rootCmd.PersistentFlags().String("service", "", "A regex pattern for filtering services")
 	rootCmd.Version = version
-
-	rootCmd.AddCommand(exec.ExecCmd)
-	rootCmd.AddCommand(logs.LogsCmd)
-	rootCmd.AddCommand(update.UpdateCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		return err
