@@ -143,8 +143,11 @@ type MockSelectors struct {
 	mock.Mock
 }
 
-func (m *MockSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
-	args := m.Called(ctx)
+func (m *MockSelectors) Cluster(
+	ctx context.Context,
+	clusterPattern string,
+) (*types.Cluster, error) {
+	args := m.Called(ctx, clusterPattern)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -154,8 +157,9 @@ func (m *MockSelectors) Cluster(ctx context.Context) (*types.Cluster, error) {
 func (m *MockSelectors) Service(
 	ctx context.Context,
 	cluster *types.Cluster,
+	servicePattern string,
 ) (*types.Service, error) {
-	args := m.Called(ctx, cluster)
+	args := m.Called(ctx, cluster, servicePattern)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
