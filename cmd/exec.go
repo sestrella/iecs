@@ -51,7 +51,6 @@ var execCmd = &cobra.Command{
 
 		awsClient := client.NewClient(cfg)
 
-		// TODO: Return a value not a pointer
 		selection, err := execSelector(context.TODO(), selector.NewSelectors(awsClient, theme))
 		if err != nil {
 			return err
