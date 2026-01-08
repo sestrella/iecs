@@ -244,7 +244,6 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 func TestRunLogs_HandlerBehavior(t *testing.T) {
 	// Create mock objects
 	mockClient := new(MockClient)
-	mockSel := new(MockSelectors)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -284,13 +283,6 @@ func TestRunLogs_HandlerBehavior(t *testing.T) {
 		Name:             &containerDefinitionName,
 		LogConfiguration: logConfiguration,
 	}
-
-	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster, mock.Anything).Return(service, nil)
-	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
-	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
-		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
 
 	// Capture the handler function
 	var capturedHandler client.LiveTailHandlers
