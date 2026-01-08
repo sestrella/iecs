@@ -50,10 +50,17 @@ var execCmd = &cobra.Command{
 		}
 
 		awsClient := client.NewClient(cfg)
+
+		// TODO: Return a value not a pointer
+		selection, err := execSelector(context.TODO(), selector.NewSelectors(awsClient, theme))
+		if err != nil {
+			return err
+		}
+
 		err = runExec(
 			context.TODO(),
 			awsClient,
-			selector.NewSelectors(awsClient, theme),
+			*selection,
 			command,
 			interactive,
 		)
@@ -68,14 +75,10 @@ var execCmd = &cobra.Command{
 func runExec(
 	ctx context.Context,
 	client client.Client,
-	selectors selector.Selectors,
+	selection ExecSelection,
 	command string,
 	interactive bool,
 ) error {
-	selection, err := execSelector(ctx, selectors)
-	if err != nil {
-		return err
-	}
 	cmd, err := client.ExecuteCommand(
 		ctx,
 		selection.cluster,
