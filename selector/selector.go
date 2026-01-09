@@ -34,7 +34,7 @@ func (selector Selector[T]) Run(arnRegex *regexp.Regexp) (*T, error) {
 	}
 
 	if len(arns) == 0 {
-		return nil, fmt.Errorf("TODO: no resources available")
+		return nil, fmt.Errorf("no resources available")
 	}
 
 	var selectedArn string
