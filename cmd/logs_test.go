@@ -18,7 +18,6 @@ import (
 func TestRunLogs_Success(t *testing.T) {
 	// Create mock objects
 	mockClient := new(MockClient)
-	mockSel := new(MockSelectors)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -59,48 +58,25 @@ func TestRunLogs_Success(t *testing.T) {
 		LogConfiguration: logConfiguration,
 	}
 
-	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster, mock.Anything).Return(service, nil)
-	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
-	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
-		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
 	mockClient.On("StartLiveTail", mock.Anything, "/ecs/my-service", "ecs/my-container/12345678-1234-1234-1234-123456789012", mock.AnythingOfType("client.LiveTailHandlers")).
 		Return(nil)
 
 	// Test the function
-	err := runLogs(context.Background(), false, mockClient, mockSel)
+	err := runLogs(context.Background(), false, mockClient, LogsSelection{
+		cluster:    cluster,
+		service:    service,
+		tasks:      []ecsTypes.Task{task},
+		containers: []ecsTypes.ContainerDefinition{*containerDefinition},
+	})
 
 	// Check assertions
 	assert.NoError(t, err)
-	mockSel.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
-}
-
-func TestRunLogs_SelectorError(t *testing.T) {
-	// Create mock objects
-	mockClient := new(MockClient)
-	mockSel := new(MockSelectors)
-
-	// Setup mock responses with an error for cluster selector
-	expectedErr := errors.New("cluster selector error")
-	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(nil, expectedErr)
-
-	// Test the function
-	err := runLogs(context.Background(), false, mockClient, mockSel)
-
-	// Check assertions
-	assert.Error(t, err)
-	assert.Equal(t, expectedErr, err)
-	mockSel.AssertExpectations(t)
-	// StartLiveTail should not be called
-	mockClient.AssertNotCalled(t, "StartLiveTail")
 }
 
 func TestRunLogs_MissingLogConfiguration(t *testing.T) {
 	// Create mock objects
 	mockClient := new(MockClient)
-	mockSel := new(MockSelectors)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -133,20 +109,17 @@ func TestRunLogs_MissingLogConfiguration(t *testing.T) {
 		LogConfiguration: nil,
 	}
 
-	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster, mock.Anything).Return(service, nil)
-	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
-	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
-		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
-
 	// Test the function
-	err := runLogs(context.Background(), false, mockClient, mockSel)
+	err := runLogs(context.Background(), false, mockClient, LogsSelection{
+		cluster:    cluster,
+		service:    service,
+		tasks:      []ecsTypes.Task{task},
+		containers: []ecsTypes.ContainerDefinition{*containerDefinition},
+	})
 
 	// Check assertions
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no log configuration found")
-	mockSel.AssertExpectations(t)
 	// StartLiveTail should not be called
 	mockClient.AssertNotCalled(t, "StartLiveTail")
 }
@@ -154,7 +127,6 @@ func TestRunLogs_MissingLogConfiguration(t *testing.T) {
 func TestRunLogs_MissingLogOptions(t *testing.T) {
 	// Create mock objects
 	mockClient := new(MockClient)
-	mockSel := new(MockSelectors)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -192,20 +164,17 @@ func TestRunLogs_MissingLogOptions(t *testing.T) {
 		LogConfiguration: logConfiguration,
 	}
 
-	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster, mock.Anything).Return(service, nil)
-	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
-	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
-		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
-
 	// Test the function
-	err := runLogs(context.Background(), false, mockClient, mockSel)
+	err := runLogs(context.Background(), false, mockClient, LogsSelection{
+		cluster:    cluster,
+		service:    service,
+		tasks:      []ecsTypes.Task{task},
+		containers: []ecsTypes.ContainerDefinition{*containerDefinition},
+	})
 
 	// Check assertions
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no log options found")
-	mockSel.AssertExpectations(t)
 	// StartLiveTail should not be called
 	mockClient.AssertNotCalled(t, "StartLiveTail")
 }
@@ -213,7 +182,6 @@ func TestRunLogs_MissingLogOptions(t *testing.T) {
 func TestRunLogs_StartLiveTailError(t *testing.T) {
 	// Create mock objects
 	mockClient := new(MockClient)
-	mockSel := new(MockSelectors)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -253,13 +221,6 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 		Name:             &containerDefinitionName,
 		LogConfiguration: logConfiguration,
 	}
-
-	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster, mock.Anything).Return(service, nil)
-	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
-	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
-		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
 
 	// Setup StartLiveTail to return an error
 	expectedErr := errors.New("failed to start live tail")
@@ -267,11 +228,15 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 		Return(expectedErr)
 
 	// Test the function
-	err := runLogs(context.Background(), false, mockClient, mockSel)
+	err := runLogs(context.Background(), false, mockClient, LogsSelection{
+		cluster:    cluster,
+		service:    service,
+		tasks:      []ecsTypes.Task{task},
+		containers: []ecsTypes.ContainerDefinition{*containerDefinition},
+	})
 
 	// Check assertions
 	assert.NoError(t, err)
-	mockSel.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
 }
 
@@ -279,7 +244,6 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 func TestRunLogs_HandlerBehavior(t *testing.T) {
 	// Create mock objects
 	mockClient := new(MockClient)
-	mockSel := new(MockSelectors)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -319,13 +283,6 @@ func TestRunLogs_HandlerBehavior(t *testing.T) {
 		Name:             &containerDefinitionName,
 		LogConfiguration: logConfiguration,
 	}
-
-	// Setup mock calls for selectors
-	mockSel.On("Cluster", mock.Anything, mock.Anything).Return(cluster, nil)
-	mockSel.On("Service", mock.Anything, cluster, mock.Anything).Return(service, nil)
-	mockSel.On("Tasks", mock.Anything, service).Return([]ecsTypes.Task{task}, nil)
-	mockSel.On("ContainerDefinitions", mock.Anything, *service.TaskDefinition).
-		Return([]ecsTypes.ContainerDefinition{*containerDefinition}, nil)
 
 	// Capture the handler function
 	var capturedHandler client.LiveTailHandlers
@@ -336,7 +293,12 @@ func TestRunLogs_HandlerBehavior(t *testing.T) {
 		Return(nil)
 
 	// Start the logs function
-	err := runLogs(context.Background(), false, mockClient, mockSel)
+	err := runLogs(context.Background(), false, mockClient, LogsSelection{
+		cluster:    cluster,
+		service:    service,
+		tasks:      []ecsTypes.Task{task},
+		containers: []ecsTypes.ContainerDefinition{*containerDefinition},
+	})
 	assert.NoError(t, err)
 
 	// Test that the function was called

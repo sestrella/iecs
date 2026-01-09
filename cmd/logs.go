@@ -53,11 +53,16 @@ var logsCmd = &cobra.Command{
 
 		client := client.NewClient(cfg)
 
+		selection, err := logsSelector(context.TODO(), selector.NewSelectors(client, theme))
+		if err != nil {
+			return err
+		}
+
 		err = runLogs(
 			context.TODO(),
 			noColors,
 			client,
-			selector.NewSelectors(client, theme),
+			*selection,
 		)
 		if err != nil {
 			return err
@@ -72,18 +77,13 @@ func runLogs(
 	ctx context.Context,
 	noColors bool,
 	clients client.Client,
-	selectors selector.Selectors,
+	selection LogsSelection,
 ) error {
 	type LogOptions struct {
 		containerName string
 		group         string
 		streamPrefix  string
 		printer       Printer
-	}
-
-	selection, err := logsSelector(ctx, selectors)
-	if err != nil {
-		return err
 	}
 
 	var allLogOptions []LogOptions
