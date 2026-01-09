@@ -56,54 +56,31 @@ func (cs ClientSelectors) Cluster(
 	ctx context.Context,
 	clusterRegex *regexp.Regexp,
 ) (*types.Cluster, error) {
-	clusterArns, err := cs.client.ListClusters(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if clusterRegex != nil {
-		clusterArns = slices.DeleteFunc(clusterArns, func(clusterArn string) bool {
-			return !clusterRegex.MatchString(clusterArn)
-		})
-	}
-
-	if len(clusterArns) == 0 {
-		return nil, fmt.Errorf("no clusters available")
-	}
-
-	var selectedClusterArn string
-	if len(clusterArns) == 1 {
-		log.Printf("Pre-selecting the only available cluster")
-		selectedClusterArn = clusterArns[0]
-	} else {
-		form := huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Title("Select a cluster").
-					Options(
-						huh.NewOptions(clusterArns...)...,
-					).
-					Value(&selectedClusterArn).
-					WithHeight(5),
-			),
-		).WithTheme(&cs.theme)
-		if err = form.Run(); err != nil {
-			return nil, err
-		}
-	}
-
-	clusters, err := cs.client.DescribeClusters(ctx, []string{selectedClusterArn})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(clusters) == 0 {
-		return nil, fmt.Errorf("cluster not found: %s", selectedClusterArn)
-	}
-
-	cluster := clusters[0]
-	fmt.Printf("%s %s\n", titleStyle.Render("Cluster:"), *cluster.ClusterArn)
-	return &cluster, nil
+	return Selector[types.Cluster]{
+		theme: cs.theme,
+		lister: func() ([]string, error) {
+			return cs.client.ListClusters(ctx)
+		},
+		describer: func(arn string) ([]types.Cluster, error) {
+			return cs.client.DescribeClusters(ctx, []string{arn})
+		},
+		pickers: func(arns []string, selectedArn *string) []huh.Field {
+			return []huh.Field{huh.NewSelect[string]().
+				Title("Select a cluster").
+				Options(
+					huh.NewOptions(arns...)...,
+				).
+				Value(selectedArn).
+				WithHeight(5),
+			}
+		},
+		formatter: func(selectedRes *types.Cluster) Selection {
+			return Selection{
+				title: "Cluster:",
+				value: *selectedRes.ClusterArn,
+			}
+		},
+	}.Run(clusterRegex)
 }
 
 func (cs ClientSelectors) Service(
@@ -111,98 +88,62 @@ func (cs ClientSelectors) Service(
 	cluster *types.Cluster,
 	serviceRegex *regexp.Regexp,
 ) (*types.Service, error) {
-	serviceArns, err := cs.client.ListServices(ctx, *cluster.ClusterArn)
-	if err != nil {
-		return nil, err
-	}
-
-	if serviceRegex != nil {
-		serviceArns = slices.DeleteFunc(serviceArns, func(serviceArn string) bool {
-			return !serviceRegex.MatchString(serviceArn)
-		})
-	}
-	if len(serviceArns) == 0 {
-		return nil, fmt.Errorf("no services available")
-	}
-
-	var selectedServiceArn string
-	if len(serviceArns) == 1 {
-		log.Printf("Pre-selecting the only available service")
-		selectedServiceArn = serviceArns[0]
-	} else {
-		form := huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Title("Select a service").
-					Options(huh.NewOptions(serviceArns...)...).
-					Value(&selectedServiceArn).
-					WithHeight(5),
-			),
-		).WithTheme(&cs.theme)
-
-		if err = form.Run(); err != nil {
-			return nil, err
-		}
-	}
-
-	services, err := cs.client.DescribeServices(
-		ctx,
-		*cluster.ClusterArn,
-		[]string{selectedServiceArn},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(services) == 0 {
-		return nil, fmt.Errorf("service not found: %s", selectedServiceArn)
-	}
-
-	service := services[0]
-	fmt.Printf("%s %s\n", titleStyle.Render("Service:"), *service.ServiceArn)
-	return &service, nil
+	return Selector[types.Service]{
+		theme: cs.theme,
+		lister: func() ([]string, error) {
+			return cs.client.ListServices(ctx, *cluster.ClusterArn)
+		},
+		describer: func(arn string) ([]types.Service, error) {
+			return cs.client.DescribeServices(
+				ctx,
+				*cluster.ClusterArn,
+				[]string{arn},
+			)
+		},
+		pickers: func(arns []string, selectedArn *string) []huh.Field {
+			return []huh.Field{huh.NewSelect[string]().
+				Title("Select a service").
+				Options(huh.NewOptions(arns...)...).
+				Value(selectedArn).
+				WithHeight(5),
+			}
+		},
+		formatter: func(selectedRes *types.Service) Selection {
+			return Selection{
+				title: "Service:",
+				value: *selectedRes.ServiceArn,
+			}
+		},
+	}.Run(serviceRegex)
 }
 
 func (cs ClientSelectors) Task(
 	ctx context.Context,
 	service *types.Service,
 ) (*types.Task, error) {
-	taskArns, err := cs.client.ListTasks(ctx, *service.ClusterArn, *service.ServiceArn)
-	if err != nil {
-		return nil, err
-	}
-
-	var selectedTaskArn string
-	if len(taskArns) == 1 {
-		log.Printf("Pre-selecting the only available task")
-		selectedTaskArn = taskArns[0]
-	} else {
-		form := huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Title("Select a task").
-					Options(huh.NewOptions(taskArns...)...).
-					Value(&selectedTaskArn).
-					WithHeight(5),
-			),
-		).WithTheme(&cs.theme)
-		if err = form.Run(); err != nil {
-			return nil, err
-		}
-	}
-
-	tasks, err := cs.client.DescribeTasks(ctx, *service.ClusterArn, []string{selectedTaskArn})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(tasks) == 0 {
-		return nil, fmt.Errorf("task not found: %s", selectedTaskArn)
-	}
-
-	task := tasks[0]
-	fmt.Printf("%s %s\n", titleStyle.Render("Task:"), *task.TaskArn)
-	return &task, nil
+	return Selector[types.Task]{
+		theme: cs.theme,
+		lister: func() ([]string, error) {
+			return cs.client.ListTasks(ctx, *service.ClusterArn, *service.ServiceArn)
+		},
+		describer: func(arn string) ([]types.Task, error) {
+			return cs.client.DescribeTasks(ctx, *service.ClusterArn, []string{arn})
+		},
+		pickers: func(arns []string, selectedArn *string) []huh.Field {
+			return []huh.Field{huh.NewSelect[string]().
+				Title("Select a task").
+				Options(huh.NewOptions(arns...)...).
+				Value(selectedArn).
+				WithHeight(5),
+			}
+		},
+		formatter: func(selectedRes *types.Task) Selection {
+			return Selection{
+				title: "Task:",
+				value: *selectedRes.TaskArn,
+			}
+		},
+	}.Run(nil)
 }
 
 func (cs ClientSelectors) Tasks(
@@ -311,38 +252,35 @@ func (cs ClientSelectors) Container(
 	ctx context.Context,
 	containers []types.Container,
 ) (*types.Container, error) {
-	var containerNames []string
-	for _, container := range containers {
-		containerNames = append(containerNames, *container.Name)
-	}
-
-	var containerName string
-	if len(containerNames) == 1 {
-		log.Printf("Pre-selecting the only available container")
-		containerName = containerNames[0]
-	} else {
-		form := huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Title("Select a container").
-					Options(huh.NewOptions(containerNames...)...).
-					Value(&containerName).
-					WithHeight(5),
-			),
-		).WithTheme(&cs.theme)
-		if err := form.Run(); err != nil {
-			return nil, err
-		}
-	}
-
-	for _, container := range containers {
-		if *container.Name == containerName {
-			fmt.Printf("%s %s\n", titleStyle.Render("Container:"), *container.Name)
-			return &container, nil
-		}
-	}
-
-	return nil, fmt.Errorf("container not found: %s", containerName)
+	return Selector[types.Container]{
+		theme: cs.theme,
+		lister: func() ([]string, error) {
+			var names []string
+			for _, container := range containers {
+				names = append(names, *container.Name)
+			}
+			return names, nil
+		},
+		describer: func(name string) ([]types.Container, error) {
+			return slices.DeleteFunc(containers, func(container types.Container) bool {
+				return *container.Name != name
+			}), nil
+		},
+		pickers: func(names []string, selectedName *string) []huh.Field {
+			return []huh.Field{huh.NewSelect[string]().
+				Title("Select a container").
+				Options(huh.NewOptions(names...)...).
+				Value(selectedName).
+				WithHeight(5),
+			}
+		},
+		formatter: func(selectedRes *types.Container) Selection {
+			return Selection{
+				title: "Container:",
+				value: *selectedRes.Name,
+			}
+		},
+	}.Run(nil)
 }
 
 func (cs ClientSelectors) ContainerDefinitions(
