@@ -17,24 +17,7 @@ import (
 
 var titleStyle = lipgloss.NewStyle().Bold(true)
 
-type Selectors interface {
-	Cluster(ctx context.Context, clusterRegex *regexp.Regexp) (*types.Cluster, error)
-	Service(
-		ctx context.Context,
-		cluster *types.Cluster,
-		serviceRegex *regexp.Regexp,
-	) (*types.Service, error)
-	Task(ctx context.Context, service *types.Service) (*types.Task, error)
-	Tasks(ctx context.Context, service *types.Service) ([]types.Task, error)
-	ServiceConfig(ctx context.Context, service *types.Service) (*client.ServiceConfig, error)
-	Container(ctx context.Context, containers []types.Container) (*types.Container, error)
-	ContainerDefinitions(
-		ctx context.Context,
-		taskDefinitionArn string,
-	) ([]types.ContainerDefinition, error)
-}
-
-type ClientSelectors struct {
+type Selectors struct {
 	client client.Client
 	theme  huh.Theme
 }
@@ -49,20 +32,20 @@ var Themes = map[string]func() *huh.Theme{
 
 func NewSelectors(client client.Client, themeName string) Selectors {
 	theme := Themes[themeName]()
-	return ClientSelectors{client: client, theme: *theme}
+	return Selectors{client: client, theme: *theme}
 }
 
-func (cs ClientSelectors) Cluster(
+func (s Selectors) Cluster(
 	ctx context.Context,
 	clusterRegex *regexp.Regexp,
 ) (*types.Cluster, error) {
 	return Selector[types.Cluster]{
-		theme: cs.theme,
+		theme: s.theme,
 		lister: func() ([]string, error) {
-			return cs.client.ListClusters(ctx)
+			return s.client.ListClusters(ctx)
 		},
 		describer: func(arn string) ([]types.Cluster, error) {
-			return cs.client.DescribeClusters(ctx, []string{arn})
+			return s.client.DescribeClusters(ctx, []string{arn})
 		},
 		pickers: func(arns []string, selectedArn *string) []huh.Field {
 			return []huh.Field{huh.NewSelect[string]().
@@ -83,18 +66,18 @@ func (cs ClientSelectors) Cluster(
 	}.Run(clusterRegex)
 }
 
-func (cs ClientSelectors) Service(
+func (s Selectors) Service(
 	ctx context.Context,
 	cluster *types.Cluster,
 	serviceRegex *regexp.Regexp,
 ) (*types.Service, error) {
 	return Selector[types.Service]{
-		theme: cs.theme,
+		theme: s.theme,
 		lister: func() ([]string, error) {
-			return cs.client.ListServices(ctx, *cluster.ClusterArn)
+			return s.client.ListServices(ctx, *cluster.ClusterArn)
 		},
 		describer: func(arn string) ([]types.Service, error) {
-			return cs.client.DescribeServices(
+			return s.client.DescribeServices(
 				ctx,
 				*cluster.ClusterArn,
 				[]string{arn},
@@ -117,17 +100,17 @@ func (cs ClientSelectors) Service(
 	}.Run(serviceRegex)
 }
 
-func (cs ClientSelectors) Task(
+func (s Selectors) Task(
 	ctx context.Context,
 	service *types.Service,
 ) (*types.Task, error) {
 	return Selector[types.Task]{
-		theme: cs.theme,
+		theme: s.theme,
 		lister: func() ([]string, error) {
-			return cs.client.ListTasks(ctx, *service.ClusterArn, *service.ServiceArn)
+			return s.client.ListTasks(ctx, *service.ClusterArn, *service.ServiceArn)
 		},
 		describer: func(arn string) ([]types.Task, error) {
-			return cs.client.DescribeTasks(ctx, *service.ClusterArn, []string{arn})
+			return s.client.DescribeTasks(ctx, *service.ClusterArn, []string{arn})
 		},
 		pickers: func(arns []string, selectedArn *string) []huh.Field {
 			return []huh.Field{huh.NewSelect[string]().
@@ -146,11 +129,11 @@ func (cs ClientSelectors) Task(
 	}.Run(nil)
 }
 
-func (cs ClientSelectors) Tasks(
+func (s Selectors) Tasks(
 	ctx context.Context,
 	service *types.Service,
 ) ([]types.Task, error) {
-	taskArns, err := cs.client.ListTasks(ctx, *service.ClusterArn, *service.ServiceArn)
+	taskArns, err := s.client.ListTasks(ctx, *service.ClusterArn, *service.ServiceArn)
 	if err != nil {
 		return nil, err
 	}
@@ -173,14 +156,14 @@ func (cs ClientSelectors) Tasks(
 						return fmt.Errorf("no task selected")
 					}),
 			),
-		).WithTheme(&cs.theme)
+		).WithTheme(&s.theme)
 		if err = form.Run(); err != nil {
 			return nil, err
 		}
 	}
 
 	fmt.Printf("%s %s\n", titleStyle.Render("Task(s):"), strings.Join(selectedTaskArns, ","))
-	tasks, err := cs.client.DescribeTasks(ctx, *service.ClusterArn, selectedTaskArns)
+	tasks, err := s.client.DescribeTasks(ctx, *service.ClusterArn, selectedTaskArns)
 	if err != nil {
 		return nil, err
 	}
@@ -192,16 +175,16 @@ func (cs ClientSelectors) Tasks(
 	return tasks, nil
 }
 
-func (cs ClientSelectors) ServiceConfig(
+func (s Selectors) ServiceConfig(
 	ctx context.Context,
 	service *types.Service,
 ) (*client.ServiceConfig, error) {
-	currentTaskDefinition, err := cs.client.DescribeTaskDefinition(ctx, *service.TaskDefinition)
+	currentTaskDefinition, err := s.client.DescribeTaskDefinition(ctx, *service.TaskDefinition)
 	if err != nil {
 		return nil, err
 	}
 
-	taskDefinitionArns, err := cs.client.ListTaskDefinitions(ctx, *currentTaskDefinition.Family)
+	taskDefinitionArns, err := s.client.ListTaskDefinitions(ctx, *currentTaskDefinition.Family)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +215,7 @@ func (cs ClientSelectors) ServiceConfig(
 					return nil
 				}),
 		),
-	).WithTheme(&cs.theme)
+	).WithTheme(&s.theme)
 	if err := form.Run(); err != nil {
 		return nil, err
 	}
@@ -248,12 +231,12 @@ func (cs ClientSelectors) ServiceConfig(
 	}, nil
 }
 
-func (cs ClientSelectors) Container(
+func (s Selectors) Container(
 	ctx context.Context,
 	containers []types.Container,
 ) (*types.Container, error) {
 	return Selector[types.Container]{
-		theme: cs.theme,
+		theme: s.theme,
 		lister: func() ([]string, error) {
 			var names []string
 			for _, container := range containers {
@@ -283,11 +266,11 @@ func (cs ClientSelectors) Container(
 	}.Run(nil)
 }
 
-func (cs ClientSelectors) ContainerDefinitions(
+func (s Selectors) ContainerDefinitions(
 	ctx context.Context,
 	taskDefinitionArn string,
 ) ([]types.ContainerDefinition, error) {
-	taskDefinition, err := cs.client.DescribeTaskDefinition(ctx, taskDefinitionArn)
+	taskDefinition, err := s.client.DescribeTaskDefinition(ctx, taskDefinitionArn)
 	if err != nil {
 		return nil, err
 	}
@@ -315,7 +298,7 @@ func (cs ClientSelectors) ContainerDefinitions(
 						return fmt.Errorf("no container selected")
 					}),
 			),
-		).WithTheme(&cs.theme)
+		).WithTheme(&s.theme)
 		if err = form.Run(); err != nil {
 			return nil, err
 		}
