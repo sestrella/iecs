@@ -53,7 +53,7 @@ var logsCmd = &cobra.Command{
 
 		client := client.NewClient(cfg)
 
-		selection, err := logsSelector(context.TODO(), selector.NewSelectors(client, theme))
+		selection, err := logsSelector(context.TODO(), selector.NewSelectors(client, *theme))
 		if err != nil {
 			return err
 		}
