@@ -51,7 +51,7 @@ var execCmd = &cobra.Command{
 
 		awsClient := client.NewClient(cfg)
 
-		selection, err := execSelector(context.TODO(), selector.NewSelectors(awsClient, theme))
+		selection, err := execSelector(context.TODO(), selector.NewSelectors(awsClient, *theme))
 		if err != nil {
 			return err
 		}

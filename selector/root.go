@@ -22,17 +22,8 @@ type Selectors struct {
 	theme  huh.Theme
 }
 
-var Themes = map[string]func() *huh.Theme{
-	"base":       huh.ThemeBase,
-	"base16":     huh.ThemeBase16,
-	"catppuccin": huh.ThemeCatppuccin,
-	"charm":      huh.ThemeCharm,
-	"dracula":    huh.ThemeDracula,
-}
-
-func NewSelectors(client client.Client, themeName string) Selectors {
-	theme := Themes[themeName]()
-	return Selectors{client: client, theme: *theme}
+func NewSelectors(client client.Client, theme huh.Theme) Selectors {
+	return Selectors{client: client, theme: theme}
 }
 
 func (s Selectors) Cluster(

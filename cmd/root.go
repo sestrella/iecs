@@ -4,47 +4,47 @@ import (
 	_ "embed"
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 
-	"github.com/sestrella/iecs/selector"
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
 var (
 	availableThemes string
-	theme           string
+	themeStr        string
+	theme           *huh.Theme
+	clusterStr      string
 	clusterRegex    *regexp.Regexp
+	serviceStr      string
 	serviceRegex    *regexp.Regexp
 )
+
+var themes = map[string]*huh.Theme{
+	"base":       huh.ThemeBase(),
+	"base16":     huh.ThemeBase16(),
+	"catppuccin": huh.ThemeCatppuccin(),
+	"charm":      huh.ThemeCharm(),
+	"dracula":    huh.ThemeDracula(),
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "iecs",
 	Short: "An interactive CLI for ECS",
 	Long:  "Performs commons tasks on ECS, such as getting remote access or viewing logs",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if _, ok := selector.Themes[theme]; !ok {
-			return fmt.Errorf(
-				"unsupported theme \"%s\" expecting one of: %s",
-				theme,
-				availableThemes,
-			)
+		if selectedTheme, ok := themes[themeStr]; ok {
+			theme = selectedTheme
+		} else {
+			return fmt.Errorf("unsupported theme \"%s\" expecting one of: %s", themeStr, availableThemes)
 		}
 
-		clusterPattern, err := cmd.Flags().GetString("cluster")
-		if err != nil {
-			return err
-		}
-		if clusterPattern != "" {
-			clusterRegex = regexp.MustCompile(clusterPattern)
+		if clusterStr != "" {
+			clusterRegex = regexp.MustCompile(clusterStr)
 		}
 
-		servicePattern, err := cmd.Flags().GetString("service")
-		if err != nil {
-			return err
-		}
-		if servicePattern != "" {
-			serviceRegex = regexp.MustCompile(servicePattern)
+		if serviceStr != "" {
+			serviceRegex = regexp.MustCompile(serviceStr)
 		}
 
 		return nil
@@ -53,26 +53,26 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute(version string) error {
-	var themeNames []string
-	for name := range selector.Themes {
-		themeNames = append(themeNames, fmt.Sprintf("\"%s\"", name))
+	themeNames := make([]string, 0, len(themes))
+	for name := range themes {
+		themeNames = append(themeNames, name)
 	}
-	sort.Strings(themeNames)
 	availableThemes = strings.Join(themeNames, ", ")
 
 	rootCmd.PersistentFlags().
-		StringVarP(
-			&theme,
+		StringVar(
+			&themeStr,
 			"theme",
-			"t",
 			"charm",
 			fmt.Sprintf(
 				"The theme to use. Available themes are: %s",
 				availableThemes,
 			),
 		)
-	rootCmd.PersistentFlags().String("cluster", "", "A regex pattern for filtering clusters")
-	rootCmd.PersistentFlags().String("service", "", "A regex pattern for filtering services")
+	rootCmd.PersistentFlags().
+		StringVar(&clusterStr, "cluster", "", "A regex pattern for filtering clusters")
+	rootCmd.PersistentFlags().
+		StringVar(&serviceStr, "service", "", "A regex pattern for filtering services")
 	rootCmd.Version = version
 
 	if err := rootCmd.Execute(); err != nil {

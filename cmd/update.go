@@ -29,7 +29,7 @@ var updateCmd = &cobra.Command{
 		}
 
 		client := client.NewClient(cfg)
-		selectors := selector.NewSelectors(client, theme)
+		selectors := selector.NewSelectors(client, *theme)
 
 		selection, err := updateSelector(
 			context.Background(),
