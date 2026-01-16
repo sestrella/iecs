@@ -94,6 +94,7 @@ func (s Selectors) Service(
 func (s Selectors) Task(
 	ctx context.Context,
 	service *types.Service,
+	taskRegex *regexp.Regexp,
 ) (*types.Task, error) {
 	return Selector[types.Task]{
 		theme: s.theme,
@@ -117,7 +118,7 @@ func (s Selectors) Task(
 				value: *selectedRes.TaskArn,
 			}
 		},
-	}.Run(nil)
+	}.Run(taskRegex)
 }
 
 func (s Selectors) Tasks(
@@ -225,6 +226,7 @@ func (s Selectors) ServiceConfig(
 func (s Selectors) Container(
 	ctx context.Context,
 	containers []types.Container,
+	containerRegex *regexp.Regexp,
 ) (*types.Container, error) {
 	return Selector[types.Container]{
 		theme: s.theme,
@@ -254,7 +256,7 @@ func (s Selectors) Container(
 				value: *selectedRes.Name,
 			}
 		},
-	}.Run(nil)
+	}.Run(containerRegex)
 }
 
 func (s Selectors) ContainerDefinitions(

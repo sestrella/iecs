@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"regexp"
 	"syscall"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -26,6 +27,13 @@ type ExecSelection struct {
 	container *types.Container
 }
 
+var (
+	execTaskStr        string
+	execTaskRegex      *regexp.Regexp
+	execContainerStr   string
+	execContainerRegex *regexp.Regexp
+)
+
 var execCmd = &cobra.Command{
 	Use:   "exec",
 	Short: "Run a remote command on a container",
@@ -33,6 +41,25 @@ var execCmd = &cobra.Command{
   aws-vault exec <profile> -- iecs exec [flags] (recommended)
   env AWS_PROFILE=<profile> iecs exec [flags]
   `,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if execTaskStr != "" {
+			regex, err := regexp.Compile(execTaskStr)
+			if err != nil {
+				return err
+			}
+
+			execTaskRegex = regex
+		}
+		if execContainerStr != "" {
+			regex, err := regexp.Compile(execContainerStr)
+			if err != nil {
+				return err
+			}
+
+			execContainerRegex = regex
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		command, err := cmd.Flags().GetString(execCommandFlag)
 		if err != nil {
@@ -51,7 +78,14 @@ var execCmd = &cobra.Command{
 
 		awsClient := client.NewClient(cfg)
 
-		selection, err := execSelector(context.TODO(), selector.NewSelectors(awsClient, *theme))
+		selection, err := execSelector(
+			context.TODO(),
+			selector.NewSelectors(awsClient, *theme),
+			clusterRegex,
+			serviceRegex,
+			execTaskRegex,
+			execContainerRegex,
+		)
 		if err != nil {
 			return err
 		}
@@ -114,6 +148,10 @@ func runExec(
 func execSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
+	clusterRegex *regexp.Regexp,
+	serviceRegex *regexp.Regexp,
+	taskRegex *regexp.Regexp,
+	containerRegex *regexp.Regexp,
 ) (*ExecSelection, error) {
 	cluster, err := selectors.Cluster(ctx, clusterRegex)
 	if err != nil {
@@ -125,12 +163,12 @@ func execSelector(
 		return nil, err
 	}
 
-	task, err := selectors.Task(ctx, service)
+	task, err := selectors.Task(ctx, service, taskRegex)
 	if err != nil {
 		return nil, err
 	}
 
-	container, err := selectors.Container(ctx, task.Containers)
+	container, err := selectors.Container(ctx, task.Containers, containerRegex)
 	if err != nil {
 		return nil, err
 	}
@@ -146,6 +184,9 @@ func execSelector(
 func init() {
 	rootCmd.AddCommand(execCmd)
 
+	execCmd.Flags().StringVar(&execTaskStr, "task", "", "A regex pattern for filtering tasks")
+	execCmd.Flags().
+		StringVar(&execContainerStr, "container", "", "A regex pattern for filtering containers")
 	execCmd.Flags().StringP(execCommandFlag, "c", "/bin/bash", "command to run")
 	execCmd.Flags().BoolP(execInteractiveFlag, "i", true, "toggles interactive mode")
 }

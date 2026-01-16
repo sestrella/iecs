@@ -38,21 +38,29 @@ var rootCmd = &cobra.Command{
 		} else {
 			return fmt.Errorf("unsupported theme \"%s\" expecting one of: %s", themeStr, availableThemes)
 		}
-
+		var err error
 		if clusterStr != "" {
-			clusterRegex = regexp.MustCompile(clusterStr)
+			clusterRegex, err = regexp.Compile(clusterStr)
 		}
-
 		if serviceStr != "" {
-			serviceRegex = regexp.MustCompile(serviceStr)
+			serviceRegex, err = regexp.Compile(serviceStr)
 		}
-
-		return nil
+		return err
 	},
 	SilenceUsage: true,
 }
 
 func Execute(version string) error {
+	rootCmd.Version = version
+
+	if err := rootCmd.Execute(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func init() {
 	themeNames := make([]string, 0, len(themes))
 	for name := range themes {
 		themeNames = append(themeNames, name)
@@ -73,11 +81,4 @@ func Execute(version string) error {
 		StringVar(&clusterStr, "cluster", "", "A regex pattern for filtering clusters")
 	rootCmd.PersistentFlags().
 		StringVar(&serviceStr, "service", "", "A regex pattern for filtering services")
-	rootCmd.Version = version
-
-	if err := rootCmd.Execute(); err != nil {
-		return err
-	}
-
-	return nil
 }
