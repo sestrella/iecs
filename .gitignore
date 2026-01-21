@@ -40,5 +40,3 @@ demo.cast
 
 # Added by goreleaser init:
 dist/
-# TODO: To be removed
-foo/
