@@ -17,10 +17,6 @@ type MockClient struct {
 
 func (m *MockClient) ListClusters(ctx context.Context) ([]string, error) {
 	args := m.Called(ctx)
-	// TODO: check why this is required
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
 	return args.Get(0).([]string), args.Error(1)
 }
 
@@ -29,17 +25,11 @@ func (m *MockClient) DescribeClusters(
 	clusterArns []string,
 ) ([]types.Cluster, error) {
 	args := m.Called(ctx, clusterArns)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
 	return args.Get(0).([]types.Cluster), args.Error(1)
 }
 
 func (m *MockClient) ListServices(ctx context.Context, clusterArn string) ([]string, error) {
 	args := m.Called(ctx, clusterArn)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
 	return args.Get(0).([]string), args.Error(1)
 }
 
@@ -49,9 +39,6 @@ func (m *MockClient) DescribeServices(
 	serviceArns []string,
 ) ([]types.Service, error) {
 	args := m.Called(ctx, clusterArn, serviceArns)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
 	return args.Get(0).([]types.Service), args.Error(1)
 }
 
@@ -62,9 +49,6 @@ func (m *MockClient) UpdateService(
 	waitTimeout time.Duration,
 ) (*types.Service, error) {
 	args := m.Called(ctx, service, input, waitTimeout)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
 	return args.Get(0).(*types.Service), args.Error(1)
 }
 
@@ -74,9 +58,6 @@ func (m *MockClient) ListTasks(
 	serviceArn string,
 ) ([]string, error) {
 	args := m.Called(ctx, clusterArn, serviceArn)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
 	return args.Get(0).([]string), args.Error(1)
 }
 
@@ -86,9 +67,6 @@ func (m *MockClient) DescribeTasks(
 	taskArns []string,
 ) ([]types.Task, error) {
 	args := m.Called(ctx, clusterArn, taskArns)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
 	return args.Get(0).([]types.Task), args.Error(1)
 }
 
@@ -97,9 +75,6 @@ func (m *MockClient) ListTaskDefinitions(
 	familyPrefix string,
 ) ([]string, error) {
 	args := m.Called(ctx, familyPrefix)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
 	return args.Get(0).([]string), args.Error(1)
 }
 
@@ -122,9 +97,6 @@ func (m *MockClient) ExecuteCommand(
 	interactive bool,
 ) (*exec.Cmd, error) {
 	args := m.Called(ctx, cluster, taskArn, container, command, interactive)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
 	return args.Get(0).(*exec.Cmd), args.Error(1)
 }
 
@@ -133,8 +105,5 @@ func (m *MockClient) DescribeTaskDefinition(
 	taskDefinitionArn string,
 ) (*types.TaskDefinition, error) {
 	args := m.Called(ctx, taskDefinitionArn)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
 	return args.Get(0).(*types.TaskDefinition), args.Error(1)
 }
