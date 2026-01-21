@@ -15,11 +15,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	execCommandFlag     = "command"
-	execInteractiveFlag = "interactive"
-)
-
 type ExecSelection struct {
 	cluster   *types.Cluster
 	service   *types.Service
@@ -32,6 +27,8 @@ var (
 	execTaskRegex      *regexp.Regexp
 	execContainerStr   string
 	execContainerRegex *regexp.Regexp
+	execCommand        string
+	execInteractive    bool
 )
 
 var execCmd = &cobra.Command{
@@ -63,16 +60,6 @@ var execCmd = &cobra.Command{
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		command, err := cmd.Flags().GetString(execCommandFlag)
-		if err != nil {
-			return err
-		}
-
-		interactive, err := cmd.Flags().GetBool(execInteractiveFlag)
-		if err != nil {
-			return err
-		}
-
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
 			return err
@@ -96,8 +83,8 @@ var execCmd = &cobra.Command{
 			context.TODO(),
 			awsClient,
 			*selection,
-			command,
-			interactive,
+			execCommand,
+			execInteractive,
 		)
 		if err != nil {
 			return err
@@ -189,6 +176,6 @@ func init() {
 	execCmd.Flags().StringVar(&execTaskStr, "task", "", "A regex pattern for filtering tasks")
 	execCmd.Flags().
 		StringVar(&execContainerStr, "container", "", "A regex pattern for filtering containers")
-	execCmd.Flags().StringP(execCommandFlag, "c", "/bin/bash", "command to run")
-	execCmd.Flags().BoolP(execInteractiveFlag, "i", true, "toggles interactive mode")
+	execCmd.Flags().StringVarP(&execCommand, "command", "c", "/bin/bash", "command to run")
+	execCmd.Flags().BoolVarP(&execInteractive, "interactive", "i", true, "toggles interactive mode")
 }
