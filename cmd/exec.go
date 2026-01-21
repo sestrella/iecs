@@ -50,6 +50,7 @@ var execCmd = &cobra.Command{
 
 			execTaskRegex = regex
 		}
+
 		if execContainerStr != "" {
 			regex, err := regexp.Compile(execContainerStr)
 			if err != nil {
@@ -58,6 +59,7 @@ var execCmd = &cobra.Command{
 
 			execContainerRegex = regex
 		}
+
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {

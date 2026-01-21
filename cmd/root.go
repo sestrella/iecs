@@ -38,14 +38,26 @@ var rootCmd = &cobra.Command{
 		} else {
 			return fmt.Errorf("unsupported theme \"%s\" expecting one of: %s", themeStr, availableThemes)
 		}
-		var err error
+
 		if clusterStr != "" {
-			clusterRegex, err = regexp.Compile(clusterStr)
+			regex, err := regexp.Compile(clusterStr)
+			if err != nil {
+				return err
+			}
+
+			clusterRegex = regex
 		}
+
 		if serviceStr != "" {
-			serviceRegex, err = regexp.Compile(serviceStr)
+			regex, err := regexp.Compile(serviceStr)
+			if err != nil {
+				return err
+			}
+
+			serviceRegex = regex
 		}
-		return err
+
+		return nil
 	},
 	SilenceUsage: true,
 }
