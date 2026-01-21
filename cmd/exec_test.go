@@ -6,13 +6,14 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/sestrella/iecs/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestRunExec(t *testing.T) {
 	// Create mock objects
-	mockClient := new(MockClient)
+	mockClient := new(test.MockClient)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"

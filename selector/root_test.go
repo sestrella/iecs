@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/huh"
+	"github.com/sestrella/iecs/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -18,7 +19,7 @@ func TestCluster(t *testing.T) {
 			ClusterArn: &clusterArn,
 		}
 
-		mockClient := new(MockClient)
+		mockClient := new(test.MockClient)
 
 		mockClient.On("ListClusters", mock.Anything).Return([]string{clusterArn}, nil)
 		mockClient.On("DescribeClusters", mock.Anything, []string{clusterArn}).
@@ -39,7 +40,7 @@ func TestCluster(t *testing.T) {
 			ClusterArn: &clusterArn1,
 		}
 
-		mockClient := new(MockClient)
+		mockClient := new(test.MockClient)
 
 		mockClient.On("ListClusters", mock.Anything).Return([]string{clusterArn1, clusterArn2}, nil)
 		mockClient.On("DescribeClusters", mock.Anything, []string{clusterArn1}).
@@ -70,7 +71,7 @@ func TestService(t *testing.T) {
 			ServiceArn: &serviceArn,
 		}
 
-		mockClient := new(MockClient)
+		mockClient := new(test.MockClient)
 
 		mockClient.On("ListServices", mock.Anything, clusterArn).Return([]string{serviceArn}, nil)
 		mockClient.On("DescribeServices", mock.Anything, clusterArn, []string{serviceArn}).
@@ -91,7 +92,7 @@ func TestService(t *testing.T) {
 			ServiceArn: &serviceArn1,
 		}
 
-		mockClient := new(MockClient)
+		mockClient := new(test.MockClient)
 
 		mockClient.On("ListServices", mock.Anything, clusterArn).
 			Return([]string{serviceArn1, serviceArn2}, nil)
@@ -127,7 +128,7 @@ func TestTask(t *testing.T) {
 			TaskArn: &taskArn,
 		}
 
-		mockClient := new(MockClient)
+		mockClient := new(test.MockClient)
 
 		mockClient.On("ListTasks", mock.Anything, clusterArn, serviceArn).
 			Return([]string{taskArn}, nil)
@@ -149,7 +150,7 @@ func TestTask(t *testing.T) {
 			TaskArn: &taskArn1,
 		}
 
-		mockClient := new(MockClient)
+		mockClient := new(test.MockClient)
 
 		mockClient.On("ListTasks", mock.Anything, clusterArn, serviceArn).
 			Return([]string{taskArn1, taskArn2}, nil)
