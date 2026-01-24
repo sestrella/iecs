@@ -40,11 +40,21 @@ var rootCmd = &cobra.Command{
 		}
 
 		if clusterStr != "" {
-			clusterRegex = regexp.MustCompile(clusterStr)
+			regex, err := regexp.Compile(clusterStr)
+			if err != nil {
+				return err
+			}
+
+			clusterRegex = regex
 		}
 
 		if serviceStr != "" {
-			serviceRegex = regexp.MustCompile(serviceStr)
+			regex, err := regexp.Compile(serviceStr)
+			if err != nil {
+				return err
+			}
+
+			serviceRegex = regex
 		}
 
 		return nil
@@ -53,6 +63,16 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute(version string) error {
+	rootCmd.Version = version
+
+	if err := rootCmd.Execute(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func init() {
 	themeNames := make([]string, 0, len(themes))
 	for name := range themes {
 		themeNames = append(themeNames, name)
@@ -73,11 +93,4 @@ func Execute(version string) error {
 		StringVar(&clusterStr, "cluster", "", "A regex pattern for filtering clusters")
 	rootCmd.PersistentFlags().
 		StringVar(&serviceStr, "service", "", "A regex pattern for filtering services")
-	rootCmd.Version = version
-
-	if err := rootCmd.Execute(); err != nil {
-		return err
-	}
-
-	return nil
 }

@@ -15,6 +15,7 @@ pkgs.buildGoApplication {
       "client"
       "cmd"
       "selector"
+      "test"
       ./go.mod
       ./go.sum
       ./main.go

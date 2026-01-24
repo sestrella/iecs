@@ -1,7 +1,8 @@
-{ config
-, lib
-, pkgs
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  ...
 }:
 
 {
@@ -36,6 +37,5 @@
       files = "go.mod";
     };
     gotest.enable = true;
-    nixpkgs-fmt.enable = true;
   };
 }

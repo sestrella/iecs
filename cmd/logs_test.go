@@ -9,6 +9,7 @@ import (
 	logstypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
+	"github.com/sestrella/iecs/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -17,7 +18,7 @@ import (
 
 func TestRunLogs_Success(t *testing.T) {
 	// Create mock objects
-	mockClient := new(MockClient)
+	mockClient := new(test.MockClient)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -76,7 +77,7 @@ func TestRunLogs_Success(t *testing.T) {
 
 func TestRunLogs_MissingLogConfiguration(t *testing.T) {
 	// Create mock objects
-	mockClient := new(MockClient)
+	mockClient := new(test.MockClient)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -126,7 +127,7 @@ func TestRunLogs_MissingLogConfiguration(t *testing.T) {
 
 func TestRunLogs_MissingLogOptions(t *testing.T) {
 	// Create mock objects
-	mockClient := new(MockClient)
+	mockClient := new(test.MockClient)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -181,7 +182,7 @@ func TestRunLogs_MissingLogOptions(t *testing.T) {
 
 func TestRunLogs_StartLiveTailError(t *testing.T) {
 	// Create mock objects
-	mockClient := new(MockClient)
+	mockClient := new(test.MockClient)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
@@ -243,7 +244,7 @@ func TestRunLogs_StartLiveTailError(t *testing.T) {
 // Test handler function behavior
 func TestRunLogs_HandlerBehavior(t *testing.T) {
 	// Create mock objects
-	mockClient := new(MockClient)
+	mockClient := new(test.MockClient)
 
 	// Setup mock responses
 	clusterArn := "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
