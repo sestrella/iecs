@@ -29,7 +29,7 @@ func TestCluster(t *testing.T) {
 		selectedCluster, err := selectors.Cluster(context.Background(), nil)
 
 		assert.NoError(t, err)
-		assert.Equal(t, &cluster, selectedCluster)
+		assert.Equal(t, cluster, *selectedCluster)
 	})
 
 	t.Run("clusterRegex is not nil", func(t *testing.T) {
@@ -53,7 +53,7 @@ func TestCluster(t *testing.T) {
 		)
 
 		assert.NoError(t, err)
-		assert.Equal(t, &cluster1, selectedCluster)
+		assert.Equal(t, cluster1, *selectedCluster)
 	})
 }
 
@@ -81,7 +81,7 @@ func TestService(t *testing.T) {
 		selectedService, err := selectors.Service(context.Background(), &cluster, nil)
 
 		assert.NoError(t, err)
-		assert.Equal(t, &service, selectedService)
+		assert.Equal(t, service, *selectedService)
 	})
 
 	t.Run("serviceRegex is not nil", func(t *testing.T) {
@@ -107,7 +107,7 @@ func TestService(t *testing.T) {
 		)
 
 		assert.NoError(t, err)
-		assert.Equal(t, &service1, selectedService)
+		assert.Equal(t, service1, *selectedService)
 	})
 }
 
@@ -139,7 +139,7 @@ func TestTask(t *testing.T) {
 		selectedTask, err := selectors.Task(context.Background(), &service, nil)
 
 		assert.NoError(t, err)
-		assert.Equal(t, &task, selectedTask)
+		assert.Equal(t, task, *selectedTask)
 	})
 
 	t.Run("taskRegex is not nil", func(t *testing.T) {
@@ -165,6 +165,51 @@ func TestTask(t *testing.T) {
 		)
 
 		assert.NoError(t, err)
-		assert.Equal(t, &task1, selectedTask)
+		assert.Equal(t, task1, *selectedTask)
+	})
+}
+
+func TestContainer(t *testing.T) {
+	t.Run("containerRegex is nil", func(t *testing.T) {
+		mockClient := new(test.MockClient)
+
+		containerName := "my-container"
+		container := types.Container{
+			Name: &containerName,
+		}
+
+		selectors := NewSelectors(mockClient, *huh.ThemeBase())
+		selectedContainer, err := selectors.Container(
+			context.Background(),
+			[]types.Container{container},
+			nil,
+		)
+
+		assert.NoError(t, err)
+		assert.Equal(t, container, *selectedContainer)
+	})
+
+	t.Run("containerRegex is not nil", func(t *testing.T) {
+		mockClient := new(test.MockClient)
+
+		containerName1 := "my-container-1"
+		container1 := types.Container{
+			Name: &containerName1,
+		}
+
+		containerName2 := "my-container-2"
+		container2 := types.Container{
+			Name: &containerName2,
+		}
+
+		selectors := NewSelectors(mockClient, *huh.ThemeBase())
+		selectedContainer, err := selectors.Container(
+			context.Background(),
+			[]types.Container{container1, container2},
+			regexp.MustCompile("my-container-1"),
+		)
+
+		assert.NoError(t, err)
+		assert.Equal(t, container1, *selectedContainer)
 	})
 }
