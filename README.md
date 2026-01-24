@@ -116,6 +116,18 @@ The following global flags are available for all commands:
 - `--cluster <cluster_pattern>`: Filters the cluster list using the specified regex pattern.
 - `--service <service_pattern>`: Filters the service list using the specified regex pattern.
 
+## Commands
+
+### exec
+
+The `exec` command allows running a remote command on a container. By default,
+it starts an interactive `/bin/bash` session.
+
+- `--task <task_pattern>`: Filters the task list using the specified regex pattern.
+- `--container <container_pattern>`: Filters the container list using the specified regex pattern.
+- `-c, --command <command>`: Command to run in the container (default: `/bin/bash`).
+- `-i, --interactive`: Toggles interactive mode (default: `true`).
+
 ## References
 
 - https://aws.github.io/aws-sdk-go-v2/docs/getting-started/
