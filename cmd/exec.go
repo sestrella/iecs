@@ -23,9 +23,9 @@ type ExecSelection struct {
 }
 
 var (
-	execTaskStr        string
+	execTask           string
 	execTaskRegex      *regexp.Regexp
-	execContainerStr   string
+	execContainer      string
 	execContainerRegex *regexp.Regexp
 	execCommand        string
 	execInteractive    bool
@@ -39,22 +39,20 @@ var execCmd = &cobra.Command{
   env AWS_PROFILE=<profile> iecs exec [flags]
   `,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
-		if execTaskStr != "" {
-			regex, err := regexp.Compile(execTaskStr)
+		var err error
+
+		if execTask != "" {
+			execTaskRegex, err = regexp.Compile(execTask)
 			if err != nil {
 				return err
 			}
-
-			execTaskRegex = regex
 		}
 
-		if execContainerStr != "" {
-			regex, err := regexp.Compile(execContainerStr)
+		if execContainer != "" {
+			execContainerRegex, err = regexp.Compile(execContainer)
 			if err != nil {
 				return err
 			}
-
-			execContainerRegex = regex
 		}
 
 		return nil
@@ -92,6 +90,42 @@ var execCmd = &cobra.Command{
 		return nil
 	},
 	Aliases: []string{"ssh"},
+}
+
+func execSelector(
+	ctx context.Context,
+	selectors selector.Selectors,
+	clusterRegex *regexp.Regexp,
+	serviceRegex *regexp.Regexp,
+	taskRegex *regexp.Regexp,
+	containerRegex *regexp.Regexp,
+) (*ExecSelection, error) {
+	cluster, err := selectors.Cluster(ctx, clusterRegex)
+	if err != nil {
+		return nil, err
+	}
+
+	service, err := selectors.Service(ctx, cluster, serviceRegex)
+	if err != nil {
+		return nil, err
+	}
+
+	task, err := selectors.Task(ctx, service, taskRegex)
+	if err != nil {
+		return nil, err
+	}
+
+	container, err := selectors.Container(ctx, task.Containers, containerRegex)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ExecSelection{
+		cluster:   cluster,
+		service:   service,
+		task:      task,
+		container: container,
+	}, nil
 }
 
 func runExec(
@@ -134,48 +168,12 @@ func runExec(
 	return cmd.Wait()
 }
 
-func execSelector(
-	ctx context.Context,
-	selectors selector.Selectors,
-	clusterRegex *regexp.Regexp,
-	serviceRegex *regexp.Regexp,
-	taskRegex *regexp.Regexp,
-	containerRegex *regexp.Regexp,
-) (*ExecSelection, error) {
-	cluster, err := selectors.Cluster(ctx, clusterRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := selectors.Service(ctx, cluster, serviceRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	task, err := selectors.Task(ctx, service, taskRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	container, err := selectors.Container(ctx, task.Containers, containerRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ExecSelection{
-		cluster:   cluster,
-		service:   service,
-		task:      task,
-		container: container,
-	}, nil
-}
-
 func init() {
 	rootCmd.AddCommand(execCmd)
 
-	execCmd.Flags().StringVar(&execTaskStr, "task", "", "A regex pattern for filtering tasks")
+	execCmd.Flags().StringVar(&execTask, "task", "", "A regex pattern for filtering tasks")
 	execCmd.Flags().
-		StringVar(&execContainerStr, "container", "", "A regex pattern for filtering containers")
+		StringVar(&execContainer, "container", "", "A regex pattern for filtering containers")
 	execCmd.Flags().StringVarP(&execCommand, "command", "c", "/bin/bash", "command to run")
 	execCmd.Flags().BoolVarP(&execInteractive, "interactive", "i", true, "toggles interactive mode")
 }

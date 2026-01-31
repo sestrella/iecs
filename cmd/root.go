@@ -39,22 +39,20 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("unsupported theme \"%s\" expecting one of: %s", themeStr, availableThemes)
 		}
 
+		var err error
+
 		if rootCluster != "" {
-			regex, err := regexp.Compile(rootCluster)
+			rootClusterRegex, err = regexp.Compile(rootCluster)
 			if err != nil {
 				return err
 			}
-
-			rootClusterRegex = regex
 		}
 
 		if rootService != "" {
-			regex, err := regexp.Compile(rootService)
+			rootServiceRegex, err = regexp.Compile(rootService)
 			if err != nil {
 				return err
 			}
-
-			rootServiceRegex = regex
 		}
 
 		return nil
