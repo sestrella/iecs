@@ -70,8 +70,8 @@ var execCmd = &cobra.Command{
 		selection, err := execSelector(
 			context.TODO(),
 			selector.NewSelectors(awsClient, *theme),
-			clusterRegex,
-			serviceRegex,
+			rootClusterRegex,
+			rootServiceRegex,
 			execTaskRegex,
 			execContainerRegex,
 		)

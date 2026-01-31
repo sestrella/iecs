@@ -11,13 +11,13 @@ import (
 )
 
 var (
-	availableThemes string
-	themeStr        string
-	theme           *huh.Theme
-	clusterStr      string
-	clusterRegex    *regexp.Regexp
-	serviceStr      string
-	serviceRegex    *regexp.Regexp
+	availableThemes  string
+	themeStr         string
+	theme            *huh.Theme
+	rootCluster      string
+	rootClusterRegex *regexp.Regexp
+	rootService      string
+	rootServiceRegex *regexp.Regexp
 )
 
 var themes = map[string]*huh.Theme{
@@ -39,22 +39,22 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("unsupported theme \"%s\" expecting one of: %s", themeStr, availableThemes)
 		}
 
-		if clusterStr != "" {
-			regex, err := regexp.Compile(clusterStr)
+		if rootCluster != "" {
+			regex, err := regexp.Compile(rootCluster)
 			if err != nil {
 				return err
 			}
 
-			clusterRegex = regex
+			rootClusterRegex = regex
 		}
 
-		if serviceStr != "" {
-			regex, err := regexp.Compile(serviceStr)
+		if rootService != "" {
+			regex, err := regexp.Compile(rootService)
 			if err != nil {
 				return err
 			}
 
-			serviceRegex = regex
+			rootServiceRegex = regex
 		}
 
 		return nil
@@ -90,7 +90,7 @@ func init() {
 			),
 		)
 	rootCmd.PersistentFlags().
-		StringVar(&clusterStr, "cluster", "", "A regex pattern for filtering clusters")
+		StringVar(&rootCluster, "cluster", "", "A regex pattern for filtering clusters")
 	rootCmd.PersistentFlags().
-		StringVar(&serviceStr, "service", "", "A regex pattern for filtering services")
+		StringVar(&rootService, "service", "", "A regex pattern for filtering services")
 }
