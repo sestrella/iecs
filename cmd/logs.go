@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/fatih/color"
@@ -46,14 +45,7 @@ var logsCmd = &cobra.Command{
 			return err
 		}
 
-		cfg, err := config.LoadDefaultConfig(context.TODO())
-		if err != nil {
-			return err
-		}
-
-		client := client.NewClient(cfg)
-
-		selection, err := logsSelector(context.TODO(), selector.NewSelectors(client, *theme))
+		selection, err := logsSelector(context.TODO(), selectors)
 		if err != nil {
 			return err
 		}
@@ -61,7 +53,7 @@ var logsCmd = &cobra.Command{
 		err = runLogs(
 			context.TODO(),
 			noColors,
-			client,
+			awsClient,
 			*selection,
 		)
 		if err != nil {

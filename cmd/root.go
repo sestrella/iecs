@@ -1,12 +1,16 @@
 package cmd
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/charmbracelet/huh"
+	"github.com/sestrella/iecs/client"
+	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
 
@@ -14,6 +18,8 @@ var (
 	availableThemes  string
 	themeStr         string
 	theme            *huh.Theme
+	awsClient        client.Client
+	selectors        selector.Selectors
 	rootCluster      string
 	rootClusterRegex *regexp.Regexp
 	rootService      string
@@ -33,13 +39,22 @@ var rootCmd = &cobra.Command{
 	Short: "An interactive CLI for ECS",
 	Long:  "Performs commons tasks on ECS, such as getting remote access or viewing logs",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		var err error
+
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			return err
+		}
+
+		awsClient := client.NewClient(cfg)
+
 		if selectedTheme, ok := themes[themeStr]; ok {
 			theme = selectedTheme
 		} else {
 			return fmt.Errorf("unsupported theme \"%s\" expecting one of: %s", themeStr, availableThemes)
 		}
 
-		var err error
+		selectors = selector.NewSelectors(awsClient, *theme)
 
 		if rootCluster != "" {
 			rootClusterRegex, err = regexp.Compile(rootCluster)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
@@ -23,14 +22,6 @@ var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Updates a serice configuration",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := config.LoadDefaultConfig(context.Background())
-		if err != nil {
-			return err
-		}
-
-		client := client.NewClient(cfg)
-		selectors := selector.NewSelectors(client, *theme)
-
 		selection, err := updateSelector(
 			context.Background(),
 			selectors,
@@ -39,7 +30,7 @@ var updateCmd = &cobra.Command{
 			return err
 		}
 
-		err = runUpdate(context.Background(), *selection, client, waitTimeoutFlag)
+		err = runUpdate(context.Background(), *selection, awsClient, waitTimeoutFlag)
 		if err != nil {
 			return err
 		}

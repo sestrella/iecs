@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"syscall"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
@@ -58,16 +57,9 @@ var execCmd = &cobra.Command{
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := config.LoadDefaultConfig(context.TODO())
-		if err != nil {
-			return err
-		}
-
-		awsClient := client.NewClient(cfg)
-
 		selection, err := execSelector(
 			context.TODO(),
-			selector.NewSelectors(awsClient, *theme),
+			selectors,
 			rootClusterRegex,
 			rootServiceRegex,
 			execTaskRegex,
