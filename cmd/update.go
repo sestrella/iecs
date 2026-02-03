@@ -24,13 +24,13 @@ var updateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		selection, err := updateSelector(
 			context.Background(),
-			selectors,
+			rootSelectors,
 		)
 		if err != nil {
 			return err
 		}
 
-		err = runUpdate(context.Background(), *selection, awsClient, waitTimeoutFlag)
+		err = runUpdate(context.Background(), *selection, rootClient, waitTimeoutFlag)
 		if err != nil {
 			return err
 		}
@@ -43,14 +43,14 @@ func updateSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
 ) (*UpdateSelection, error) {
-	serviceConfig, err := selectors.ServiceConfig(ctx, service)
+	serviceConfig, err := selectors.ServiceConfig(ctx, rootService)
 	if err != nil {
 		return nil, err
 	}
 
 	return &UpdateSelection{
-		cluster:       *cluster,
-		service:       *service,
+		cluster:       *rootCluster,
+		service:       *rootService,
 		serviceConfig: *serviceConfig,
 	}, nil
 }

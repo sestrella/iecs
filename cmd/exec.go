@@ -59,7 +59,7 @@ var execCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		selection, err := execSelector(
 			context.TODO(),
-			selectors,
+			rootSelectors,
 			execTaskRegex,
 			execContainerRegex,
 		)
@@ -69,7 +69,7 @@ var execCmd = &cobra.Command{
 
 		err = runExec(
 			context.TODO(),
-			awsClient,
+			rootClient,
 			*selection,
 			execCommand,
 			execInteractive,
@@ -88,7 +88,7 @@ func execSelector(
 	taskRegex *regexp.Regexp,
 	containerRegex *regexp.Regexp,
 ) (*ExecSelection, error) {
-	task, err := selectors.Task(ctx, service, taskRegex)
+	task, err := selectors.Task(ctx, rootService, taskRegex)
 	if err != nil {
 		return nil, err
 	}
@@ -99,8 +99,8 @@ func execSelector(
 	}
 
 	return &ExecSelection{
-		cluster:   cluster,
-		service:   service,
+		cluster:   rootCluster,
+		service:   rootService,
 		task:      task,
 		container: container,
 	}, nil

@@ -45,7 +45,7 @@ var logsCmd = &cobra.Command{
 			return err
 		}
 
-		selection, err := logsSelector(context.TODO(), selectors)
+		selection, err := logsSelector(context.TODO(), rootSelectors)
 		if err != nil {
 			return err
 		}
@@ -53,7 +53,7 @@ var logsCmd = &cobra.Command{
 		err = runLogs(
 			context.TODO(),
 			noColors,
-			awsClient,
+			rootClient,
 			*selection,
 		)
 		if err != nil {
@@ -166,19 +166,19 @@ func logsSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
 ) (*LogsSelection, error) {
-	tasks, err := selectors.Tasks(ctx, service)
+	tasks, err := selectors.Tasks(ctx, rootService)
 	if err != nil {
 		return nil, err
 	}
 
-	containers, err := selectors.ContainerDefinitions(ctx, *service.TaskDefinition)
+	containers, err := selectors.ContainerDefinitions(ctx, *rootService.TaskDefinition)
 	if err != nil {
 		return nil, err
 	}
 
 	return &LogsSelection{
-		cluster:    cluster,
-		service:    service,
+		cluster:    rootCluster,
+		service:    rootService,
 		tasks:      tasks,
 		containers: containers,
 	}, nil

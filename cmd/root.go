@@ -19,12 +19,12 @@ var (
 	availableThemes string
 	themeStr        string
 	theme           *huh.Theme
-	awsClient       client.Client
-	selectors       selector.Selectors
-	clusterStr      string
-	cluster         *types.Cluster
-	serviceStr      string
-	service         *types.Service
+	rootClient      client.Client
+	rootSelectors   selector.Selectors
+	rootClusterStr  string
+	rootCluster     *types.Cluster
+	rootServiceStr  string
+	rootService     *types.Service
 )
 
 var themes = map[string]*huh.Theme{
@@ -53,27 +53,27 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("unsupported theme \"%s\" expecting one of: %s", themeStr, availableThemes)
 		}
 
-		selectors = selector.NewSelectors(awsClient, *theme)
+		rootSelectors = selector.NewSelectors(awsClient, *theme)
 
-		if clusterStr != "" {
-			clusterRegex, err := regexp.Compile(clusterStr)
+		if rootClusterStr != "" {
+			clusterRegex, err := regexp.Compile(rootClusterStr)
 			if err != nil {
 				return err
 			}
 
-			cluster, err = selectors.Cluster(context.TODO(), clusterRegex)
+			rootCluster, err = rootSelectors.Cluster(context.TODO(), clusterRegex)
 			if err != nil {
 				return err
 			}
 		}
 
-		if serviceStr != "" {
-			serviceRegex, err := regexp.Compile(serviceStr)
+		if rootServiceStr != "" {
+			serviceRegex, err := regexp.Compile(rootServiceStr)
 			if err != nil {
 				return err
 			}
 
-			service, err = selectors.Service(context.TODO(), cluster, serviceRegex)
+			rootService, err = rootSelectors.Service(context.TODO(), rootCluster, serviceRegex)
 			if err != nil {
 				return err
 			}
@@ -113,7 +113,7 @@ func init() {
 			),
 		)
 	rootCmd.PersistentFlags().
-		StringVar(&clusterStr, "cluster", "", "A regex pattern for filtering clusters")
+		StringVar(&rootClusterStr, "cluster", "", "A regex pattern for filtering clusters")
 	rootCmd.PersistentFlags().
-		StringVar(&serviceStr, "service", "", "A regex pattern for filtering services")
+		StringVar(&rootServiceStr, "service", "", "A regex pattern for filtering services")
 }
