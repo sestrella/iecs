@@ -60,8 +60,6 @@ var execCmd = &cobra.Command{
 		selection, err := execSelector(
 			context.TODO(),
 			selectors,
-			rootClusterRegex,
-			rootServiceRegex,
 			execTaskRegex,
 			execContainerRegex,
 		)
@@ -87,21 +85,9 @@ var execCmd = &cobra.Command{
 func execSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
-	clusterRegex *regexp.Regexp,
-	serviceRegex *regexp.Regexp,
 	taskRegex *regexp.Regexp,
 	containerRegex *regexp.Regexp,
 ) (*ExecSelection, error) {
-	cluster, err := selectors.Cluster(ctx, clusterRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := selectors.Service(ctx, cluster, serviceRegex)
-	if err != nil {
-		return nil, err
-	}
-
 	task, err := selectors.Task(ctx, service, taskRegex)
 	if err != nil {
 		return nil, err

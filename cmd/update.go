@@ -43,16 +43,6 @@ func updateSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
 ) (*UpdateSelection, error) {
-	cluster, err := selectors.Cluster(ctx, rootClusterRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := selectors.Service(ctx, cluster, rootServiceRegex)
-	if err != nil {
-		return nil, err
-	}
-
 	serviceConfig, err := selectors.ServiceConfig(ctx, service)
 	if err != nil {
 		return nil, err

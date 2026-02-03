@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/huh"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
@@ -15,15 +16,15 @@ import (
 )
 
 var (
-	availableThemes  string
-	themeStr         string
-	theme            *huh.Theme
-	awsClient        client.Client
-	selectors        selector.Selectors
-	rootCluster      string
-	rootClusterRegex *regexp.Regexp
-	rootService      string
-	rootServiceRegex *regexp.Regexp
+	availableThemes string
+	themeStr        string
+	theme           *huh.Theme
+	awsClient       client.Client
+	selectors       selector.Selectors
+	clusterStr      string
+	cluster         *types.Cluster
+	serviceStr      string
+	service         *types.Service
 )
 
 var themes = map[string]*huh.Theme{
@@ -39,8 +40,6 @@ var rootCmd = &cobra.Command{
 	Short: "An interactive CLI for ECS",
 	Long:  "Performs commons tasks on ECS, such as getting remote access or viewing logs",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		var err error
-
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
 			return err
@@ -56,18 +55,29 @@ var rootCmd = &cobra.Command{
 
 		selectors = selector.NewSelectors(awsClient, *theme)
 
-		if rootCluster != "" {
-			rootClusterRegex, err = regexp.Compile(rootCluster)
+		if clusterStr != "" {
+			clusterRegex, err := regexp.Compile(clusterStr)
+			if err != nil {
+				return err
+			}
+
+			cluster, err = selectors.Cluster(context.TODO(), clusterRegex)
 			if err != nil {
 				return err
 			}
 		}
 
-		if rootService != "" {
-			rootServiceRegex, err = regexp.Compile(rootService)
+		if serviceStr != "" {
+			serviceRegex, err := regexp.Compile(serviceStr)
 			if err != nil {
 				return err
 			}
+
+			service, err = selectors.Service(context.TODO(), cluster, serviceRegex)
+			if err != nil {
+				return err
+			}
+
 		}
 
 		return nil
@@ -103,7 +113,7 @@ func init() {
 			),
 		)
 	rootCmd.PersistentFlags().
-		StringVar(&rootCluster, "cluster", "", "A regex pattern for filtering clusters")
+		StringVar(&clusterStr, "cluster", "", "A regex pattern for filtering clusters")
 	rootCmd.PersistentFlags().
-		StringVar(&rootService, "service", "", "A regex pattern for filtering services")
+		StringVar(&serviceStr, "service", "", "A regex pattern for filtering services")
 }

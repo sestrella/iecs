@@ -166,16 +166,6 @@ func logsSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
 ) (*LogsSelection, error) {
-	cluster, err := selectors.Cluster(ctx, rootClusterRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := selectors.Service(ctx, cluster, rootServiceRegex)
-	if err != nil {
-		return nil, err
-	}
-
 	tasks, err := selectors.Tasks(ctx, service)
 	if err != nil {
 		return nil, err
