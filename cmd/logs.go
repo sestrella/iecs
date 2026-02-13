@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	logsTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/fatih/color"
@@ -46,14 +45,7 @@ var logsCmd = &cobra.Command{
 			return err
 		}
 
-		cfg, err := config.LoadDefaultConfig(context.TODO())
-		if err != nil {
-			return err
-		}
-
-		client := client.NewClient(cfg)
-
-		selection, err := logsSelector(context.TODO(), selector.NewSelectors(client, *theme))
+		selection, err := logsSelector(context.TODO(), rootSelectors)
 		if err != nil {
 			return err
 		}
@@ -61,7 +53,7 @@ var logsCmd = &cobra.Command{
 		err = runLogs(
 			context.TODO(),
 			noColors,
-			client,
+			rootClient,
 			*selection,
 		)
 		if err != nil {
@@ -174,29 +166,19 @@ func logsSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
 ) (*LogsSelection, error) {
-	cluster, err := selectors.Cluster(ctx, rootClusterRegex)
+	tasks, err := selectors.Tasks(ctx, rootService)
 	if err != nil {
 		return nil, err
 	}
 
-	service, err := selectors.Service(ctx, cluster, rootServiceRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	tasks, err := selectors.Tasks(ctx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	containers, err := selectors.ContainerDefinitions(ctx, *service.TaskDefinition)
+	containers, err := selectors.ContainerDefinitions(ctx, *rootService.TaskDefinition)
 	if err != nil {
 		return nil, err
 	}
 
 	return &LogsSelection{
-		cluster:    cluster,
-		service:    service,
+		cluster:    rootCluster,
+		service:    rootService,
 		tasks:      tasks,
 		containers: containers,
 	}, nil

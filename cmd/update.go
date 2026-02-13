@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
@@ -23,23 +22,15 @@ var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Updates a serice configuration",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := config.LoadDefaultConfig(context.Background())
-		if err != nil {
-			return err
-		}
-
-		client := client.NewClient(cfg)
-		selectors := selector.NewSelectors(client, *theme)
-
 		selection, err := updateSelector(
 			context.Background(),
-			selectors,
+			rootSelectors,
 		)
 		if err != nil {
 			return err
 		}
 
-		err = runUpdate(context.Background(), *selection, client, waitTimeoutFlag)
+		err = runUpdate(context.Background(), *selection, rootClient, waitTimeoutFlag)
 		if err != nil {
 			return err
 		}
@@ -52,24 +43,14 @@ func updateSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
 ) (*UpdateSelection, error) {
-	cluster, err := selectors.Cluster(ctx, rootClusterRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := selectors.Service(ctx, cluster, rootServiceRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	serviceConfig, err := selectors.ServiceConfig(ctx, service)
+	serviceConfig, err := selectors.ServiceConfig(ctx, rootService)
 	if err != nil {
 		return nil, err
 	}
 
 	return &UpdateSelection{
-		cluster:       *cluster,
-		service:       *service,
+		cluster:       *rootCluster,
+		service:       *rootService,
 		serviceConfig: *serviceConfig,
 	}, nil
 }

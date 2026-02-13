@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"syscall"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/sestrella/iecs/client"
 	"github.com/sestrella/iecs/selector"
@@ -58,18 +57,9 @@ var execCmd = &cobra.Command{
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := config.LoadDefaultConfig(context.TODO())
-		if err != nil {
-			return err
-		}
-
-		awsClient := client.NewClient(cfg)
-
 		selection, err := execSelector(
 			context.TODO(),
-			selector.NewSelectors(awsClient, *theme),
-			rootClusterRegex,
-			rootServiceRegex,
+			rootSelectors,
 			execTaskRegex,
 			execContainerRegex,
 		)
@@ -79,7 +69,7 @@ var execCmd = &cobra.Command{
 
 		err = runExec(
 			context.TODO(),
-			awsClient,
+			rootClient,
 			*selection,
 			execCommand,
 			execInteractive,
@@ -95,22 +85,10 @@ var execCmd = &cobra.Command{
 func execSelector(
 	ctx context.Context,
 	selectors selector.Selectors,
-	clusterRegex *regexp.Regexp,
-	serviceRegex *regexp.Regexp,
 	taskRegex *regexp.Regexp,
 	containerRegex *regexp.Regexp,
 ) (*ExecSelection, error) {
-	cluster, err := selectors.Cluster(ctx, clusterRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := selectors.Service(ctx, cluster, serviceRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	task, err := selectors.Task(ctx, service, taskRegex)
+	task, err := selectors.Task(ctx, rootService, taskRegex)
 	if err != nil {
 		return nil, err
 	}
@@ -121,8 +99,8 @@ func execSelector(
 	}
 
 	return &ExecSelection{
-		cluster:   cluster,
-		service:   service,
+		cluster:   rootCluster,
+		service:   rootService,
 		task:      task,
 		container: container,
 	}, nil

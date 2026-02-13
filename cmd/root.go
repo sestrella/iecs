@@ -1,23 +1,30 @@
 package cmd
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/charmbracelet/huh"
+	"github.com/sestrella/iecs/client"
+	"github.com/sestrella/iecs/selector"
 	"github.com/spf13/cobra"
 )
 
 var (
-	availableThemes  string
-	themeStr         string
-	theme            *huh.Theme
-	rootCluster      string
-	rootClusterRegex *regexp.Regexp
-	rootService      string
-	rootServiceRegex *regexp.Regexp
+	availableThemes string
+	themeStr        string
+	theme           *huh.Theme
+	rootClient      client.Client
+	rootSelectors   selector.Selectors
+	rootClusterStr  string
+	rootCluster     *types.Cluster
+	rootServiceStr  string
+	rootService     *types.Service
 )
 
 var themes = map[string]*huh.Theme{
@@ -33,26 +40,46 @@ var rootCmd = &cobra.Command{
 	Short: "An interactive CLI for ECS",
 	Long:  "Performs commons tasks on ECS, such as getting remote access or viewing logs",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			return err
+		}
+
+		rootClient = client.NewClient(cfg)
+
 		if selectedTheme, ok := themes[themeStr]; ok {
 			theme = selectedTheme
 		} else {
 			return fmt.Errorf("unsupported theme \"%s\" expecting one of: %s", themeStr, availableThemes)
 		}
 
-		var err error
+		rootSelectors = selector.NewSelectors(rootClient, *theme)
 
-		if rootCluster != "" {
-			rootClusterRegex, err = regexp.Compile(rootCluster)
+		var clusterRegex *regexp.Regexp
+		if rootClusterStr != "" {
+			clusterRegex, err = regexp.Compile(rootClusterStr)
 			if err != nil {
 				return err
 			}
 		}
 
-		if rootService != "" {
-			rootServiceRegex, err = regexp.Compile(rootService)
+		rootCluster, err = rootSelectors.Cluster(context.TODO(), clusterRegex)
+		if err != nil {
+			return err
+		}
+
+		var serviceRegex *regexp.Regexp
+		if rootServiceStr != "" {
+			serviceRegex, err = regexp.Compile(rootServiceStr)
 			if err != nil {
 				return err
 			}
+
+		}
+
+		rootService, err = rootSelectors.Service(context.TODO(), rootCluster, serviceRegex)
+		if err != nil {
+			return err
 		}
 
 		return nil
@@ -88,7 +115,7 @@ func init() {
 			),
 		)
 	rootCmd.PersistentFlags().
-		StringVar(&rootCluster, "cluster", "", "A regex pattern for filtering clusters")
+		StringVar(&rootClusterStr, "cluster", "", "A regex pattern for filtering clusters")
 	rootCmd.PersistentFlags().
-		StringVar(&rootService, "service", "", "A regex pattern for filtering services")
+		StringVar(&rootServiceStr, "service", "", "A regex pattern for filtering services")
 }
