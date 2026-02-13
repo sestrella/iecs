@@ -45,7 +45,7 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		awsClient := client.NewClient(cfg)
+		rootClient = client.NewClient(cfg)
 
 		if selectedTheme, ok := themes[themeStr]; ok {
 			theme = selectedTheme
@@ -53,31 +53,33 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("unsupported theme \"%s\" expecting one of: %s", themeStr, availableThemes)
 		}
 
-		rootSelectors = selector.NewSelectors(awsClient, *theme)
+		rootSelectors = selector.NewSelectors(rootClient, *theme)
 
+		var clusterRegex *regexp.Regexp
 		if rootClusterStr != "" {
-			clusterRegex, err := regexp.Compile(rootClusterStr)
-			if err != nil {
-				return err
-			}
-
-			rootCluster, err = rootSelectors.Cluster(context.TODO(), clusterRegex)
+			clusterRegex, err = regexp.Compile(rootClusterStr)
 			if err != nil {
 				return err
 			}
 		}
 
+		rootCluster, err = rootSelectors.Cluster(context.TODO(), clusterRegex)
+		if err != nil {
+			return err
+		}
+
+		var serviceRegex *regexp.Regexp
 		if rootServiceStr != "" {
-			serviceRegex, err := regexp.Compile(rootServiceStr)
+			serviceRegex, err = regexp.Compile(rootServiceStr)
 			if err != nil {
 				return err
 			}
 
-			rootService, err = rootSelectors.Service(context.TODO(), rootCluster, serviceRegex)
-			if err != nil {
-				return err
-			}
+		}
 
+		rootService, err = rootSelectors.Service(context.TODO(), rootCluster, serviceRegex)
+		if err != nil {
+			return err
 		}
 
 		return nil
